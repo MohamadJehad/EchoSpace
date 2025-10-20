@@ -1,4 +1,9 @@
 
+using EchoSpace.Data;
+using EchoSpace.Data.Repositories;
+using EchoSpace.Services;
+using Microsoft.EntityFrameworkCore;
+
 namespace EchoSpace
 {
     public class Program
@@ -10,6 +15,14 @@ namespace EchoSpace
             // Add services to the container.
 
             builder.Services.AddControllers();
+
+            // Register EF Core DbContext
+            builder.Services.AddDbContext<EchoSpaceDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // Register repositories and services
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IUserService, UserService>();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
