@@ -1,0 +1,6 @@
+@EchoSpace.UI_HostAddress = http://localhost:5005
+
+GET {{EchoSpace.UI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
