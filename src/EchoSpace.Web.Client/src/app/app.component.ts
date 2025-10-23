@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
-import { UserListComponent } from './components/user-list/user-list.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
-  imports: [UserListComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
 export class AppComponent {
-  title = 'EchoSpace - Users Management';
+  title = 'EchoSpace';
 }

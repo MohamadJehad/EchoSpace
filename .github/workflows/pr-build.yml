@@ -11,16 +11,33 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    # .NET Backend Build
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '9.0.x'
         
-    - name: Restore dependencies
+    - name: Restore .NET dependencies
       run: dotnet restore EchoSpace.CleanArchitecture.sln
       
-    - name: Build project
+    - name: Build .NET project
       run: dotnet build EchoSpace.CleanArchitecture.sln --configuration Release --no-restore
       
-    - name: Run tests
+    - name: Run .NET tests
       run: dotnet test EchoSpace.CleanArchitecture.sln --configuration Release --no-build --verbosity normal
+    
+    # Angular Frontend Build
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: 'src/EchoSpace.Web.Client/package-lock.json'
+        
+    - name: Install Angular dependencies
+      working-directory: src/EchoSpace.Web.Client
+      run: npm ci
+      
+    - name: Build Angular project
+      working-directory: src/EchoSpace.Web.Client
+      run: npm run build -- --configuration production
