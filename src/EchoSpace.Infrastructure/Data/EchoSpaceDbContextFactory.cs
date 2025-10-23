@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace EchoSpace.Infrastructure.Data
 {
@@ -7,8 +8,17 @@ namespace EchoSpace.Infrastructure.Data
     {
         public EchoSpaceDbContext CreateDbContext(string[] args)
         {
-            // Connection string for design-time migrations
-            var connectionString = "Server=localhost;Database=EchoSpaceLocalDb;Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True";
+            // Build configuration from appsettings.json
+            // Note: appsettings.json is in the UI project, so we need to navigate up one level
+            var basePath = Path.Combine(Directory.GetCurrentDirectory(), "..", "EchoSpace.UI");
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(basePath)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            // Get connection string from configuration
+            var connectionString = configuration.GetConnectionString("DefaultConnection") 
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             // Create options builder
             var optionsBuilder = new DbContextOptionsBuilder<EchoSpaceDbContext>();
