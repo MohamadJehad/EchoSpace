@@ -56,6 +56,11 @@ export class AuthService {
       );
   }
 
+  googleLogin(): void {
+    // Redirect to backend Google OAuth endpoint
+    window.location.href = `${this.apiUrl}/google`;
+  }
+
   logout(): void {
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
@@ -105,6 +110,11 @@ export class AuthService {
 
   getToken(): string | null {
     return localStorage.getItem('accessToken');
+  }
+
+  // Public method to set session from OAuth callback
+  setSessionFromCallback(authResult: AuthResponse): void {
+    this.setSession(authResult);
   }
 }
 

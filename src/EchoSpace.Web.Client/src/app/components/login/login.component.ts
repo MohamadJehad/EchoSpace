@@ -50,8 +50,7 @@ export class LoginComponent {
   }
 
   loginWithGoogle() {
-    console.log('Login with Google');
-    // TODO: Implement Google OAuth
+    this.authService.googleLogin();
   }
 
   loginWithFacebook() {

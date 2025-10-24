@@ -63,8 +63,7 @@ export class RegisterComponent {
   }
 
   registerWithGoogle() {
-    console.log('Register with Google');
-    // TODO: Implement Google OAuth
+    this.authService.googleLogin();
   }
 
   registerWithFacebook() {
