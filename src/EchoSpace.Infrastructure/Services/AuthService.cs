@@ -128,6 +128,73 @@ namespace EchoSpace.Infrastructure.Services
             }
         }
 
+        public async Task<AuthResponse> GoogleLoginAsync(string email, string name, string googleId)
+        {
+            // Find existing user by email
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+            {
+                // Create new user for Google authentication
+                user = new User
+                {
+                    Id = Guid.NewGuid(),
+                    UserName = email,
+                    Email = email,
+                    Name = name,
+                    EmailConfirmed = true, // Google verifies emails
+                    LockoutEnabled = false,
+                    AccessFailedCount = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                // Create AuthProvider entry
+                var authProvider = new AuthProvider
+                {
+                    AuthId = Guid.NewGuid(),
+                    UserId = user.Id,
+                    Provider = "Google",
+                    ProviderUid = googleId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.AuthProviders.Add(authProvider);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                // User exists, check if Google auth is linked
+                var existingProvider = await _context.AuthProviders
+                    .FirstOrDefaultAsync(ap => ap.UserId == user.Id && ap.Provider == "Google");
+
+                if (existingProvider == null)
+                {
+                    // Link Google account to existing user
+                    var authProvider = new AuthProvider
+                    {
+                        AuthId = Guid.NewGuid(),
+                        UserId = user.Id,
+                        Provider = "Google",
+                        ProviderUid = googleId,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _context.AuthProviders.Add(authProvider);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            // Update last login
+            user.LastLoginAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            // Generate tokens
+            return await GenerateTokensAsync(user);
+        }
+
         private async Task<AuthResponse> GenerateTokensAsync(User user)
         {
             // Generate access token

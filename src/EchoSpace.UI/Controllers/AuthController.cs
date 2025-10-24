@@ -1,6 +1,8 @@
 using EchoSpace.Core.DTOs;
 using EchoSpace.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace EchoSpace.UI.Controllers
 {
@@ -10,11 +12,13 @@ namespace EchoSpace.UI.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory)
         {
             _authService = authService;
             _logger = logger;
+            _httpClientFactory = httpClientFactory;
         }
 
         [HttpPost("register")]
@@ -88,6 +92,109 @@ namespace EchoSpace.UI.Controllers
             {
                 _logger.LogError(ex, "Error during logout");
                 return StatusCode(500, new { message = "An error occurred during logout." });
+            }
+        }
+
+        [HttpGet("google")]
+        public IActionResult GoogleLogin()
+        {
+            var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+            var clientId = configuration["Google:ClientId"];
+            var redirectUri = configuration["OAuth:CallbackUrl"];
+            var state = Guid.NewGuid().ToString(); // CSRF protection
+            
+            // Store state in session or use a more secure method
+            HttpContext.Session.SetString("oauth_state", state);
+            
+            var googleAuthUrl = $"https://accounts.google.com/o/oauth2/v2/auth?" +
+                $"client_id={Uri.EscapeDataString(clientId!)}&" +
+                $"redirect_uri={Uri.EscapeDataString(redirectUri!)}&" +
+                $"response_type=code&" +
+                $"scope=openid email profile&" +
+                $"state={state}";
+            
+            return Redirect(googleAuthUrl);
+        }
+
+        [HttpGet("google-callback")]
+        public async Task<IActionResult> GoogleCallback([FromQuery] string code, [FromQuery] string state)
+        {
+            try
+            {
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var clientId = configuration["Google:ClientId"];
+                var clientSecret = configuration["Google:ClientSecret"];
+                var redirectUri = configuration["OAuth:CallbackUrl"];
+                var frontendCallbackUrl = configuration["OAuth:FrontendCallbackUrl"];
+
+                // Verify state (CSRF protection)
+                var storedState = HttpContext.Session.GetString("oauth_state");
+                if (string.IsNullOrEmpty(storedState) || storedState != state)
+                {
+                    return BadRequest(new { message = "Invalid state parameter." });
+                }
+
+                // Exchange authorization code for access token
+                var httpClient = _httpClientFactory.CreateClient();
+                var tokenRequest = new Dictionary<string, string>
+                {
+                    { "code", code },
+                    { "client_id", clientId! },
+                    { "client_secret", clientSecret! },
+                    { "redirect_uri", redirectUri! },
+                    { "grant_type", "authorization_code" }
+                };
+
+                var tokenResponse = await httpClient.PostAsync("https://oauth2.googleapis.com/token",
+                    new FormUrlEncodedContent(tokenRequest));
+
+                if (!tokenResponse.IsSuccessStatusCode)
+                {
+                    return BadRequest(new { message = "Failed to exchange authorization code." });
+                }
+
+                var tokenContent = await tokenResponse.Content.ReadAsStringAsync();
+                var tokenData = JsonSerializer.Deserialize<JsonElement>(tokenContent);
+                var accessToken = tokenData.GetProperty("access_token").GetString();
+
+                // Get user info from Google
+                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                var userInfoResponse = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v2/userinfo");
+                
+                if (!userInfoResponse.IsSuccessStatusCode)
+                {
+                    return BadRequest(new { message = "Failed to retrieve user information from Google." });
+                }
+
+                var userInfoContent = await userInfoResponse.Content.ReadAsStringAsync();
+                var userInfo = JsonSerializer.Deserialize<JsonElement>(userInfoContent);
+                
+                var email = userInfo.GetProperty("email").GetString();
+                var name = userInfo.GetProperty("name").GetString();
+                var googleId = userInfo.GetProperty("id").GetString();
+
+                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(googleId))
+                {
+                    string message = "Failed to retrieve user information from Google.";
+                    return BadRequest(new { message });
+                }
+
+                var authResponse = await _authService.GoogleLoginAsync(email, name, googleId);
+
+                // URL encode the tokens
+                var encodedAccessToken = Uri.EscapeDataString(authResponse.AccessToken);
+                var encodedRefreshToken = Uri.EscapeDataString(authResponse.RefreshToken);
+                var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                var encodedUser = Uri.EscapeDataString(JsonSerializer.Serialize(authResponse.User, jsonOptions));
+
+                // Redirect to Angular with tokens in URL
+                var redirectUrl = $"{frontendCallbackUrl}?accessToken={encodedAccessToken}&refreshToken={encodedRefreshToken}&user={encodedUser}";
+                return Redirect(redirectUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Google authentication");
+                return StatusCode(500, new { message = "An error occurred during Google authentication." });
             }
         }
     }

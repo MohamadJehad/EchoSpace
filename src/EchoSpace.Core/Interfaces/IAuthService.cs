@@ -8,6 +8,7 @@ namespace EchoSpace.Core.Interfaces
         Task<AuthResponse> LoginAsync(LoginRequest request);
         Task<AuthResponse> RefreshTokenAsync(string refreshToken);
         Task LogoutAsync(string refreshToken);
+        Task<AuthResponse> GoogleLoginAsync(string email, string name, string googleId);
     }
 }
 
