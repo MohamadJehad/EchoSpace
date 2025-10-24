@@ -8,8 +8,7 @@ namespace EchoSpace.Infrastructure.Data
         public EchoSpaceDbContext(DbContextOptions<EchoSpaceDbContext> options) : base(options)
         {
         }
-
-        // User Management
+        
         public DbSet<User> Users { get; set; }
 
         // Authentication Tables
