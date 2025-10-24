@@ -1,4 +1,4 @@
-using EchoSpace.Core.DTOs;
+using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Infrastructure.Data;

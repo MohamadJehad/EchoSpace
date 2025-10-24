@@ -1,4 +1,4 @@
-using EchoSpace.Core.DTOs;
+using EchoSpace.Core.DTOs.Auth;
 
 namespace EchoSpace.Core.Interfaces
 {

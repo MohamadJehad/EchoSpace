@@ -1,4 +1,4 @@
-using EchoSpace.Core.DTOs;
+using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
