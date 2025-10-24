@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Configuration files with secrets
+src/EchoSpace.UI/appsettings.json
+src/EchoSpace.UI/appsettings.Development.json
+src/EchoSpace.UI/appsettings.Production.json

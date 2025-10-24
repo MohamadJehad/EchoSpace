@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -17,11 +18,12 @@ export class LoginComponent {
 
   constructor(
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
+      password: ['', [Validators.required, Validators.minLength(10)]]
     });
   }
 
@@ -30,24 +32,25 @@ export class LoginComponent {
       this.isLoading = true;
       this.errorMessage = '';
       
-      // TODO: Implement actual login logic with your auth service
       const { email, password } = this.loginForm.value;
-      console.log('Login attempt:', { email, password });
       
-      // Simulate API call
-      setTimeout(() => {
-        this.isLoading = false;
-        // For now, just navigate to home on success
-        this.router.navigate(['/']);
-      }, 1000);
+      this.authService.login({ email, password }).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.router.navigate(['/']);
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = 'Invalid credentials';
+        }
+      });
     } else {
       this.errorMessage = 'Please fill in all fields correctly';
     }
   }
 
   loginWithGoogle() {
-    console.log('Login with Google');
-    // TODO: Implement Google OAuth
+    this.authService.googleLogin();
   }
 
   loginWithFacebook() {

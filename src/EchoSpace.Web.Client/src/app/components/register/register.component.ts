@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
@@ -17,12 +18,13 @@ export class RegisterComponent {
 
   constructor(
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {
     this.registerForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
+      password: ['', [Validators.required, Validators.minLength(10)]],
       confirmPassword: ['', [Validators.required]]
     }, { validators: this.passwordMatchValidator });
   }
@@ -43,24 +45,25 @@ export class RegisterComponent {
       this.isLoading = true;
       this.errorMessage = '';
       
-      // TODO: Implement actual registration logic with your auth service
       const { name, email, password } = this.registerForm.value;
-      console.log('Registration attempt:', { name, email, password });
       
-      // Simulate API call
-      setTimeout(() => {
-        this.isLoading = false;
-        // For now, just navigate to login on success
-        this.router.navigate(['/login']);
-      }, 1000);
+      this.authService.register({ name, email, password }).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.router.navigate(['/']);
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = error.error?.message || 'Registration failed';
+        }
+      });
     } else {
       this.errorMessage = 'Please fill in all fields correctly';
     }
   }
 
   registerWithGoogle() {
-    console.log('Register with Google');
-    // TODO: Implement Google OAuth
+    this.authService.googleLogin();
   }
 
   registerWithFacebook() {

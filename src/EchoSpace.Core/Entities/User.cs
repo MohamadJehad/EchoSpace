@@ -5,9 +5,7 @@ namespace EchoSpace.Core.Entities
 {
     public class User
     {
-        [Required]
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
         
         [Required]
@@ -18,19 +16,22 @@ namespace EchoSpace.Core.Entities
         [EmailAddress]
         [MaxLength(255)]
         public string Email { get; set; } = string.Empty;
-
-        // Authentication Fields
+        
+        [Required]
+        [MaxLength(100)]
+        public string UserName { get; set; } = string.Empty;
+        
         [MaxLength(500)]
         public string? PasswordHash { get; set; }
-
-        public bool IsEmailVerified { get; set; } = false;
         
-        public bool IsActive { get; set; } = true;
-
-        public DateTime? LockoutEnd { get; set; }
+        public bool EmailConfirmed { get; set; } = false;
+        
+        public bool LockoutEnabled { get; set; } = true;
+        
+        public DateTimeOffset? LockoutEnd { get; set; }
         
         public int AccessFailedCount { get; set; } = 0;
-
+        
         public DateTime? LastLoginAt { get; set; }
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
