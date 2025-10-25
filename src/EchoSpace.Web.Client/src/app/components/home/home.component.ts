@@ -8,12 +8,14 @@ import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.comp
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
 import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component';
+import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
+import { ToastService } from '../../services/toast.service';
 import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -45,6 +47,10 @@ export class HomeComponent implements OnInit {
   // Dropdown states
   openDropdowns: { [postId: string]: boolean } = {};
   
+  // Confirmation modal
+  showDeleteModal = false;
+  postToDelete: Post | null = null;
+  
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -56,7 +62,8 @@ export class HomeComponent implements OnInit {
   constructor(
     private router: Router,
     private authService: AuthService,
-    private postsService: PostsService
+    private postsService: PostsService,
+    private toastService: ToastService
   ) {}
   
 
@@ -226,12 +233,13 @@ export class HomeComponent implements OnInit {
         this.clearForm();
         
         this.isCreatingPost = false;
+        this.toastService.success('Success!', 'Your post has been created successfully.');
         console.log('Post created successfully:', newPost);
       },
       error: (error) => {
         console.error('Error creating post:', error);
         this.isCreatingPost = false;
-        alert('Failed to create post. Please try again.');
+        this.toastService.error('Error', 'Failed to create post. Please try again.');
       }
     });
   }
@@ -346,33 +354,51 @@ export class HomeComponent implements OnInit {
         
         this.onCancelEdit();
         this.isSavingPost = false;
+        this.toastService.success('Success!', 'Your post has been updated successfully.');
         console.log('Post updated successfully:', updatedPost);
       },
       error: (error) => {
         console.error('Error updating post:', error);
         this.isSavingPost = false;
+        this.toastService.error('Error', 'Failed to update post. Please try again.');
       }
     });
   }
 
   // Post deletion methods
   onDeletePost(post: Post): void {
-    if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-      this.isDeletingPost = true;
+    this.postToDelete = post;
+    this.showDeleteModal = true;
+  }
 
-      this.postsService.deletePost(post.postId, this.currentUser.id).subscribe({
-        next: () => {
-          // Remove the post from the array
-          this.posts = this.posts.filter(p => p.postId !== post.postId);
-          this.isDeletingPost = false;
-          console.log('Post deleted successfully');
-        },
-        error: (error) => {
-          console.error('Error deleting post:', error);
-          this.isDeletingPost = false;
-        }
-      });
-    }
+  onConfirmDelete(): void {
+    if (!this.postToDelete) return;
+
+    this.isDeletingPost = true;
+
+    this.postsService.deletePost(this.postToDelete.postId, this.currentUser.id).subscribe({
+      next: () => {
+        // Remove the post from the array
+        this.posts = this.posts.filter(p => p.postId !== this.postToDelete!.postId);
+        this.isDeletingPost = false;
+        this.showDeleteModal = false;
+        this.postToDelete = null;
+        this.toastService.success('Success!', 'Your post has been deleted successfully.');
+        console.log('Post deleted successfully');
+      },
+      error: (error) => {
+        console.error('Error deleting post:', error);
+        this.isDeletingPost = false;
+        this.showDeleteModal = false;
+        this.postToDelete = null;
+        this.toastService.error('Error', 'Failed to delete post. Please try again.');
+      }
+    });
+  }
+
+  onCancelDelete(): void {
+    this.showDeleteModal = false;
+    this.postToDelete = null;
   }
 
   onLogout(): void {

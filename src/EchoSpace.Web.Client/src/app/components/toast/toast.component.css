@@ -1,0 +1,54 @@
+/* Toast animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Apply animations */
+.toast-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Hover effects */
+button:hover {
+  transform: scale(1.05);
+  transition: transform 0.15s ease;
+}
+
+/* Focus styles for accessibility */
+button:focus {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Ensure toasts appear above everything */
+.fixed.top-4.right-4 {
+  z-index: 10000;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .fixed.top-4.right-4 {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: none;
+  }
+}

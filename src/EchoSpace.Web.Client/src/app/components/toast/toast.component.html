@@ -1,0 +1,44 @@
+<!-- Toast Container -->
+<div class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full">
+  <!-- Individual Toast -->
+  <div 
+    *ngFor="let toast of toasts; trackBy: trackByToastId"
+    [class]="'transform transition-all duration-300 ease-in-out ' + getToastClasses(toast.type)"
+    class="rounded-lg border shadow-lg p-4 flex items-start space-x-3 toast-item"
+  >
+    <!-- Icon -->
+    <div class="flex-shrink-0">
+      <svg 
+        class="w-5 h-5" 
+        [class]="getIconClasses(toast.type)"
+        fill="none" 
+        stroke="currentColor" 
+        viewBox="0 0 24 24"
+      >
+        <path 
+          stroke-linecap="round" 
+          stroke-linejoin="round" 
+          stroke-width="2" 
+          [attr.d]="getToastIcon(toast.type)"
+        />
+      </svg>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 min-w-0">
+      <h4 class="text-sm font-semibold">{{ toast.title }}</h4>
+      <p class="text-sm mt-1 opacity-90">{{ toast.message }}</p>
+    </div>
+
+    <!-- Close Button -->
+    <button
+      (click)="removeToast(toast.id)"
+      class="flex-shrink-0 ml-2 p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition"
+      aria-label="Close notification"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+</div>
