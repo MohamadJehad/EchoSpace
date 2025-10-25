@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EchoSpace.Core\EchoSpace.Core.csproj" />
+    <ProjectReference Include="..\EchoSpace.Tools\EchoSpace.Tools.csproj" />
   </ItemGroup>
 
 </Project>

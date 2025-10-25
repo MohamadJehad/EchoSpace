@@ -5,6 +5,9 @@ using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
 using EchoSpace.Infrastructure.Repositories;
 using EchoSpace.Infrastructure.Services;
+using EchoSpace.Tools.Email;
+using EchoSpace.Tools.Interfaces;
+using EchoSpace.Tools.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -142,6 +145,14 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+
+// 1. Configure the EmailSettings class to read from the "EmailSettings" section
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
+// 2. Register your EmailSender as a service
+builder.Services.AddTransient<IEmailSender, EmailSender>();
+
 
 var app = builder.Build();
 
