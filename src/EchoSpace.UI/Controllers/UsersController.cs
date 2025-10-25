@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
 using EchoSpace.Core.Interfaces;
+using System.Security.Claims;
 
 namespace EchoSpace.UI.Controllers
 {
@@ -19,6 +20,7 @@ namespace EchoSpace.UI.Controllers
             _logger = logger;
             _userService = userService;
         }
+
 
         /// <summary>
         /// Get all users

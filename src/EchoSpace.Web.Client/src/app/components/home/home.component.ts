@@ -1,130 +1,51 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
+import { PostsService } from '../../services/posts.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
-
-interface Post {
-  id: number;
-  author: {
-    name: string;
-    initials: string;
-  };
-  timeAgo: string;
-  content: string;
-  imageUrl?: string;
-  likes: number;
-  comments: number;
-  liked: boolean;
-}
-
-interface SuggestedUser {
-  id: number;
-  name: string;
-  initials: string;
-  mutualFriends: number;
-}
-
-interface TrendingTopic {
-  tag: string;
-  posts: string;
-}
+import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
+import { Post, TrendingTopic, CreatePostRequest } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarDropdownComponent, SearchBarComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
 export class HomeComponent implements OnInit {
   isLoading = false;
+  isCreatingPost = false;
+  posts: Post[] = []; // Remove mock data
+  
+  // Create post form
+  newPost = {
+    content: '',
+    imageUrl: ''
+  };
+
+  // Photo upload
+  selectedFile: File | null = null;
+  imagePreview: string | null = null;
   
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
     initials: 'JD',
-    role: 'User'
+    role: 'User',
+    id: ''
   };
 
   constructor(
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private postsService: PostsService
   ) {}
   
-  posts: Post[] = [
-    {
-      id: 1,
-      author: {
-        name: 'Sarah Johnson',
-        initials: 'SJ'
-      },
-      timeAgo: '2 hours ago',
-      content: 'Just finished an amazing project! 🎉 The journey was challenging but incredibly rewarding. Grateful for the amazing team that made this possible. #TechLife #Development',
-      imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop',
-      likes: 124,
-      comments: 18,
-      liked: false
-    },
-    {
-      id: 2,
-      author: {
-        name: 'Michael Chen',
-        initials: 'MC'
-      },
-      timeAgo: '4 hours ago',
-      content: 'Beautiful sunset at the beach today! 🌅 Sometimes you need to take a break and appreciate the simple things in life.',
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop',
-      likes: 256,
-      comments: 34,
-      liked: true
-    },
-    {
-      id: 3,
-      author: {
-        name: 'Emma Davis',
-        initials: 'ED'
-      },
-      timeAgo: '6 hours ago',
-      content: 'Excited to announce that I\'ll be speaking at TechConf 2025! Can\'t wait to share insights about modern web development and meet fellow developers. See you there! 🚀',
-      likes: 89,
-      comments: 12,
-      liked: false
-    },
-    {
-      id: 4,
-      author: {
-        name: 'Alex Rodriguez',
-        initials: 'AR'
-      },
-      timeAgo: '8 hours ago',
-      content: 'Coffee + Code = Perfect Morning ☕️ Working on something exciting. Stay tuned for updates!',
-      imageUrl: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop',
-      likes: 167,
-      comments: 23,
-      liked: false
-    },
-    {
-      id: 5,
-      author: {
-        name: 'Sophie Turner',
-        initials: 'ST'
-      },
-      timeAgo: '10 hours ago',
-      content: 'Just launched my new portfolio website! Check it out and let me know what you think. Your feedback means the world to me! 💻✨',
-      likes: 203,
-      comments: 45,
-      liked: true
-    }
-  ];
 
-  suggestedUsers: SuggestedUser[] = [
-    { id: 1, name: 'David Wilson', initials: 'DW', mutualFriends: 12 },
-    { id: 2, name: 'Lisa Anderson', initials: 'LA', mutualFriends: 8 },
-    { id: 3, name: 'Ryan Martinez', initials: 'RM', mutualFriends: 15 },
-    { id: 4, name: 'Jessica Lee', initials: 'JL', mutualFriends: 6 }
-  ];
 
   trendingTopics: TrendingTopic[] = [
     { tag: '#WebDevelopment', posts: '1.2K' },
@@ -150,7 +71,8 @@ export class HomeComponent implements OnInit {
           name: user.username || user.name || 'User',
           email: user.email || '',
           initials: this.getInitials(user.username || user.name || user.email || 'U'),
-          role: user.role || 'User'
+          role: user.role || 'User',
+          id: user.id || ''
         };
       } else {
         // Fallback: Try to get from localStorage
@@ -161,7 +83,8 @@ export class HomeComponent implements OnInit {
             name: parsedUser.username || parsedUser.name || 'User',
             email: parsedUser.email || '',
             initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U'),
-            role: parsedUser.role || 'User'
+            role: parsedUser.role || 'User',
+            id: parsedUser.id || ''
           };
         }
       }
@@ -186,15 +109,176 @@ export class HomeComponent implements OnInit {
   }
 
   loadPosts(): void {
-    // In a real app, this would fetch posts from an API
-    console.log('Posts loaded');
+    this.isLoading = true;
+    this.postsService.getRecentPosts(20).subscribe({
+      next: (posts) => {
+        this.posts = posts.map(post => this.transformPostForDisplay(post));
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading posts:', error);
+        this.isLoading = false;
+        // Fallback to empty array or show error message
+        this.posts = [];
+      }
+    });
   }
 
-  likePost(postId: number): void {
-    const post = this.posts.find(p => p.id === postId);
+  private transformPostForDisplay(apiPost: any): Post {
+    // Use backend author information if available, otherwise fallback to current user
+    const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
+    const authorUserName = apiPost.authorUserName || apiPost.author?.username || '';
+    
+    return {
+      ...apiPost,
+      timeAgo: this.calculateTimeAgo(apiPost.createdAt),
+      author: {
+        name: authorName,
+        initials: this.getInitials(authorName),
+        userId: apiPost.userId
+      }
+    };
+  }
+
+  private transformNewPostForDisplay(apiPost: any): Post {
+    // For newly created posts, use current user info if author info is not available
+    const authorName = apiPost.authorName || apiPost.author?.name || this.currentUser.name || 'Unknown User';
+    const authorUserName = apiPost.authorUserName || apiPost.author?.username || this.currentUser.email || '';
+    
+    return {
+      ...apiPost,
+      timeAgo: this.calculateTimeAgo(apiPost.createdAt),
+      author: {
+        name: authorName,
+        initials: this.getInitials(authorName),
+        userId: apiPost.userId
+      }
+    };
+  }
+
+  private calculateTimeAgo(createdAt: string): string {
+    const now = new Date();
+    const postDate = new Date(createdAt);
+    const diffInSeconds = Math.floor((now.getTime() - postDate.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  }
+
+  likePost(postId: string): void {
+    const post = this.posts.find(p => p.postId === postId);
     if (post) {
-      post.liked = !post.liked;
-      post.likes += post.liked ? 1 : -1;
+      // TODO: Implement like/unlike API call
+      post.isLikedByCurrentUser = !post.isLikedByCurrentUser;
+      post.likesCount += post.isLikedByCurrentUser ? 1 : -1;
+    }
+  }
+
+  createPost(): void {
+    if (!this.newPost.content.trim()) {
+      alert('Please enter some content for your post');
+      return;
+    }
+
+    if (!this.currentUser.id) {
+      alert('User not authenticated. Please log in again.');
+      return;
+    }
+
+    this.isCreatingPost = true;
+
+    // Determine image URL - use preview if file selected, otherwise use manual URL
+    let imageUrl = this.newPost.imageUrl.trim() || undefined;
+    if (this.imagePreview && this.selectedFile) {
+      imageUrl = this.imagePreview; // Use data URL for now
+    }
+
+    const createPostRequest: CreatePostRequest = {
+      userId: this.currentUser.id,
+      content: this.newPost.content.trim(),
+      imageUrl: ""
+    };
+
+    this.postsService.createPost(createPostRequest).subscribe({
+      next: (newPost) => {
+        // For newly created posts, use current user info if author info is not available
+        const transformedPost = this.transformNewPostForDisplay(newPost);
+        // Add to the beginning of the posts array
+        this.posts.unshift(transformedPost);
+        
+        // Reset form
+        this.clearForm();
+        
+        this.isCreatingPost = false;
+        console.log('Post created successfully:', newPost);
+      },
+      error: (error) => {
+        console.error('Error creating post:', error);
+        this.isCreatingPost = false;
+        alert('Failed to create post. Please try again.');
+      }
+    });
+  }
+
+  onImageUrlChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.newPost.imageUrl = target.value;
+  }
+
+  clearForm(): void {
+    this.newPost = {
+      content: '',
+      imageUrl: ''
+    };
+    this.selectedFile = null;
+    this.imagePreview = null;
+  }
+
+  onPhotoClick(): void {
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    fileInput?.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file (JPG, PNG, GIF, etc.)');
+        return;
+      }
+
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+
+      this.selectedFile = file;
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.imagePreview = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeSelectedImage(): void {
+    this.selectedFile = null;
+    this.imagePreview = null;
+    this.newPost.imageUrl = '';
+    
+    // Reset file input
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
     }
   }
 
@@ -204,5 +288,9 @@ export class HomeComponent implements OnInit {
     
     // Navigate to login page
     this.router.navigate(['/login']);
+  }
+
+  navigateToSearch(): void {
+    this.router.navigate(['/search']);
   }
 }

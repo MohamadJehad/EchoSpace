@@ -96,7 +96,12 @@ namespace EchoSpace.Core.Services
                 UpdatedAt = post.UpdatedAt,
                 LikesCount = post.Likes?.Count ?? 0,
                 CommentsCount = post.Comments?.Count ?? 0,
-                IsLikedByCurrentUser = false // This would need to be set based on current user context
+                IsLikedByCurrentUser = false, // This would need to be set based on current user context
+                
+                // Author information from User navigation property
+                AuthorName = post.User?.Name ?? string.Empty,
+                AuthorEmail = post.User?.Email ?? string.Empty,
+                AuthorUserName = post.User?.UserName ?? string.Empty
             };
         }
     }
