@@ -3,32 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
-
-interface Post {
-  id: number;
-  author: {
-    name: string;
-    initials: string;
-  };
-  timeAgo: string;
-  content: string;
-  imageUrl?: string;
-  likes: number;
-  comments: number;
-  liked: boolean;
-}
-
-interface SuggestedUser {
-  id: number;
-  name: string;
-  initials: string;
-  mutualFriends: number;
-}
-
-interface TrendingTopic {
-  tag: string;
-  posts: string;
-}
+import { Post, SuggestedUser, TrendingTopic } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
