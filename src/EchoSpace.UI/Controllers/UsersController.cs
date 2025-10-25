@@ -21,6 +21,43 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
+        /// Get suggested users for the current user
+        /// </summary>
+        [HttpGet("suggested")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<object>>> GetSuggestedUsers([FromQuery] int count = 10, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                _logger.LogInformation("Getting suggested users (count: {Count})", count);
+                var users = await _userService.GetAllAsync();
+                
+                // Transform to suggested user format
+                var suggestedUsers = users
+                    .Where(u => u.Role == Core.Enums.UserRole.User) // Only regular users
+                    .OrderByDescending(u => u.CreatedAt) // Most recent first
+                    .Take(count)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        name = u.Name,
+                        username = u.UserName,
+                        email = u.Email,
+                        createdAt = u.CreatedAt,
+                        postsCount = u.Posts?.Count ?? 0
+                    })
+                    .ToList();
+
+                return Ok(suggestedUsers);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting suggested users");
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
+
+        /// <summary>
         /// Get all users
         /// </summary>
         [HttpGet]
