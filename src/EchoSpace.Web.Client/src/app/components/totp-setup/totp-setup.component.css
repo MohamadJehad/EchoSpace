@@ -1,0 +1,36 @@
+/* Custom styles for TOTP setup component */
+input[type="text"] {
+  letter-spacing: 0.5em;
+}
+
+input[type="text"]:focus {
+  letter-spacing: 0.5em;
+}
+
+/* QR Code styling */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Animation for step transitions */
+.step-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Copy button animation */
+@keyframes copySuccess {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.copy-success {
+  animation: copySuccess 0.3s ease-in-out;
+}

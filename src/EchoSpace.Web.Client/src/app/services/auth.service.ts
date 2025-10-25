@@ -18,6 +18,7 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  requiresTotp?: boolean;
   user: {
     id: string;
     name: string;
@@ -25,6 +26,26 @@ export interface AuthResponse {
     username?: string;
     role?: string;
   };
+}
+
+export interface TotpSetupRequest {
+  email: string;
+}
+
+export interface TotpSetupResponse {
+  qrCodeUrl: string;
+  secretKey: string;
+  manualEntryKey: string;
+}
+
+export interface TotpVerificationRequest {
+  email: string;
+  code: string;
+}
+
+export interface EmailVerificationRequest {
+  email: string;
+  code: string;
 }
 
 @Injectable({
@@ -139,5 +160,26 @@ export class AuthService {
       newPassword,
       confirmPassword,
     });
+  }
+
+  // TOTP Methods
+  setupTotp(email: string): Observable<TotpSetupResponse> {
+    return this.http.post<TotpSetupResponse>(`${this.apiUrl}/setup-totp`, { email });
+  }
+
+  verifyTotp(email: string, code: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/verify-totp`, { email, code });
+  }
+
+  sendEmailVerification(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/send-email-verification`, { email });
+  }
+
+  verifyEmail(email: string, code: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/verify-email`, { email, code });
+  }
+
+  setupTotpForExistingUser(email: string): Observable<TotpSetupResponse> {
+    return this.http.post<TotpSetupResponse>(`${this.apiUrl}/setup-totp-for-existing-user`, { email });
   }
 }
