@@ -366,3 +366,6 @@ FodyWeavers.xsd
 src/EchoSpace.UI/appsettings.json
 src/EchoSpace.UI/appsettings.Development.json
 src/EchoSpace.UI/appsettings.Production.json
+
+# Terraform
+Terraform/
