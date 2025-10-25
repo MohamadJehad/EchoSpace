@@ -7,12 +7,13 @@ import { PostsService } from '../../services/posts.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
-import { Post, TrendingTopic, CreatePostRequest } from '../../interfaces';
+import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component';
+import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -30,6 +31,19 @@ export class HomeComponent implements OnInit {
   // Photo upload
   selectedFile: File | null = null;
   imagePreview: string | null = null;
+  
+  // Post editing
+  editingPost: Post | null = null;
+  editPostForm = {
+    content: '',
+    imageUrl: ''
+  };
+  isEditingPost = false;
+  isSavingPost = false;
+  isDeletingPost = false;
+  
+  // Dropdown states
+  openDropdowns: { [postId: string]: boolean } = {};
   
   currentUser = {
     name: 'John Doe',
@@ -279,6 +293,85 @@ export class HomeComponent implements OnInit {
     const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
+    }
+  }
+
+  // Post dropdown methods
+  togglePostDropdown(postId: string): void {
+    this.openDropdowns[postId] = !this.openDropdowns[postId];
+  }
+
+  isDropdownOpen(postId: string): boolean {
+    return this.openDropdowns[postId] || false;
+  }
+
+  // Post editing methods
+  onEditPost(post: Post): void {
+    this.editingPost = post;
+    this.editPostForm = {
+      content: post.content,
+      imageUrl: post.imageUrl || ''
+    };
+    this.isEditingPost = true;
+  }
+
+  onCancelEdit(): void {
+    this.editingPost = null;
+    this.editPostForm = {
+      content: '',
+      imageUrl: ''
+    };
+    this.isEditingPost = false;
+  }
+
+  onSaveEdit(): void {
+    if (!this.editingPost || !this.editPostForm.content.trim()) {
+      return;
+    }
+
+    this.isSavingPost = true;
+
+    const updateRequest: UpdatePostRequest = {
+      content: this.editPostForm.content.trim(),
+      imageUrl: this.editPostForm.imageUrl || undefined
+    };
+
+    this.postsService.updatePost(this.editingPost.postId, updateRequest, this.currentUser.id).subscribe({
+      next: (updatedPost) => {
+        // Find and update the post in the array
+        const index = this.posts.findIndex(p => p.postId === this.editingPost!.postId);
+        if (index !== -1) {
+          this.posts[index] = this.transformPostForDisplay(updatedPost);
+        }
+        
+        this.onCancelEdit();
+        this.isSavingPost = false;
+        console.log('Post updated successfully:', updatedPost);
+      },
+      error: (error) => {
+        console.error('Error updating post:', error);
+        this.isSavingPost = false;
+      }
+    });
+  }
+
+  // Post deletion methods
+  onDeletePost(post: Post): void {
+    if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      this.isDeletingPost = true;
+
+      this.postsService.deletePost(post.postId, this.currentUser.id).subscribe({
+        next: () => {
+          // Remove the post from the array
+          this.posts = this.posts.filter(p => p.postId !== post.postId);
+          this.isDeletingPost = false;
+          console.log('Post deleted successfully');
+        },
+        error: (error) => {
+          console.error('Error deleting post:', error);
+          this.isDeletingPost = false;
+        }
+      });
     }
   }
 
