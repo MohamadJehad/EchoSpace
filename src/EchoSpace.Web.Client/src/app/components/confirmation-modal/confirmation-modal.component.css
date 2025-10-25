@@ -1,0 +1,43 @@
+/* Modal animations */
+.modal-enter {
+  animation: modalEnter 0.3s ease-out;
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Ensure modal appears above everything */
+.fixed.inset-0 {
+  z-index: 9999;
+}
+
+/* Smooth transitions for modal content */
+.bg-white.rounded-2xl {
+  animation: modalEnter 0.3s ease-out;
+}
+
+/* Focus styles for accessibility */
+button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Hover effects */
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  transition: transform 0.15s ease;
+}
+
+/* Loading state styling */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

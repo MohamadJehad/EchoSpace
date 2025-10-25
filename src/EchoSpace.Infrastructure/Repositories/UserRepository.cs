@@ -16,7 +16,9 @@ namespace EchoSpace.Infrastructure.Repositories
 
         public async Task<IEnumerable<User>> GetAllAsync()
         {
-            return await _dbContext.Users.AsNoTracking().ToListAsync();
+            return await _dbContext.Users
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task<User?> GetByIdAsync(Guid id)

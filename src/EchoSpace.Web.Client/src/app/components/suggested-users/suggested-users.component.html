@@ -1,0 +1,68 @@
+<div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6 max-w-sm mx-auto lg:max-w-none">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="font-semibold text-gray-900">Suggested for you</h3>
+    <button 
+      (click)="onRefresh()" 
+      [disabled]="isLoading"
+      class="p-1 rounded-full hover:bg-gray-100 transition disabled:opacity-50"
+      title="Refresh suggestions"
+    >
+      <svg class="w-4 h-4 text-gray-600" [class.animate-spin]="isLoading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="space-y-4">
+    <div *ngFor="let item of [1,2,3,4]; trackBy: trackByIndex" class="flex items-center space-x-3 animate-pulse">
+      <div class="w-10 h-10 rounded-full bg-gray-300"></div>
+      <div class="flex-1 space-y-2">
+        <div class="h-3 bg-gray-300 rounded w-3/4"></div>
+        <div class="h-2 bg-gray-300 rounded w-1/2"></div>
+      </div>
+      <div class="w-16 h-6 bg-gray-300 rounded"></div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && suggestedUsers.length === 0" class="text-center py-8">
+    <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+    <p class="text-gray-500 text-sm">No suggestions available</p>
+  </div>
+
+  <!-- Suggested Users List -->
+  <div *ngIf="!isLoading && suggestedUsers.length > 0" class="space-y-3">
+    <div *ngFor="let user of suggestedUsers; trackBy: trackByUserId" class="suggested-user-item group hover:bg-gray-50 rounded-lg p-2 transition-colors">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          {{ user.initials }}
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col user-info">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <p class="user-name font-medium text-gray-900 text-sm truncate" [title]="user.name">{{ user.name }}</p>
+              <p class="user-username text-xs text-gray-600 truncate" [title]="user.username">{{ '@' + user.username }}</p>
+              <p class="text-xs text-gray-500">{{ user.postsCount }} posts</p>
+            </div>
+            <button 
+              (click)="onFollowUser(user.id)"
+              class="follow-button text-primary-600 hover:text-primary-700 text-xs font-medium px-2 py-1 rounded-full hover:bg-primary-50 transition flex-shrink-0 whitespace-nowrap"
+            >
+              Follow
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View All Button -->
+  <div *ngIf="!isLoading && suggestedUsers.length > 0" class="mt-6 pt-4 border-t border-gray-100">
+    <button class="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-medium py-2 hover:bg-gray-50 rounded-lg transition">
+      View all suggestions
+    </button>
+  </div>
+</div>

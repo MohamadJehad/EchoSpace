@@ -1,0 +1,59 @@
+/* Responsive design improvements */
+.create-post-card {
+  @apply bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6;
+}
+
+.post-card {
+  @apply bg-white rounded-2xl shadow-lg mb-4 sm:mb-6 overflow-hidden hover:shadow-xl transition;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .create-post-card {
+    @apply p-4 mb-4;
+  }
+  
+  .post-card {
+    @apply mb-4;
+  }
+}
+
+/* Ensure proper text wrapping */
+.post-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Button responsive behavior */
+.action-buttons {
+  @apply flex flex-wrap gap-2;
+}
+
+.action-button {
+  @apply flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-gray-600 text-sm;
+}
+
+/* Ensure sidebar doesn't overflow */
+.sidebar-container {
+  @apply max-w-sm mx-auto lg:max-w-none;
+}
+
+/* Grid responsive behavior */
+.main-grid {
+  @apply grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-12 gap-4 lg:gap-6;
+}
+
+/* Center feed responsive */
+.center-feed {
+  @apply lg:col-span-8 xl:col-span-6;
+}
+
+/* Right sidebar responsive */
+.right-sidebar {
+  @apply hidden lg:block lg:col-span-4 xl:col-span-3;
+}
+
+/* Left sidebar responsive */
+.left-sidebar {
+  @apply hidden xl:block xl:col-span-3;
+}

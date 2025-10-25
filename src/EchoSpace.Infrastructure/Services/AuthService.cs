@@ -246,7 +246,13 @@ namespace EchoSpace.Infrastructure.Services
                 new Claim(ClaimTypes.Name, user.Name),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                
+                // Add JWT standard claims for user ID
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim("id", user.Id.ToString()),
+                new Claim("user_id", user.Id.ToString()),
+                new Claim("userId", user.Id.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
