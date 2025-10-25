@@ -12,11 +12,13 @@ namespace EchoSpace.UI.Controllers
     {
         private readonly ILogger<SuggestedUsersController> _logger;
         private readonly IUserService _userService;
+        private readonly IPostService _postService;
 
-        public SuggestedUsersController(ILogger<SuggestedUsersController> logger, IUserService userService)
+        public SuggestedUsersController(ILogger<SuggestedUsersController> logger, IUserService userService, IPostService postService)
         {
             _logger = logger;
             _userService = userService;
+            _postService = postService;
         }
 
         /// <summary>
@@ -54,22 +56,31 @@ namespace EchoSpace.UI.Controllers
 
                 var users = await _userService.GetAllAsync();
 
-                // Transform to suggested user format
-                var suggestedUsers = users
+                // Filter and order users first
+                var filteredUsers = users
                     .Where(u => u.Role == Core.Enums.UserRole.User) // Only regular users
                     .Where(u => currentUserId == null || u.Id != currentUserId) // Exclude current user if authenticated
                     .OrderByDescending(u => u.CreatedAt) // Most recent first
                     .Take(count)
-                    .Select(u => new
-                    {
-                        id = u.Id,
-                        name = u.Name,
-                        username = u.UserName,
-                        email = u.Email,
-                        createdAt = u.CreatedAt,
-                        postsCount = u.Posts?.Count ?? 0
-                    })
                     .ToList();
+
+                // Get posts count for each user
+                var suggestedUsers = new List<object>();
+                foreach (var user in filteredUsers)
+                {
+                    var userPosts = await _postService.GetByUserIdAsync(user.Id);
+                    var postsCount = userPosts.Count();
+
+                    suggestedUsers.Add(new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        username = user.UserName,
+                        email = user.Email,
+                        createdAt = user.CreatedAt,
+                        postsCount = postsCount
+                    });
+                }
 
                 return Ok(suggestedUsers);
             }

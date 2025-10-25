@@ -18,7 +18,6 @@ namespace EchoSpace.Infrastructure.Repositories
         {
             return await _dbContext.Users
                 .AsNoTracking()
-                .Include(u => u.Posts)
                 .ToListAsync();
         }
 
