@@ -6,6 +6,7 @@ interface UserData {
   name: string;
   email: string;
   initials: string;
+  role?: string;
 }
 
 @Component({
@@ -19,8 +20,13 @@ export class NavbarDropdownComponent implements OnInit {
   @Input() currentUser: UserData = {
     name: 'User',
     email: '',
-    initials: 'U'
+    initials: 'U',
+    role: 'User'
   };
+
+  get isAdmin(): boolean {
+    return this.currentUser.role === 'Admin';
+  }
   
   @Output() logout = new EventEmitter<void>();
   

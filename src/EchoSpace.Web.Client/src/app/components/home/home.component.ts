@@ -43,7 +43,8 @@ export class HomeComponent implements OnInit {
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
-    initials: 'JD'
+    initials: 'JD',
+    role: 'User'
   };
 
   constructor(
@@ -147,7 +148,8 @@ export class HomeComponent implements OnInit {
         this.currentUser = {
           name: user.username || user.name || 'User',
           email: user.email || '',
-          initials: this.getInitials(user.username || user.name || user.email || 'U')
+          initials: this.getInitials(user.username || user.name || user.email || 'U'),
+          role: user.role || 'User'
         };
       } else {
         // Fallback: Try to get from localStorage
@@ -157,7 +159,8 @@ export class HomeComponent implements OnInit {
           this.currentUser = {
             name: parsedUser.username || parsedUser.name || 'User',
             email: parsedUser.email || '',
-            initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U')
+            initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U'),
+            role: parsedUser.role || 'User'
           };
         }
       }

@@ -89,8 +89,13 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     };
 });
 
-// Add Authorization
-builder.Services.AddAuthorization();
+// Add Authorization with policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("ModeratorOrAdmin", policy => policy.RequireRole("Admin", "Moderator"));
+    options.AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser());
+});
 
 // Register repositories and services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
