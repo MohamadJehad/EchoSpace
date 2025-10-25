@@ -8,7 +8,7 @@ import { Post, SuggestedUser, TrendingTopic } from '../../interfaces';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarDropdownComponent],
+  imports: [CommonModule, RouterModule, NavbarDropdownComponent, SearchBarComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
