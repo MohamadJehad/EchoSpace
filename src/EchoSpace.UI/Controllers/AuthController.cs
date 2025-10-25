@@ -426,11 +426,7 @@ namespace EchoSpace.UI.Controllers
                     return BadRequest(new { message = "User not found." });
                 }
 
-                // Check if user already has TOTP set up
-                if (!string.IsNullOrEmpty(user.TotpSecretKey))
-                {
-                    return BadRequest(new { message = "TOTP is already set up for this user." });
-                }
+                // Allow reconfiguration - we'll generate a new TOTP secret even if one exists
 
                 var response = await _totpService.SetupTotpAsync(request.Email);
                 return Ok(response);

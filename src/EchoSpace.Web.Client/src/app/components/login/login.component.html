@@ -1,5 +1,5 @@
 <!-- Login with TOTP Support -->
-@if (!showTotpVerification && !showTotpSetup) {
+@if (!showTotpVerification && !showTotpSetup && !showTotpReconfigure) {
   <!-- Regular Login Form -->
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
@@ -184,6 +184,45 @@
       </div>
     </div>
   </div>
+} @else if (showTotpReconfigure) {
+  <!-- TOTP Reconfiguration -->
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+      <!-- Header -->
+      <div class="text-center">
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+          <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Reconfigure Authenticator</h1>
+        <p class="text-gray-600">Set up your authenticator app with a new QR code</p>
+      </div>
+
+      <!-- TOTP Setup Card -->
+      <div class="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+        <!-- Error Message -->
+        @if (errorMessage) {
+          <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {{ errorMessage }}
+          </div>
+        }
+
+        <div class="text-center">
+          <p class="text-gray-600 mb-4">This will generate a new QR code for your authenticator app.</p>
+          <p class="text-sm text-yellow-600 mb-4">
+            ⚠️ <strong>Warning:</strong> Your old authenticator setup will no longer work after this.
+          </p>
+          
+          <app-totp-setup 
+            [email]="userEmail" 
+            (completed)="onTotpReconfigureCompleted()"
+            (back)="onTotpReconfigureBack()">
+          </app-totp-setup>
+        </div>
+      </div>
+    </div>
+  </div>
 } @else {
   <!-- TOTP Verification -->
   <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -243,6 +282,18 @@
             }
           </button>
         </form>
+
+        <!-- Reconfigure TOTP Option -->
+        <!-- <div class="text-center border-t pt-4">
+          <p class="text-sm text-gray-600 mb-3">Having trouble with your authenticator?</p>
+          <button
+            type="button"
+            (click)="onReconfigureTotp()"
+            class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-200 mb-3"
+          >
+            🔄 Reconfigure Authenticator
+          </button>
+        </div> -->
 
         <!-- Back Button -->
         <div class="text-center">

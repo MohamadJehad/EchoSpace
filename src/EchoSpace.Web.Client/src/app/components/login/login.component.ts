@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { TotpSetupComponent } from '../totp-setup/totp-setup.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, TotpSetupComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
@@ -18,6 +19,7 @@ export class LoginComponent {
   errorMessage = '';
   showTotpVerification = false;
   showTotpSetup = false;
+  showTotpReconfigure = false;
   userEmail = '';
 
   constructor(
@@ -103,7 +105,28 @@ export class LoginComponent {
   onBackToLogin() {
     this.showTotpVerification = false;
     this.showTotpSetup = false;
+    this.showTotpReconfigure = false;
     this.totpForm.reset();
+    this.errorMessage = '';
+  }
+
+  onReconfigureTotp() {
+    // Show TOTP reconfiguration option
+    this.showTotpVerification = false;
+    this.showTotpReconfigure = true;
+    this.errorMessage = '';
+  }
+
+  onTotpReconfigureCompleted() {
+    // TOTP reconfiguration completed, now show verification
+    this.showTotpReconfigure = false;
+    this.showTotpVerification = true;
+  }
+
+  onTotpReconfigureBack() {
+    // Go back to TOTP verification
+    this.showTotpReconfigure = false;
+    this.showTotpVerification = true;
     this.errorMessage = '';
   }
 

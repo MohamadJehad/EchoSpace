@@ -40,6 +40,7 @@ export class TotpSetupComponent {
     this.isLoading = true;
     this.errorMessage = '';
     
+    // Try regular setup first, if it fails (user exists), use existing user setup
     this.authService.setupTotp(this.email).subscribe({
       next: (response) => {
         this.isLoading = false;
@@ -47,8 +48,18 @@ export class TotpSetupComponent {
         this.currentStep = 1;
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Failed to setup TOTP';
+        // If regular setup fails, try setup for existing user (allows reconfiguration)
+        this.authService.setupTotpForExistingUser(this.email).subscribe({
+          next: (response) => {
+            this.isLoading = false;
+            this.totpData = response;
+            this.currentStep = 1;
+          },
+          error: (error) => {
+            this.isLoading = false;
+            this.errorMessage = error.error?.message || 'Failed to setup TOTP';
+          }
+        });
       }
     });
   }
