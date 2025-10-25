@@ -1,6 +1,11 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
@@ -9,7 +14,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './forgot-password.component.html',
-  styleUrls: ['./forgot-password.component.css']
+  styleUrls: ['./forgot-password.component.css'],
 })
 export class ForgotPasswordComponent {
   forgotPasswordForm: FormGroup;
@@ -23,7 +28,7 @@ export class ForgotPasswordComponent {
     private authService: AuthService
   ) {
     this.forgotPasswordForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]]
+      email: ['', [Validators.required, Validators.email]],
     });
   }
 
@@ -32,23 +37,20 @@ export class ForgotPasswordComponent {
       this.isLoading = true;
       this.errorMessage = '';
       this.successMessage = '';
-      
+
       const { email } = this.forgotPasswordForm.value;
-      
+
       this.authService.forgotPassword(email).subscribe({
         next: (response) => {
           this.isLoading = false;
-          this.successMessage = 'Password reset instructions have been sent to your email address.';
+          this.successMessage =
+            'Password reset instructions have been sent to your email address.';
           this.forgotPasswordForm.reset();
         },
         error: (error) => {
           this.isLoading = false;
-          if (error.status === 404) {
-            this.errorMessage = 'No account found with this email address.';
-          } else {
-            this.errorMessage = 'An error occurred. Please try again later.';
-          }
-        }
+          this.errorMessage = 'An error occurred. Please try again later.';
+        },
       });
     } else {
       this.errorMessage = 'Please enter a valid email address.';

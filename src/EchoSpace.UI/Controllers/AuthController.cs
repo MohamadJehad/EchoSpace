@@ -4,6 +4,8 @@ using EchoSpace.Tools.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using EchoSpace.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace EchoSpace.UI.Controllers
@@ -16,13 +18,15 @@ namespace EchoSpace.UI.Controllers
         private readonly ILogger<AuthController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IEmailSender _emailSender;
+        private readonly EchoSpaceDbContext _context;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context)
         {
             _authService = authService;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _emailSender = emailSender;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -259,6 +263,7 @@ namespace EchoSpace.UI.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
+           
             try
             {
                 var success = await _authService.ResetPasswordAsync(request);
@@ -276,6 +281,41 @@ namespace EchoSpace.UI.Controllers
             {
                 _logger.LogError(ex, "Error during password reset");
                 return StatusCode(500, new { message = "An error occurred while resetting the password." });
+            }
+        }
+
+        [HttpGet("debug-reset-tokens")]
+        public async Task<IActionResult> DebugResetTokens()
+        {
+            try
+            {
+                // This is a debug endpoint to help troubleshoot token issues
+                // Remove this in production
+                var tokens = await _context.PasswordResetTokens
+                    .Include(t => t.User)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Take(10)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.Token,
+                        t.UserId,
+                        t.ExpiresAt,
+                        t.IsUsed,
+                        t.CreatedAt,
+                        UserEmail = t.User.Email
+                    })
+                    .ToListAsync();
+
+                return Ok(new { 
+                    message = "Debug endpoint - remove in production",
+                    tokens = tokens
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving debug tokens");
+                return StatusCode(500, new { message = "An error occurred while retrieving debug tokens." });
             }
         }
     }

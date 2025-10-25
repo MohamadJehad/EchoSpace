@@ -29,9 +29,20 @@ namespace EchoSpace.Tools.Services
             email.To.Add(MailboxAddress.Parse(to));
             email.Subject = subject;
 
-            // Set the body as HTML
+            // Set the body with both HTML and plain text versions
             var builder = new BodyBuilder();
             builder.HtmlBody = body;
+            
+            // Create a plain text version by stripping HTML tags
+            var plainTextBody = System.Text.RegularExpressions.Regex.Replace(body, "<[^>]*>", "")
+                .Replace("&nbsp;", " ")
+                .Replace("&amp;", "&")
+                .Replace("&lt;", "<")
+                .Replace("&gt;", ">")
+                .Replace("&quot;", "\"")
+                .Trim();
+            
+            builder.TextBody = plainTextBody;
             email.Body = builder.ToMessageBody();
 
             // Create the SMTP client and send the email
@@ -74,9 +85,20 @@ namespace EchoSpace.Tools.Services
             email.Cc.Add(MailboxAddress.Parse(cc));
             email.Subject = subject;
 
-            // Set the body as HTML
+            // Set the body with both HTML and plain text versions
             var builder = new BodyBuilder();
             builder.HtmlBody = body;
+            
+            // Create a plain text version by stripping HTML tags
+            var plainTextBody = System.Text.RegularExpressions.Regex.Replace(body, "<[^>]*>", "")
+                .Replace("&nbsp;", " ")
+                .Replace("&amp;", "&")
+                .Replace("&lt;", "<")
+                .Replace("&gt;", ">")
+                .Replace("&quot;", "\"")
+                .Trim();
+            
+            builder.TextBody = plainTextBody;
             email.Body = builder.ToMessageBody();
 
             // Create the SMTP client and send the email

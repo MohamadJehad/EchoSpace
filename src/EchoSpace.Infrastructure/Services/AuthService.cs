@@ -341,6 +341,9 @@ namespace EchoSpace.Infrastructure.Services
             var resetToken = GenerateSecureToken();
             var expiresAt = DateTime.UtcNow.AddHours(1); // Token expires in 1 hour
 
+            _logger.LogInformation("Generated reset token: {ResetToken} for user {UserId}", resetToken, user.Id);
+            _logger.LogInformation("Token expires at: {ExpiresAt}", expiresAt);
+
             // Save reset token to database
             var passwordResetToken = new PasswordResetToken
             {
@@ -351,20 +354,56 @@ namespace EchoSpace.Infrastructure.Services
                 CreatedAt = DateTime.UtcNow
             };
 
+            _logger.LogInformation("Generated password reset token for user {UserId}", user.Id);
+            _logger.LogInformation("Password reset token details: Id={Id}, UserId={UserId}, Token={Token}, ExpiresAt={ExpiresAt}", 
+                passwordResetToken.Id, passwordResetToken.UserId, passwordResetToken.Token, passwordResetToken.ExpiresAt);
+            
             _context.PasswordResetTokens.Add(passwordResetToken);
             await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Password reset token saved to database successfully");
 
             // Send reset email
-            var resetUrl = $"{_configuration["Frontend:BaseUrl"]}/reset-password?token={Uri.EscapeDataString(resetToken)}";
+            var resetUrl = $"{_configuration["Frontend:BaseUrl"]}/reset-password?token={resetToken}";
             var emailBody = $@"
-                <h1>Password Reset Request</h1>
-                <p>Hello {user.Name},</p>
-                <p>You have requested to reset your password for your EchoSpace account.</p>
-                <p>Click the link below to reset your password:</p>
-                <p><a href=""{resetUrl}"" style=""background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;"">Reset Password</a></p>
-                <p>This link will expire in 1 hour.</p>
-                <p>If you didn't request this password reset, please ignore this email.</p>
-                <p>Best regards,<br/>The EchoSpace Team</p>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset=""utf-8"">
+                    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+                    <title>Password Reset - EchoSpace</title>
+                </head>
+                <body style=""font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                    <div style=""background-color: #f8f9fa; padding: 30px; border-radius: 10px; border: 1px solid #e9ecef;"">
+                        <h1 style=""color: #007bff; text-align: center; margin-bottom: 30px;"">Password Reset Request</h1>
+                        
+                        <p>Hello {user.Name},</p>
+                        
+                        <p>You have requested to reset your password for your EchoSpace account.</p>
+                        
+                        <p>Click the button below to reset your password:</p>
+                        
+                        <div style=""text-align: center; margin: 30px 0;"">
+                            <a href=""{resetUrl}"" style=""background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;"">Reset Password</a>
+                        </div>
+                        
+                        <p style=""font-size: 15px; color: #666;"">Or copy the following link.</p>
+                        <p style=""font-size: 15px; color: #666;"">{resetUrl}</p>
+                        
+                        <p style=""font-size: 14px; color: #666;"">This link will expire in 1 hour for security reasons.</p>
+                        
+                        <p style=""font-size: 14px; color: #666;"">If you didn't request this password reset, please ignore this email. Your account remains secure.</p>
+                        
+                        <hr style=""border: none; border-top: 1px solid #e9ecef; margin: 30px 0;"">
+                        
+                        <p style=""font-size: 12px; color: #999; text-align: center;"">
+                            Best regards,<br/>
+                            The EchoSpace Team<br/>
+                            <a href=""{_configuration["Frontend:BaseUrl"]}"" style=""color: #007bff;"">EchoSpace</a>
+                        </p>
+                    </div>
+                </body>
+                </html>
             ";
 
             try
@@ -386,12 +425,27 @@ namespace EchoSpace.Infrastructure.Services
 
         public async Task<ValidateResetTokenResponse> ValidateResetTokenAsync(ValidateResetTokenRequest request)
         {
+            _logger.LogInformation("Validating reset token: {Token}", request.Token);
+            
+            // First, let's check if there are any tokens in the database at all
+            var allTokens = await _context.PasswordResetTokens.ToListAsync();
+            _logger.LogInformation("Total reset tokens in database: {Count}", allTokens.Count);
+            
+            foreach (var token in allTokens)
+            {
+                _logger.LogInformation("Token in DB: {Token}, ExpiresAt: {ExpiresAt}, IsUsed: {IsUsed}, UserId: {UserId}", 
+                    token.Token, token.ExpiresAt, token.IsUsed, token.UserId);
+            }
+
             var resetToken = await _context.PasswordResetTokens
                 .Include(t => t.User)
                 .FirstOrDefaultAsync(t => t.Token == request.Token);
 
+            _logger.LogInformation("Found token in database: {Found}", resetToken != null);
+
             if (resetToken == null)
             {
+                _logger.LogWarning("Reset token not found in database: {Token}", request.Token);
                 return new ValidateResetTokenResponse
                 {
                     IsValid = false,
@@ -399,8 +453,12 @@ namespace EchoSpace.Infrastructure.Services
                 };
             }
 
+            _logger.LogInformation("Token details - ExpiresAt: {ExpiresAt}, IsUsed: {IsUsed}, CurrentTime: {CurrentTime}", 
+                resetToken.ExpiresAt, resetToken.IsUsed, DateTime.UtcNow);
+
             if (resetToken.IsUsed)
             {
+                _logger.LogWarning("Reset token has already been used: {Token}", request.Token);
                 return new ValidateResetTokenResponse
                 {
                     IsValid = false,
@@ -410,6 +468,8 @@ namespace EchoSpace.Infrastructure.Services
 
             if (resetToken.ExpiresAt < DateTime.UtcNow)
             {
+                _logger.LogWarning("Reset token has expired. ExpiresAt: {ExpiresAt}, CurrentTime: {CurrentTime}", 
+                    resetToken.ExpiresAt, DateTime.UtcNow);
                 return new ValidateResetTokenResponse
                 {
                     IsValid = false,
@@ -417,6 +477,7 @@ namespace EchoSpace.Infrastructure.Services
                 };
             }
 
+            _logger.LogInformation("Reset token is valid: {Token}", request.Token);
             return new ValidateResetTokenResponse
             {
                 IsValid = true,
@@ -429,7 +490,7 @@ namespace EchoSpace.Infrastructure.Services
             var resetToken = await _context.PasswordResetTokens
                 .Include(t => t.User)
                 .FirstOrDefaultAsync(t => t.Token == request.Token);
-
+            _logger.LogInformation("Attempting to reset password with token: {Token}", request.Token);
             if (resetToken == null || resetToken.IsUsed || resetToken.ExpiresAt < DateTime.UtcNow)
             {
                 return false;

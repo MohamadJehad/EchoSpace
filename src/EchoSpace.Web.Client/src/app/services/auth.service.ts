@@ -28,7 +28,7 @@ export interface AuthResponse {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
   private apiUrl = `${environment.apiUrl}/auth`;
@@ -45,17 +45,15 @@ export class AuthService {
   }
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, credentials)
-      .pipe(
-        tap(response => this.setSession(response))
-      );
+    return this.http
+      .post<AuthResponse>(`${this.apiUrl}/login`, credentials)
+      .pipe(tap((response) => this.setSession(response)));
   }
 
   register(data: RegisterRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, data)
-      .pipe(
-        tap(response => this.setSession(response))
-      );
+    return this.http
+      .post<AuthResponse>(`${this.apiUrl}/register`, data)
+      .pipe(tap((response) => this.setSession(response)));
   }
 
   googleLogin(): void {
@@ -73,10 +71,9 @@ export class AuthService {
 
   refreshToken(): Observable<AuthResponse> {
     const refreshToken = localStorage.getItem('refreshToken');
-    return this.http.post<AuthResponse>(`${this.apiUrl}/refresh`, { refreshToken })
-      .pipe(
-        tap(response => this.setSession(response))
-      );
+    return this.http
+      .post<AuthResponse>(`${this.apiUrl}/refresh`, { refreshToken })
+      .pipe(tap((response) => this.setSession(response)));
   }
 
   isAuthenticated(): boolean {
@@ -101,10 +98,10 @@ export class AuthService {
   private isTokenExpired(): boolean {
     const token = localStorage.getItem('accessToken');
     if (!token) return true;
-    
+
     try {
       const expiry = JSON.parse(atob(token.split('.')[1])).exp;
-      return (Math.floor(Date.now() / 1000)) >= expiry;
+      return Math.floor(Date.now() / 1000) >= expiry;
     } catch {
       return true;
     }
@@ -125,14 +122,22 @@ export class AuthService {
   }
 
   validateResetToken(token: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/validate-reset-token`, { token });
+    console.log('Sending token to backend:', token);
+    console.log('Token length:', token?.length);
+    const requestBody = { token };
+    console.log('Request body:', requestBody);
+    return this.http.post(`${this.apiUrl}/validate-reset-token`, requestBody);
   }
 
-  resetPassword(token: string, newPassword: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/reset-password`, { 
-      token, 
-      newPassword 
+  resetPassword(
+    token: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/reset-password`, {
+      token,
+      newPassword,
+      confirmPassword,
     });
   }
 }
-
