@@ -125,12 +125,32 @@ export class HomeComponent implements OnInit {
   }
 
   private transformPostForDisplay(apiPost: any): Post {
+    // Use backend author information if available, otherwise fallback to current user
+    const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
+    const authorUserName = apiPost.authorUserName || apiPost.author?.username || '';
+    
     return {
       ...apiPost,
       timeAgo: this.calculateTimeAgo(apiPost.createdAt),
       author: {
-        name: apiPost.author?.name || this.currentUser.name || 'Unknown User',
-        initials: this.getInitials(apiPost.author?.name || this.currentUser.name || 'U'),
+        name: authorName,
+        initials: this.getInitials(authorName),
+        userId: apiPost.userId
+      }
+    };
+  }
+
+  private transformNewPostForDisplay(apiPost: any): Post {
+    // For newly created posts, use current user info if author info is not available
+    const authorName = apiPost.authorName || apiPost.author?.name || this.currentUser.name || 'Unknown User';
+    const authorUserName = apiPost.authorUserName || apiPost.author?.username || this.currentUser.email || '';
+    
+    return {
+      ...apiPost,
+      timeAgo: this.calculateTimeAgo(apiPost.createdAt),
+      author: {
+        name: authorName,
+        initials: this.getInitials(authorName),
         userId: apiPost.userId
       }
     };
@@ -183,8 +203,8 @@ export class HomeComponent implements OnInit {
 
     this.postsService.createPost(createPostRequest).subscribe({
       next: (newPost) => {
-        // Transform the new post for display
-        const transformedPost = this.transformPostForDisplay(newPost);
+        // For newly created posts, use current user info if author info is not available
+        const transformedPost = this.transformNewPostForDisplay(newPost);
         // Add to the beginning of the posts array
         this.posts.unshift(transformedPost);
         

@@ -14,6 +14,11 @@ export interface Post {
   commentsCount: number; 
   isLikedByCurrentUser: boolean; 
   timeAgo?: string;
+  
+  // Backend author fields
+  authorName?: string;
+  authorEmail?: string;
+  authorUserName?: string;
 }
 
 export interface CreatePostRequest {
