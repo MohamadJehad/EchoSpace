@@ -4,6 +4,7 @@ import { RegisterComponent } from './components/register/register.component';
 import { UserListComponent } from './components/user-list/user-list.component';
 import { AuthCallbackComponent } from './components/auth-callback/auth-callback.component';
 import { HomeComponent } from './components/home/home.component';
+import { SearchResultsComponent } from './components/search-results/search-results.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -12,6 +13,7 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'auth-callback', component: AuthCallbackComponent },
   { path: 'home', component: HomeComponent, canActivate: [authGuard] },
+  { path: 'search', component: SearchResultsComponent, canActivate: [authGuard] },
   { 
     path: 'admin/users', 
     component: UserListComponent, 

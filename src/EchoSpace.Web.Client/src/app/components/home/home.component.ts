@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
+import { SearchBarComponent } from '../search-bar/search-bar.component';
 
 interface Post {
   id: number;
@@ -33,7 +34,7 @@ interface TrendingTopic {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarDropdownComponent],
+  imports: [CommonModule, RouterModule, NavbarDropdownComponent, SearchBarComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })

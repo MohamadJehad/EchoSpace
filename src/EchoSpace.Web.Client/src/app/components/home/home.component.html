@@ -2,10 +2,16 @@
   <!-- Navigation Bar -->
   <nav class="bg-white shadow-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-3">
+      <div class="flex justify-between items-center h-16 gap-4">
+        <div class="flex items-center space-x-3 flex-shrink-0">
           <h1 class="text-2xl font-bold text-primary-600">EchoSpace</h1>
         </div>
+        
+        <!-- Search Bar (Hidden on small screens) -->
+        <div class="hidden md:block flex-1 ml-14">
+          <app-search-bar></app-search-bar>
+        </div>
+        
         <div class="flex items-center space-x-4">
           <button class="p-2 rounded-full hover:bg-gray-100 transition">
             <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
