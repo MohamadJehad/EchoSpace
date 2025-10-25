@@ -25,6 +25,10 @@ export class HomeComponent implements OnInit {
     content: '',
     imageUrl: ''
   };
+
+  // Photo upload
+  selectedFile: File | null = null;
+  imagePreview: string | null = null;
   
   currentUser = {
     name: 'John Doe',
@@ -170,10 +174,16 @@ export class HomeComponent implements OnInit {
 
     this.isCreatingPost = true;
 
+    // Determine image URL - use preview if file selected, otherwise use manual URL
+    let imageUrl = this.newPost.imageUrl.trim() || undefined;
+    if (this.imagePreview && this.selectedFile) {
+      imageUrl = this.imagePreview; // Use data URL for now
+    }
+
     const createPostRequest: CreatePostRequest = {
       userId: this.currentUser.id,
       content: this.newPost.content.trim(),
-      imageUrl: this.newPost.imageUrl.trim() || undefined
+      imageUrl: ""
     };
 
     this.postsService.createPost(createPostRequest).subscribe({
@@ -184,10 +194,7 @@ export class HomeComponent implements OnInit {
         this.posts.unshift(transformedPost);
         
         // Reset form
-        this.newPost = {
-          content: '',
-          imageUrl: ''
-        };
+        this.clearForm();
         
         this.isCreatingPost = false;
         console.log('Post created successfully:', newPost);
@@ -210,6 +217,54 @@ export class HomeComponent implements OnInit {
       content: '',
       imageUrl: ''
     };
+    this.selectedFile = null;
+    this.imagePreview = null;
+  }
+
+  onPhotoClick(): void {
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    fileInput?.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file (JPG, PNG, GIF, etc.)');
+        return;
+      }
+
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+
+      this.selectedFile = file;
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.imagePreview = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeSelectedImage(): void {
+    this.selectedFile = null;
+    this.imagePreview = null;
+    this.newPost.imageUrl = '';
+    
+    // Reset file input
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   }
 
   onLogout(): void {
