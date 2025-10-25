@@ -1,6 +1,10 @@
 export interface SuggestedUser {
-  id: number;
+  id: string;
   name: string;
+  username: string;
+  email: string;
   initials: string;
-  mutualFriends: number;
+  postsCount: number;
+  createdAt: string;
+  mutualFriends?: number; // Optional for future use
 }

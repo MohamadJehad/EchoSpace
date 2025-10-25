@@ -1,0 +1,44 @@
+/* Component-specific styles for better responsiveness */
+.suggested-user-item {
+  transition: all 0.2s ease-in-out;
+}
+
+.suggested-user-item:hover {
+  transform: translateY(-1px);
+}
+
+.follow-button {
+  transition: all 0.2s ease-in-out;
+  min-width: fit-content;
+}
+
+.follow-button:hover {
+  transform: scale(1.05);
+}
+
+/* Ensure text truncation works properly */
+.user-info {
+  overflow: hidden;
+}
+
+.user-name {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.user-username {
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .suggested-user-item {
+    padding: 0.5rem;
+  }
+  
+  .follow-button {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}

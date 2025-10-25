@@ -6,12 +6,13 @@ import { AuthService } from '../../services/auth.service';
 import { PostsService } from '../../services/posts.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
-import { Post, SuggestedUser, TrendingTopic, CreatePostRequest } from '../../interfaces';
+import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
+import { Post, TrendingTopic, CreatePostRequest } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -45,12 +46,6 @@ export class HomeComponent implements OnInit {
   ) {}
   
 
-  suggestedUsers: SuggestedUser[] = [
-    { id: 1, name: 'David Wilson', initials: 'DW', mutualFriends: 12 },
-    { id: 2, name: 'Lisa Anderson', initials: 'LA', mutualFriends: 8 },
-    { id: 3, name: 'Ryan Martinez', initials: 'RM', mutualFriends: 15 },
-    { id: 4, name: 'Jessica Lee', initials: 'JL', mutualFriends: 6 }
-  ];
 
   trendingTopics: TrendingTopic[] = [
     { tag: '#WebDevelopment', posts: '1.2K' },
