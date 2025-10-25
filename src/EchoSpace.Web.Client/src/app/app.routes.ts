@@ -3,12 +3,15 @@ import { LoginComponent } from './components/login/login.component';
 import { RegisterComponent } from './components/register/register.component';
 import { UserListComponent } from './components/user-list/user-list.component';
 import { AuthCallbackComponent } from './components/auth-callback/auth-callback.component';
+import { HomeComponent } from './components/home/home.component';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'auth-callback', component: AuthCallbackComponent },
-  { path: '', component: UserListComponent, canActivate: [authGuard] },
-  { path: '**', redirectTo: '' }
+  { path: 'home', component: HomeComponent, canActivate: [authGuard] },
+  { path: 'admin/users', component: UserListComponent, canActivate: [authGuard] },
+  { path: '', redirectTo: '/home', pathMatch: 'full' },
+  { path: '**', redirectTo: '/home' }
 ];
