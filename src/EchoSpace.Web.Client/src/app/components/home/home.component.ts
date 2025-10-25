@@ -1,97 +1,45 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
+import { PostsService } from '../../services/posts.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
-import { Post, SuggestedUser, TrendingTopic } from '../../interfaces';
+import { SearchBarComponent } from '../search-bar/search-bar.component';
+import { Post, SuggestedUser, TrendingTopic, CreatePostRequest } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarDropdownComponent, SearchBarComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
 export class HomeComponent implements OnInit {
   isLoading = false;
+  isCreatingPost = false;
+  posts: Post[] = []; // Remove mock data
+  
+  // Create post form
+  newPost = {
+    content: '',
+    imageUrl: ''
+  };
   
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
     initials: 'JD',
-    role: 'User'
+    role: 'User',
+    id: ''
   };
 
   constructor(
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private postsService: PostsService
   ) {}
   
-  posts: Post[] = [
-    {
-      id: 1,
-      author: {
-        name: 'Sarah Johnson',
-        initials: 'SJ'
-      },
-      timeAgo: '2 hours ago',
-      content: 'Just finished an amazing project! 🎉 The journey was challenging but incredibly rewarding. Grateful for the amazing team that made this possible. #TechLife #Development',
-      imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop',
-      likes: 124,
-      comments: 18,
-      liked: false
-    },
-    {
-      id: 2,
-      author: {
-        name: 'Michael Chen',
-        initials: 'MC'
-      },
-      timeAgo: '4 hours ago',
-      content: 'Beautiful sunset at the beach today! 🌅 Sometimes you need to take a break and appreciate the simple things in life.',
-      imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop',
-      likes: 256,
-      comments: 34,
-      liked: true
-    },
-    {
-      id: 3,
-      author: {
-        name: 'Emma Davis',
-        initials: 'ED'
-      },
-      timeAgo: '6 hours ago',
-      content: 'Excited to announce that I\'ll be speaking at TechConf 2025! Can\'t wait to share insights about modern web development and meet fellow developers. See you there! 🚀',
-      likes: 89,
-      comments: 12,
-      liked: false
-    },
-    {
-      id: 4,
-      author: {
-        name: 'Alex Rodriguez',
-        initials: 'AR'
-      },
-      timeAgo: '8 hours ago',
-      content: 'Coffee + Code = Perfect Morning ☕️ Working on something exciting. Stay tuned for updates!',
-      imageUrl: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop',
-      likes: 167,
-      comments: 23,
-      liked: false
-    },
-    {
-      id: 5,
-      author: {
-        name: 'Sophie Turner',
-        initials: 'ST'
-      },
-      timeAgo: '10 hours ago',
-      content: 'Just launched my new portfolio website! Check it out and let me know what you think. Your feedback means the world to me! 💻✨',
-      likes: 203,
-      comments: 45,
-      liked: true
-    }
-  ];
 
   suggestedUsers: SuggestedUser[] = [
     { id: 1, name: 'David Wilson', initials: 'DW', mutualFriends: 12 },
@@ -124,7 +72,8 @@ export class HomeComponent implements OnInit {
           name: user.username || user.name || 'User',
           email: user.email || '',
           initials: this.getInitials(user.username || user.name || user.email || 'U'),
-          role: user.role || 'User'
+          role: user.role || 'User',
+          id: user.id || ''
         };
       } else {
         // Fallback: Try to get from localStorage
@@ -135,7 +84,8 @@ export class HomeComponent implements OnInit {
             name: parsedUser.username || parsedUser.name || 'User',
             email: parsedUser.email || '',
             initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U'),
-            role: parsedUser.role || 'User'
+            role: parsedUser.role || 'User',
+            id: parsedUser.id || ''
           };
         }
       }
@@ -160,16 +110,106 @@ export class HomeComponent implements OnInit {
   }
 
   loadPosts(): void {
-    // In a real app, this would fetch posts from an API
-    console.log('Posts loaded');
+    this.isLoading = true;
+    this.postsService.getRecentPosts(20).subscribe({
+      next: (posts) => {
+        this.posts = posts.map(post => this.transformPostForDisplay(post));
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading posts:', error);
+        this.isLoading = false;
+        // Fallback to empty array or show error message
+        this.posts = [];
+      }
+    });
   }
 
-  likePost(postId: number): void {
-    const post = this.posts.find(p => p.id === postId);
+  private transformPostForDisplay(apiPost: any): Post {
+    return {
+      ...apiPost,
+      timeAgo: this.calculateTimeAgo(apiPost.createdAt),
+      author: {
+        name: apiPost.author?.name || this.currentUser.name || 'Unknown User',
+        initials: this.getInitials(apiPost.author?.name || this.currentUser.name || 'U'),
+        userId: apiPost.userId
+      }
+    };
+  }
+
+  private calculateTimeAgo(createdAt: string): string {
+    const now = new Date();
+    const postDate = new Date(createdAt);
+    const diffInSeconds = Math.floor((now.getTime() - postDate.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  }
+
+  likePost(postId: string): void {
+    const post = this.posts.find(p => p.postId === postId);
     if (post) {
-      post.liked = !post.liked;
-      post.likes += post.liked ? 1 : -1;
+      // TODO: Implement like/unlike API call
+      post.isLikedByCurrentUser = !post.isLikedByCurrentUser;
+      post.likesCount += post.isLikedByCurrentUser ? 1 : -1;
     }
+  }
+
+  createPost(): void {
+    if (!this.newPost.content.trim()) {
+      alert('Please enter some content for your post');
+      return;
+    }
+
+    if (!this.currentUser.id) {
+      alert('User not authenticated. Please log in again.');
+      return;
+    }
+
+    this.isCreatingPost = true;
+
+    const createPostRequest: CreatePostRequest = {
+      userId: this.currentUser.id,
+      content: this.newPost.content.trim(),
+      imageUrl: this.newPost.imageUrl.trim() || undefined
+    };
+
+    this.postsService.createPost(createPostRequest).subscribe({
+      next: (newPost) => {
+        // Transform the new post for display
+        const transformedPost = this.transformPostForDisplay(newPost);
+        // Add to the beginning of the posts array
+        this.posts.unshift(transformedPost);
+        
+        // Reset form
+        this.newPost = {
+          content: '',
+          imageUrl: ''
+        };
+        
+        this.isCreatingPost = false;
+        console.log('Post created successfully:', newPost);
+      },
+      error: (error) => {
+        console.error('Error creating post:', error);
+        this.isCreatingPost = false;
+        alert('Failed to create post. Please try again.');
+      }
+    });
+  }
+
+  onImageUrlChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.newPost.imageUrl = target.value;
+  }
+
+  clearForm(): void {
+    this.newPost = {
+      content: '',
+      imageUrl: ''
+    };
   }
 
   onLogout(): void {

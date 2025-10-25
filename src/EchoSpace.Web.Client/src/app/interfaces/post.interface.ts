@@ -1,13 +1,28 @@
 export interface Post {
-  id: number;
+  postId: string; 
+  userId: string; 
   author: {
     name: string;
     initials: string;
+    userId?: string; 
   };
-  timeAgo: string;
   content: string;
   imageUrl?: string;
-  likes: number;
-  comments: number;
-  liked: boolean;
+  createdAt: string; 
+  updatedAt?: string; 
+  likesCount: number; 
+  commentsCount: number; 
+  isLikedByCurrentUser: boolean; 
+  timeAgo?: string;
+}
+
+export interface CreatePostRequest {
+  userId: string;
+  content: string;
+  imageUrl?: string;
+}
+
+export interface UpdatePostRequest {
+  content: string;
+  imageUrl?: string;
 }
