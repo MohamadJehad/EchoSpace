@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface LoginRequest {
@@ -147,7 +147,21 @@ export class AuthService {
     console.log('Token length:', token?.length);
     const requestBody = { token };
     console.log('Request body:', requestBody);
-    return this.http.post(`${this.apiUrl}/validate-reset-token`, requestBody);
+    console.log('API URL:', `${this.apiUrl}/validate-reset-token`);
+    
+    return this.http.post(`${this.apiUrl}/validate-reset-token`, requestBody).pipe(
+      tap(response => {
+        console.log('Raw HTTP response:', response);
+        console.log('Response type:', typeof response);
+      }),
+      catchError(error => {
+        console.error('HTTP error:', error);
+        console.error('Error status:', error.status);
+        console.error('Error message:', error.message);
+        console.error('Error body:', error.error);
+        throw error;
+      })
+    );
   }
 
   resetPassword(
@@ -155,11 +169,21 @@ export class AuthService {
     newPassword: string,
     confirmPassword: string
   ): Observable<any> {
-    return this.http.post(`${this.apiUrl}/reset-password`, {
+    const requestBody = {
       token,
       newPassword,
-      confirmPassword,
+      confirmPassword: confirmPassword, // Backend expects ConfirmPassword with capital C
+    };
+    
+    console.log('Reset password request:', {
+      token: token?.substring(0, 10) + '...',
+      newPassword: '***',
+      confirmPassword: '***',
+      passwordLength: newPassword?.length,
+      passwordsMatch: newPassword === confirmPassword
     });
+    
+    return this.http.post(`${this.apiUrl}/reset-password`, requestBody);
   }
 
   // TOTP Methods

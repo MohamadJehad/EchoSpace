@@ -252,7 +252,14 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var response = await _authService.ValidateResetTokenAsync(request);
+                // URL decode the token to handle + characters that get converted to spaces in URLs
+                var decodedToken = Uri.UnescapeDataString(request.Token);
+                _logger.LogInformation("Original token: {OriginalToken}", request.Token);
+                _logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
+                
+                // Create a new request with the decoded token
+                var decodedRequest = new ValidateResetTokenRequest { Token = decodedToken };
+                var response = await _authService.ValidateResetTokenAsync(decodedRequest);
                 return Ok(response);
             }
             catch (Exception ex)
@@ -265,10 +272,21 @@ namespace EchoSpace.UI.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-           
             try
             {
-                var success = await _authService.ResetPasswordAsync(request);
+                // URL decode the token to handle + characters that get converted to spaces in URLs
+                var decodedToken = Uri.UnescapeDataString(request.Token);
+                _logger.LogInformation("Original token: {OriginalToken}", request.Token);
+                _logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
+                
+                // Create a new request with the decoded token
+                var decodedRequest = new ResetPasswordRequest 
+                { 
+                    Token = decodedToken, 
+                    NewPassword = request.NewPassword 
+                };
+                
+                var success = await _authService.ResetPasswordAsync(decodedRequest);
                 
                 if (success)
                 {
@@ -430,4 +448,5 @@ namespace EchoSpace.UI.Controllers
         public string Email { get; set; } = string.Empty;
     }
 }
+
 

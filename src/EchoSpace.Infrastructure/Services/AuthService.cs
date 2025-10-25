@@ -542,19 +542,25 @@ namespace EchoSpace.Infrastructure.Services
             }
 
             _logger.LogInformation("Reset token is valid: {Token}", request.Token);
-            return new ValidateResetTokenResponse
+            var response = new ValidateResetTokenResponse
             {
                 IsValid = true,
                 Message = "Reset token is valid."
             };
+            
+            _logger.LogInformation("Returning validation response: IsValid={IsValid}, Message={Message}", 
+                response.IsValid, response.Message);
+            
+            return response;
         }
 
         public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
         {
+            _logger.LogInformation("Attempting to reset password with token: {Token}", request.Token);
+            
             var resetToken = await _context.PasswordResetTokens
                 .Include(t => t.User)
                 .FirstOrDefaultAsync(t => t.Token == request.Token);
-            _logger.LogInformation("Attempting to reset password with token: {Token}", request.Token);
             if (resetToken == null || resetToken.IsUsed || resetToken.ExpiresAt < DateTime.UtcNow)
             {
                 return false;
