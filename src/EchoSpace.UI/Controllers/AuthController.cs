@@ -1,8 +1,10 @@
 using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Tools.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+
 
 namespace EchoSpace.UI.Controllers
 {
@@ -13,12 +15,14 @@ namespace EchoSpace.UI.Controllers
         private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IEmailSender _emailSender;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender)
         {
             _authService = authService;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
+            _emailSender = emailSender;
         }
 
         [HttpPost("register")]
@@ -197,6 +201,88 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, new { message = "An error occurred during Google authentication." });
             }
         }
+
+        [HttpPost("test-email")]
+        public async Task<IActionResult> TestEmail([FromBody] TestEmailRequest request)
+        {
+            try
+            {
+                var emailBody = $@"
+                    <h1>Welcome to EchoSpace!</h1>
+                    <p>This is a test email from EchoSpace.</p>
+                    <p>If you received this email, the email service is working correctly.</p>
+                    <p>Best regards,<br/>The EchoSpace Team</p>
+                ";
+
+                await _emailSender.SendEmailAsync(request.Email, "EchoSpace Email Test", emailBody);
+                
+                _logger.LogInformation("Test email sent successfully to {Email}", request.Email);
+                return Ok(new { message = "Test email sent successfully!" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send test email to {Email}", request.Email);
+                return StatusCode(500, new { message = "Failed to send test email." });
+            }
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            try
+            {
+                var response = await _authService.ForgotPasswordAsync(request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during forgot password request for email: {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred while processing your request." });
+            }
+        }
+
+        [HttpPost("validate-reset-token")]
+        public async Task<IActionResult> ValidateResetToken([FromBody] ValidateResetTokenRequest request)
+        {
+            try
+            {
+                var response = await _authService.ValidateResetTokenAsync(request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating reset token");
+                return StatusCode(500, new { message = "An error occurred while validating the reset token." });
+            }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            try
+            {
+                var success = await _authService.ResetPasswordAsync(request);
+                
+                if (success)
+                {
+                    return Ok(new { message = "Password has been reset successfully." });
+                }
+                else
+                {
+                    return BadRequest(new { message = "Invalid or expired reset token." });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during password reset");
+                return StatusCode(500, new { message = "An error occurred while resetting the password." });
+            }
+        }
+    }
+
+    public class TestEmailRequest
+    {
+        public string Email { get; set; } = string.Empty;
     }
 }
 

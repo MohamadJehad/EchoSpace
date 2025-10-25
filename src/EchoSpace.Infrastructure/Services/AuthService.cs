@@ -2,9 +2,11 @@ using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Infrastructure.Data;
+using EchoSpace.Tools.Interfaces;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -17,11 +19,15 @@ namespace EchoSpace.Infrastructure.Services
     {
         private readonly EchoSpaceDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthService> _logger;
+        private readonly IEmailSender _emailSender;
 
-        public AuthService(EchoSpaceDbContext context, IConfiguration configuration)
+        public AuthService(EchoSpaceDbContext context, IConfiguration configuration, ILogger<AuthService> logger, IEmailSender emailSender)
         {
             _context = context;
             _configuration = configuration;
+            _logger = logger;
+            _emailSender = emailSender;
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -303,6 +309,158 @@ namespace EchoSpace.Infrastructure.Services
                 numBytesRequested: 256 / 8));
 
             return hash == hashed;
+        }
+
+        public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request)
+        {
+            // Find user by email
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            
+            // Always return success to prevent user enumeration
+            if (user == null)
+            {
+                return new ForgotPasswordResponse
+                {
+                    Message = "If an account with that email exists, password reset instructions have been sent.",
+                    Success = true
+                };
+            }
+
+            // Invalidate any existing reset tokens for this user
+            var existingTokens = await _context.PasswordResetTokens
+                .Where(t => t.UserId == user.Id && !t.IsUsed)
+                .ToListAsync();
+            
+            foreach (var token in existingTokens)
+            {
+                token.IsUsed = true;
+                token.UsedAt = DateTime.UtcNow;
+            }
+
+            // Generate secure reset token
+            var resetToken = GenerateSecureToken();
+            var expiresAt = DateTime.UtcNow.AddHours(1); // Token expires in 1 hour
+
+            // Save reset token to database
+            var passwordResetToken = new PasswordResetToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                Token = resetToken,
+                ExpiresAt = expiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.PasswordResetTokens.Add(passwordResetToken);
+            await _context.SaveChangesAsync();
+
+            // Send reset email
+            var resetUrl = $"{_configuration["Frontend:BaseUrl"]}/reset-password?token={Uri.EscapeDataString(resetToken)}";
+            var emailBody = $@"
+                <h1>Password Reset Request</h1>
+                <p>Hello {user.Name},</p>
+                <p>You have requested to reset your password for your EchoSpace account.</p>
+                <p>Click the link below to reset your password:</p>
+                <p><a href=""{resetUrl}"" style=""background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;"">Reset Password</a></p>
+                <p>This link will expire in 1 hour.</p>
+                <p>If you didn't request this password reset, please ignore this email.</p>
+                <p>Best regards,<br/>The EchoSpace Team</p>
+            ";
+
+            try
+            {
+                await _emailSender.SendEmailAsync(user.Email, "Password Reset Request - EchoSpace", emailBody);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
+                // Don't throw exception to maintain security (don't reveal if email sending failed)
+            }
+
+            return new ForgotPasswordResponse
+            {
+                Message = "If an account with that email exists, password reset instructions have been sent.",
+                Success = true
+            };
+        }
+
+        public async Task<ValidateResetTokenResponse> ValidateResetTokenAsync(ValidateResetTokenRequest request)
+        {
+            var resetToken = await _context.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == request.Token);
+
+            if (resetToken == null)
+            {
+                return new ValidateResetTokenResponse
+                {
+                    IsValid = false,
+                    Message = "Invalid or expired reset token."
+                };
+            }
+
+            if (resetToken.IsUsed)
+            {
+                return new ValidateResetTokenResponse
+                {
+                    IsValid = false,
+                    Message = "This reset token has already been used."
+                };
+            }
+
+            if (resetToken.ExpiresAt < DateTime.UtcNow)
+            {
+                return new ValidateResetTokenResponse
+                {
+                    IsValid = false,
+                    Message = "This reset token has expired."
+                };
+            }
+
+            return new ValidateResetTokenResponse
+            {
+                IsValid = true,
+                Message = "Reset token is valid."
+            };
+        }
+
+        public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            var resetToken = await _context.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == request.Token);
+
+            if (resetToken == null || resetToken.IsUsed || resetToken.ExpiresAt < DateTime.UtcNow)
+            {
+                return false;
+            }
+
+            // Update user password
+            resetToken.User.PasswordHash = HashPassword(request.NewPassword);
+            resetToken.User.UpdatedAt = DateTime.UtcNow;
+
+            // Mark token as used
+            resetToken.IsUsed = true;
+            resetToken.UsedAt = DateTime.UtcNow;
+
+            // Invalidate all user sessions (force re-login)
+            var userSessions = await _context.UserSessions
+                .Where(s => s.UserId == resetToken.UserId)
+                .ToListAsync();
+            
+            _context.UserSessions.RemoveRange(userSessions);
+
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        private string GenerateSecureToken()
+        {
+            var randomBytes = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+            return Convert.ToBase64String(randomBytes);
         }
     }
 }

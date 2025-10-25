@@ -118,5 +118,21 @@ export class AuthService {
   setSessionFromCallback(authResult: AuthResponse): void {
     this.setSession(authResult);
   }
+
+  // Password reset methods
+  forgotPassword(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/forgot-password`, { email });
+  }
+
+  validateResetToken(token: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/validate-reset-token`, { token });
+  }
+
+  resetPassword(token: string, newPassword: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/reset-password`, { 
+      token, 
+      newPassword 
+    });
+  }
 }
 

@@ -9,6 +9,11 @@ namespace EchoSpace.Core.Interfaces
         Task<AuthResponse> RefreshTokenAsync(string refreshToken);
         Task LogoutAsync(string refreshToken);
         Task<AuthResponse> GoogleLoginAsync(string email, string name, string googleId);
+        
+        // Password reset methods
+        Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request);
+        Task<ValidateResetTokenResponse> ValidateResetTokenAsync(ValidateResetTokenRequest request);
+        Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
     }
 }
 
