@@ -26,6 +26,11 @@ namespace EchoSpace.Core.DTOs.Auth
         public int ExpiresIn { get; set; }
 
         /// <summary>
+        /// Indicates if TOTP verification is required for login.
+        /// </summary>
+        public bool RequiresTotp { get; set; }
+
+        /// <summary>
         /// User information including ID, name, and email.
         /// </summary>
         public UserDto User { get; set; } = null!;

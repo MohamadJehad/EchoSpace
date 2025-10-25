@@ -21,13 +21,15 @@ namespace EchoSpace.Infrastructure.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly ITotpService _totpService;
 
-        public AuthService(EchoSpaceDbContext context, IConfiguration configuration, ILogger<AuthService> logger, IEmailSender emailSender)
+        public AuthService(EchoSpaceDbContext context, IConfiguration configuration, ILogger<AuthService> logger, IEmailSender emailSender, ITotpService totpService)
         {
             _context = context;
             _configuration = configuration;
             _logger = logger;
             _emailSender = emailSender;
+            _totpService = totpService;
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -99,8 +101,37 @@ namespace EchoSpace.Infrastructure.Services
             user.LastLoginAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            // Generate tokens
-            return await GenerateTokensAsync(user);
+            // Check if user has TOTP secret key set up
+            if (string.IsNullOrEmpty(user.TotpSecretKey))
+            {
+                // User needs to set up TOTP first
+                return new AuthResponse
+                {
+                    RequiresTotp = true,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Name = user.Name,
+                        Email = user.Email,
+                        UserName = user.UserName,
+                        Role = user.Role.ToString()
+                    }
+                };
+            }
+
+            // User has TOTP set up, return response indicating TOTP verification is required
+            return new AuthResponse
+            {
+                RequiresTotp = true,
+                User = new UserDto
+                {
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    Role = user.Role.ToString()
+                }
+            };
         }
 
         public async Task<AuthResponse> RefreshTokenAsync(string refreshToken)
@@ -120,6 +151,33 @@ namespace EchoSpace.Infrastructure.Services
 
             // Generate new tokens
             return await GenerateTokensAsync(session.User);
+        }
+
+        public async Task<AuthResponse> VerifyTotpAndLoginAsync(string email, string totpCode)
+        {
+            // Find user by email
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User not found.");
+            }
+
+            // Check if TOTP is set up
+            if (string.IsNullOrEmpty(user.TotpSecretKey))
+            {
+                throw new UnauthorizedAccessException("Please set up TOTP first by going to the registration flow.");
+            }
+
+            // Verify TOTP code using the TotpService
+            var isValidTotp = await _totpService.VerifyTotpAsync(email, totpCode);
+            
+            if (!isValidTotp)
+            {
+                throw new UnauthorizedAccessException("Invalid TOTP code.");
+            }
+
+            // Generate tokens for successful login
+            return await GenerateTokensAsync(user);
         }
 
         public async Task LogoutAsync(string refreshToken)

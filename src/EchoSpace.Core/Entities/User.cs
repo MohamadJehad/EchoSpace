@@ -42,6 +42,13 @@ namespace EchoSpace.Core.Entities
         
         public DateTime? UpdatedAt { get; set; }
 
+        // TOTP Properties
+        public string? TotpSecretKey { get; set; }
+        public bool EmailVerified { get; set; } = false;
+        public string? EmailVerificationCode { get; set; }
+        public DateTime? EmailVerificationCodeExpiry { get; set; }
+        public int EmailVerificationAttempts { get; set; } = 0;
+
         // Navigation Properties
         public virtual ICollection<UserSession> UserSessions { get; set; } = new List<UserSession>();
         

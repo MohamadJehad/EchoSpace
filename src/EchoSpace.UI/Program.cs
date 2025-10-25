@@ -104,6 +104,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITotpService, EchoSpace.Infrastructure.Services.TotpService>();
 builder.Services.AddScoped<ISearchService, EchoSpace.Infrastructure.Services.SearchService>();
 
 // Post services
