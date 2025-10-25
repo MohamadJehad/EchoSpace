@@ -289,4 +289,8 @@ export class HomeComponent implements OnInit {
     // Navigate to login page
     this.router.navigate(['/login']);
   }
+
+  navigateToSearch(): void {
+    this.router.navigate(['/search']);
+  }
 }
