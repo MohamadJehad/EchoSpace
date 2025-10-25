@@ -1,3 +1,5 @@
+using EchoSpace.Core.Enums;
+
 namespace EchoSpace.Core.DTOs.Auth
 {
     /// <summary>
@@ -20,6 +22,16 @@ namespace EchoSpace.Core.DTOs.Auth
         /// The user's email address.
         /// </summary>
         public string Email { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The user's username.
+        /// </summary>
+        public string UserName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The user's role (User, Admin, Moderator).
+        /// </summary>
+        public string Role { get; set; } = UserRole.User.ToString();
     }
 }
 

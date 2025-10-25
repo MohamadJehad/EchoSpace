@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using EchoSpace.Core.Enums;
 
 namespace EchoSpace.Core.Entities
 {
@@ -23,6 +24,9 @@ namespace EchoSpace.Core.Entities
         
         [MaxLength(500)]
         public string? PasswordHash { get; set; }
+        
+        [Required]
+        public UserRole Role { get; set; } = UserRole.User;
         
         public bool EmailConfirmed { get; set; } = false;
         
