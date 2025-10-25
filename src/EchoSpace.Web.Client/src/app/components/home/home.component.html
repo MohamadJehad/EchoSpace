@@ -79,9 +79,6 @@
             />
             
             <div class="flex items-center space-x-4">
-              <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                {{ currentUser.initials }}
-              </div>
               <textarea 
                 [(ngModel)]="newPost.content"
                 name="content"
@@ -108,18 +105,7 @@
                 </button>
               </div>
             </div>
-            
-            <!-- Manual Image URL input (optional) -->
-            <div class="mt-4" *ngIf="!imagePreview">
-              <input 
-                type="url"
-                [(ngModel)]="newPost.imageUrl"
-                name="imageUrl"
-                placeholder="Image URL (optional)"
-                class="w-full bg-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 transition text-sm"
-              />
-            </div>
-              
+                    
             <!-- Character count -->
             <div class="mt-2 text-right">
               <span class="text-xs text-gray-500" [class.text-red-500]="newPost.content.length > 4500">
