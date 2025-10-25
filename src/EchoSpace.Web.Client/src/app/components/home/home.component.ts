@@ -7,12 +7,15 @@ import { PostsService } from '../../services/posts.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
-import { Post, TrendingTopic, CreatePostRequest } from '../../interfaces';
+import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component';
+import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
+import { ToastService } from '../../services/toast.service';
+import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -31,6 +34,23 @@ export class HomeComponent implements OnInit {
   selectedFile: File | null = null;
   imagePreview: string | null = null;
   
+  // Post editing
+  editingPost: Post | null = null;
+  editPostForm = {
+    content: '',
+    imageUrl: ''
+  };
+  isEditingPost = false;
+  isSavingPost = false;
+  isDeletingPost = false;
+  
+  // Dropdown states
+  openDropdowns: { [postId: string]: boolean } = {};
+  
+  // Confirmation modal
+  showDeleteModal = false;
+  postToDelete: Post | null = null;
+  
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -42,7 +62,8 @@ export class HomeComponent implements OnInit {
   constructor(
     private router: Router,
     private authService: AuthService,
-    private postsService: PostsService
+    private postsService: PostsService,
+    private toastService: ToastService
   ) {}
   
 
@@ -212,12 +233,13 @@ export class HomeComponent implements OnInit {
         this.clearForm();
         
         this.isCreatingPost = false;
+        this.toastService.success('Success!', 'Your post has been created successfully.');
         console.log('Post created successfully:', newPost);
       },
       error: (error) => {
         console.error('Error creating post:', error);
         this.isCreatingPost = false;
-        alert('Failed to create post. Please try again.');
+        this.toastService.error('Error', 'Failed to create post. Please try again.');
       }
     });
   }
@@ -280,6 +302,103 @@ export class HomeComponent implements OnInit {
     if (fileInput) {
       fileInput.value = '';
     }
+  }
+
+  // Post dropdown methods
+  togglePostDropdown(postId: string): void {
+    this.openDropdowns[postId] = !this.openDropdowns[postId];
+  }
+
+  isDropdownOpen(postId: string): boolean {
+    return this.openDropdowns[postId] || false;
+  }
+
+  // Post editing methods
+  onEditPost(post: Post): void {
+    this.editingPost = post;
+    this.editPostForm = {
+      content: post.content,
+      imageUrl: post.imageUrl || ''
+    };
+    this.isEditingPost = true;
+  }
+
+  onCancelEdit(): void {
+    this.editingPost = null;
+    this.editPostForm = {
+      content: '',
+      imageUrl: ''
+    };
+    this.isEditingPost = false;
+  }
+
+  onSaveEdit(): void {
+    if (!this.editingPost || !this.editPostForm.content.trim()) {
+      return;
+    }
+
+    this.isSavingPost = true;
+
+    const updateRequest: UpdatePostRequest = {
+      content: this.editPostForm.content.trim(),
+      imageUrl: this.editPostForm.imageUrl || undefined
+    };
+
+    this.postsService.updatePost(this.editingPost.postId, updateRequest, this.currentUser.id).subscribe({
+      next: (updatedPost) => {
+        // Find and update the post in the array
+        const index = this.posts.findIndex(p => p.postId === this.editingPost!.postId);
+        if (index !== -1) {
+          this.posts[index] = this.transformPostForDisplay(updatedPost);
+        }
+        
+        this.onCancelEdit();
+        this.isSavingPost = false;
+        this.toastService.success('Success!', 'Your post has been updated successfully.');
+        console.log('Post updated successfully:', updatedPost);
+      },
+      error: (error) => {
+        console.error('Error updating post:', error);
+        this.isSavingPost = false;
+        this.toastService.error('Error', 'Failed to update post. Please try again.');
+      }
+    });
+  }
+
+  // Post deletion methods
+  onDeletePost(post: Post): void {
+    this.postToDelete = post;
+    this.showDeleteModal = true;
+  }
+
+  onConfirmDelete(): void {
+    if (!this.postToDelete) return;
+
+    this.isDeletingPost = true;
+
+    this.postsService.deletePost(this.postToDelete.postId, this.currentUser.id).subscribe({
+      next: () => {
+        // Remove the post from the array
+        this.posts = this.posts.filter(p => p.postId !== this.postToDelete!.postId);
+        this.isDeletingPost = false;
+        this.showDeleteModal = false;
+        this.postToDelete = null;
+        this.toastService.success('Success!', 'Your post has been deleted successfully.');
+        console.log('Post deleted successfully');
+      },
+      error: (error) => {
+        console.error('Error deleting post:', error);
+        this.isDeletingPost = false;
+        this.showDeleteModal = false;
+        this.postToDelete = null;
+        this.toastService.error('Error', 'Failed to delete post. Please try again.');
+      }
+    });
+  }
+
+  onCancelDelete(): void {
+    this.showDeleteModal = false;
+    this.postToDelete = null;
   }
 
   onLogout(): void {
