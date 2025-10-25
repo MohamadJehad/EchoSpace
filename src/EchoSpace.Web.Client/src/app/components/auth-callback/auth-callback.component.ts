@@ -39,8 +39,13 @@ export class AuthCallbackComponent implements OnInit {
           // Use the public method to set session properly
           this.authService.setSessionFromCallback(authResponse);
           
-          // Redirect to home
-          this.router.navigate(['/']);
+          // Redirect based on user role
+          const userRole = user.role || 'User';
+          if (userRole === 'Admin') {
+            this.router.navigate(['/admin/users']);
+          } else {
+            this.router.navigate(['/home']);
+          }
         } catch (error) {
           console.error('Error processing callback:', error);
           this.router.navigate(['/login']);
