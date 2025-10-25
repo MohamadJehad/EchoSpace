@@ -225,7 +225,9 @@ namespace EchoSpace.Infrastructure.Services
                 {
                     Id = user.Id,
                     Name = user.Name,
-                    Email = user.Email
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    Role = user.Role.ToString()
                 }
             };
         }
@@ -237,6 +239,7 @@ namespace EchoSpace.Infrastructure.Services
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Name),
                 new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
