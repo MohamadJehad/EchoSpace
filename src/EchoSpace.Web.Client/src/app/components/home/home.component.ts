@@ -1,5 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 
 interface Post {
   id: number;
@@ -30,12 +33,23 @@ interface TrendingTopic {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule, NavbarDropdownComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
 export class HomeComponent implements OnInit {
   isLoading = false;
+  
+  currentUser = {
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    initials: 'JD'
+  };
+
+  constructor(
+    private router: Router,
+    private authService: AuthService
+  ) {}
   
   posts: Post[] = [
     {
@@ -119,8 +133,52 @@ export class HomeComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    // Load current user data
+    this.loadUserData();
+    
     // Simulate loading posts
     this.loadPosts();
+  }
+
+  loadUserData(): void {
+    // Subscribe to current user from auth service
+    this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.currentUser = {
+          name: user.username || user.name || 'User',
+          email: user.email || '',
+          initials: this.getInitials(user.username || user.name || user.email || 'U')
+        };
+      } else {
+        // Fallback: Try to get from localStorage
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          this.currentUser = {
+            name: parsedUser.username || parsedUser.name || 'User',
+            email: parsedUser.email || '',
+            initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U')
+          };
+        }
+      }
+    });
+  }
+
+  getInitials(name: string): string {
+    if (!name) return 'U';
+    
+    // If it's an email, use first letter
+    if (name.includes('@')) {
+      return name.charAt(0).toUpperCase();
+    }
+    
+    // Split by space and get first letter of each word
+    const words = name.trim().split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 2).toUpperCase();
+    }
+    
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
   }
 
   loadPosts(): void {
@@ -134,5 +192,13 @@ export class HomeComponent implements OnInit {
       post.liked = !post.liked;
       post.likes += post.liked ? 1 : -1;
     }
+  }
+
+  onLogout(): void {
+    // Use auth service logout
+    this.authService.logout();
+    
+    // Navigate to login page
+    this.router.navigate(['/login']);
   }
 }
