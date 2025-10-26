@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using EchoSpace.Core.DTOs.Comments;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Core.Authorization.Attributes;
 
 namespace EchoSpace.UI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CommentsController : ControllerBase
     {
         private readonly ILogger<CommentsController> _logger;
@@ -139,22 +142,17 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Update an existing comment
+        /// ABAC: Requires user to own the comment OR be Admin/Moderator
         /// </summary>
         [HttpPut("{id}")]
-        public async Task<ActionResult<CommentDto>> UpdateComment(Guid id, [FromBody] UpdateCommentRequest request, [FromQuery] Guid userId, CancellationToken cancellationToken)
+        [RequireAdminOrOwner("Comment")]
+        public async Task<ActionResult<CommentDto>> UpdateComment(Guid id, [FromBody] UpdateCommentRequest request, CancellationToken cancellationToken)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
-                }
-
-                // Check if user owns the comment (authorization)
-                var isOwner = await _commentService.IsOwnerAsync(id, userId);
-                if (!isOwner)
-                {
-                    return Forbid("You can only update your own comments");
                 }
 
                 var comment = await _commentService.UpdateAsync(id, request);
@@ -173,19 +171,14 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Delete a comment
+        /// ABAC: Requires user to own the comment OR be Admin/Moderator
         /// </summary>
         [HttpDelete("{id}")]
-        public async Task<ActionResult> DeleteComment(Guid id, [FromQuery] Guid userId, CancellationToken cancellationToken)
+        [RequireAdminOrOwner("Comment")]
+        public async Task<ActionResult> DeleteComment(Guid id, CancellationToken cancellationToken)
         {
             try
             {
-                // Check if user owns the comment (authorization)
-                var isOwner = await _commentService.IsOwnerAsync(id, userId);
-                if (!isOwner)
-                {
-                    return Forbid("You can only delete your own comments");
-                }
-
                 var deleted = await _commentService.DeleteAsync(id);
                 if (!deleted)
                 {

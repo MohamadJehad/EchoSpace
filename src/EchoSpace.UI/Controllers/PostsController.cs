@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using EchoSpace.Core.DTOs.Posts;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Core.Authorization.Attributes;
 
 namespace EchoSpace.UI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PostsController : ControllerBase
     {
         private readonly ILogger<PostsController> _logger;
@@ -120,22 +123,17 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Update an existing post
+        /// ABAC: Requires user to own the post OR be Admin/Moderator
         /// </summary>
         [HttpPut("{id}")]
-        public async Task<ActionResult<PostDto>> UpdatePost(Guid id, [FromBody] UpdatePostRequest request, [FromQuery] Guid userId, CancellationToken cancellationToken)
+        [RequireAdminOrOwner("Post")]
+        public async Task<ActionResult<PostDto>> UpdatePost(Guid id, [FromBody] UpdatePostRequest request, CancellationToken cancellationToken)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
-                }
-
-                // Check if user owns the post (authorization)
-                var isOwner = await _postService.IsOwnerAsync(id, userId);
-                if (!isOwner)
-                {
-                    return Forbid("You can only update your own posts");
                 }
 
                 var post = await _postService.UpdateAsync(id, request);
@@ -154,19 +152,14 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Delete a post
+        /// ABAC: Requires user to own the post OR be Admin/Moderator
         /// </summary>
         [HttpDelete("{id}")]
-        public async Task<ActionResult> DeletePost(Guid id, [FromQuery] Guid userId, CancellationToken cancellationToken)
+        [RequireAdminOrOwner("Post")]
+        public async Task<ActionResult> DeletePost(Guid id, CancellationToken cancellationToken)
         {
             try
             {
-                // Check if user owns the post (authorization)
-                var isOwner = await _postService.IsOwnerAsync(id, userId);
-                if (!isOwner)
-                {
-                    return Forbid("You can only delete your own posts");
-                }
-
                 var deleted = await _postService.DeleteAsync(id);
                 if (!deleted)
                 {
