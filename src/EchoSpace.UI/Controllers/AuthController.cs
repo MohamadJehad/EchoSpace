@@ -15,14 +15,16 @@ namespace EchoSpace.UI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly ITotpService _totpService;
         private readonly ILogger<AuthController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IEmailSender _emailSender;
         private readonly EchoSpaceDbContext _context;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context)
+        public AuthController(IAuthService authService, ITotpService totpService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context)
         {
             _authService = authService;
+            _totpService = totpService;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _emailSender = emailSender;
@@ -250,7 +252,14 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var response = await _authService.ValidateResetTokenAsync(request);
+                // URL decode the token to handle + characters that get converted to spaces in URLs
+                var decodedToken = Uri.UnescapeDataString(request.Token);
+                _logger.LogInformation("Original token: {OriginalToken}", request.Token);
+                _logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
+                
+                // Create a new request with the decoded token
+                var decodedRequest = new ValidateResetTokenRequest { Token = decodedToken };
+                var response = await _authService.ValidateResetTokenAsync(decodedRequest);
                 return Ok(response);
             }
             catch (Exception ex)
@@ -263,10 +272,21 @@ namespace EchoSpace.UI.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-           
             try
             {
-                var success = await _authService.ResetPasswordAsync(request);
+                // URL decode the token to handle + characters that get converted to spaces in URLs
+                var decodedToken = Uri.UnescapeDataString(request.Token);
+                _logger.LogInformation("Original token: {OriginalToken}", request.Token);
+                _logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
+                
+                // Create a new request with the decoded token
+                var decodedRequest = new ResetPasswordRequest 
+                { 
+                    Token = decodedToken, 
+                    NewPassword = request.NewPassword 
+                };
+                
+                var success = await _authService.ResetPasswordAsync(decodedRequest);
                 
                 if (success)
                 {
@@ -318,6 +338,105 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, new { message = "An error occurred while retrieving debug tokens." });
             }
         }
+
+        [HttpPost("setup-totp")]
+        public async Task<IActionResult> SetupTotp([FromBody] TotpSetupRequest request)
+        {
+            try
+            {
+                var response = await _totpService.SetupTotpAsync(request.Email);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting up TOTP for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred setting up TOTP." });
+            }
+        }
+
+        [HttpPost("verify-totp")]
+        public async Task<IActionResult> VerifyTotp([FromBody] TotpVerificationRequest request)
+        {
+            try
+            {
+                var response = await _authService.VerifyTotpAndLoginAsync(request.Email, request.Code);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying TOTP for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred verifying TOTP." });
+            }
+        }
+
+        [HttpPost("send-email-verification")]
+        public async Task<IActionResult> SendEmailVerification([FromBody] TotpSetupRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.Email))
+                {
+                    return BadRequest(new { message = "Email is required." });
+                }
+
+                _logger.LogInformation("Received request to send email verification to {Email}", request.Email);
+                
+                var success = await _totpService.SendEmailVerificationCodeAsync(request.Email);
+                if (success)
+                {
+                    return Ok(new { message = "Verification code sent to your email." });
+                }
+                return BadRequest(new { message = "User not found or failed to send verification code. Please ensure the email is registered." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending email verification to {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred sending verification code." });
+            }
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] EmailVerificationRequest request)
+        {
+            try
+            {
+                var isValid = await _totpService.VerifyEmailCodeAsync(request.Email, request.Code);
+                if (isValid)
+                {
+                    return Ok(new { message = "Email verified successfully." });
+                }
+                return BadRequest(new { message = "Invalid verification code." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying email for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred verifying email." });
+            }
+        }
+
+        [HttpPost("setup-totp-for-existing-user")]
+        public async Task<IActionResult> SetupTotpForExistingUser([FromBody] TotpSetupRequest request)
+        {
+            try
+            {
+                // Check if user exists
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (user == null)
+                {
+                    return BadRequest(new { message = "User not found." });
+                }
+
+                // Allow reconfiguration - we'll generate a new TOTP secret even if one exists
+
+                var response = await _totpService.SetupTotpAsync(request.Email);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting up TOTP for existing user {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred setting up TOTP." });
+            }
+        }
     }
 
     public class TestEmailRequest
@@ -325,4 +444,5 @@ namespace EchoSpace.UI.Controllers
         public string Email { get; set; } = string.Empty;
     }
 }
+
 

@@ -6,6 +6,7 @@ namespace EchoSpace.Core.Interfaces
     {
         Task<AuthResponse> RegisterAsync(RegisterRequest request);
         Task<AuthResponse> LoginAsync(LoginRequest request);
+        Task<AuthResponse> VerifyTotpAndLoginAsync(string email, string totpCode);
         Task<AuthResponse> RefreshTokenAsync(string refreshToken);
         Task LogoutAsync(string refreshToken);
         Task<AuthResponse> GoogleLoginAsync(string email, string name, string googleId);
