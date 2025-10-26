@@ -60,8 +60,23 @@ namespace EchoSpace.Infrastructure.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            // Generate tokens
-            return await GenerateTokensAsync(user);
+            // Send email verification code
+            await _totpService.SendEmailVerificationCodeAsync(user.Email);
+
+            // Don't generate tokens yet - user needs to verify email first
+            // Return a response indicating email verification is required
+            return new AuthResponse
+            {
+                RequiresEmailVerification = true,
+                User = new UserDto
+                {
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    Role = user.Role.ToString()
+                }
+            };
         }
 
         public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -584,6 +599,31 @@ namespace EchoSpace.Infrastructure.Services
             await _context.SaveChangesAsync();
 
             return true;
+        }
+
+        public async Task<AuthResponse> CompleteRegistrationWithEmailVerificationAsync(string email, string verificationCode)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("User not found.");
+            }
+
+            // Verify email code using TotpService
+            var isValid = await _totpService.VerifyEmailCodeAsync(email, verificationCode);
+            
+            if (!isValid)
+            {
+                throw new UnauthorizedAccessException("Invalid verification code.");
+            }
+
+            // Mark email as confirmed
+            user.EmailConfirmed = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            // Now generate and return tokens
+            return await GenerateTokensAsync(user);
         }
 
         private string GenerateSecureToken()

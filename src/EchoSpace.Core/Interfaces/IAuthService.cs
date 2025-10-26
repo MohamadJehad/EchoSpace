@@ -15,6 +15,9 @@ namespace EchoSpace.Core.Interfaces
         Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request);
         Task<ValidateResetTokenResponse> ValidateResetTokenAsync(ValidateResetTokenRequest request);
         Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
+        
+        // Email verification methods
+        Task<AuthResponse> CompleteRegistrationWithEmailVerificationAsync(string email, string verificationCode);
     }
 }
 

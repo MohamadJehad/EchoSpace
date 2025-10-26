@@ -92,6 +92,15 @@ namespace EchoSpace.Infrastructure.Services
                     return false;
                 }
 
+                // Check if there's already a valid (non-expired) code
+                if (!string.IsNullOrEmpty(user.EmailVerificationCode) && 
+                    user.EmailVerificationCodeExpiry.HasValue && 
+                    user.EmailVerificationCodeExpiry.Value > DateTime.UtcNow)
+                {
+                    _logger.LogInformation("Email verification code already exists and is still valid for {Email}. Skipping new code generation.", email);
+                    return true;
+                }
+
                 // Generate 6-digit code
                 var code = new Random().Next(100000, 999999).ToString();
                 var expiry = DateTime.UtcNow.AddMinutes(10);

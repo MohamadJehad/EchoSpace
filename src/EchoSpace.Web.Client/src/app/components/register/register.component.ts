@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { TotpSetupComponent } from '../totp-setup/totp-setup.component';
+import { EmailVerificationComponent } from '../email-verification/email-verification.component';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, TotpSetupComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, TotpSetupComponent, EmailVerificationComponent],
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.css']
 })
@@ -16,7 +17,7 @@ export class RegisterComponent {
   registerForm: FormGroup;
   isLoading = false;
   errorMessage = '';
-  currentStep = 1; // 1: Registration, 2: TOTP Setup
+  currentStep = 1; // 1: Registration, 2: Email Verification, 3: TOTP Setup
   userEmail = '';
 
   constructor(
@@ -74,9 +75,9 @@ export class RegisterComponent {
       this.userEmail = email;
       
       this.authService.register({ name, email, password }).subscribe({
-        next: () => {
+        next: (response) => {
           this.isLoading = false;
-          // Move directly to TOTP setup step
+          // Always move to email verification step
           this.currentStep = 2;
         },
         error: (error) => {
@@ -89,14 +90,24 @@ export class RegisterComponent {
     }
   }
 
+  onEmailVerified() {
+    // Email verified, move to TOTP setup
+    this.currentStep = 3;
+  }
+
+  onEmailVerificationBack() {
+    // Go back to registration step
+    this.currentStep = 1;
+  }
+
   onTotpCompleted() {
     // Registration complete, redirect to home
-    this.router.navigate(['/']);
+    this.router.navigate(['/home']);
   }
 
   onTotpBack() {
-    // Go back to registration step
-    this.currentStep = 1;
+    // Go back to email verification step
+    this.currentStep = 2;
   }
 
   registerWithGoogle() {
