@@ -5,6 +5,8 @@ import {
   FormGroup,
   ReactiveFormsModule,
   Validators,
+  AbstractControl,
+  ValidationErrors,
 } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -32,11 +34,44 @@ export class ResetPasswordComponent implements OnInit {
   ) {
     this.resetPasswordForm = this.fb.group(
       {
-        password: ['', [Validators.required, Validators.minLength(10)]],
+        password: ['', [Validators.required, Validators.minLength(10), this.passwordComplexityValidator]],
         confirmPassword: ['', [Validators.required]],
       },
       { validators: this.passwordMatchValidator }
     );
+  }
+
+  // Custom validator for password complexity
+  passwordComplexityValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.value;
+    if (!password) {
+      return null;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const specialChars = /[@$!%*?#^~]/;
+    const hasSpecialChar = specialChars.test(password);
+
+    if (!hasUpperCase && !hasSpecialChar) {
+      return { passwordComplexity: { message: 'Password must contain at least one uppercase letter and one special character (@$!%*?#^~).' } };
+    } else if (!hasUpperCase) {
+      return { passwordComplexity: { message: 'Password must contain at least one uppercase letter.' } };
+    } else if (!hasSpecialChar) {
+      return { passwordComplexity: { message: 'Password must contain at least one special character (@$!%*?#^~).' } };
+    }
+
+    return null;
+  }
+
+  hasSpecialChar(password: string | null | undefined): boolean {
+    if (!password) return false;
+    const specialChars = /[@$!%*?#^~]/;
+    return specialChars.test(password);
+  }
+
+  hasUpperCase(password: string | null | undefined): boolean {
+    if (!password) return false;
+    return /[A-Z]/.test(password);
   }
 
   ngOnInit() {

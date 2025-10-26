@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { TotpSetupComponent } from '../totp-setup/totp-setup.component';
 import { AuthService } from '../../services/auth.service';
@@ -27,9 +27,31 @@ export class RegisterComponent {
     this.registerForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(10)]],
+      password: ['', [Validators.required, Validators.minLength(10), this.passwordComplexityValidator]],
       confirmPassword: ['', [Validators.required]]
     }, { validators: this.passwordMatchValidator });
+  }
+
+  // Custom validator for password complexity
+  passwordComplexityValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.value;
+    if (!password) {
+      return null;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const specialChars = /[@$!%*?#^~]/;
+    const hasSpecialChar = specialChars.test(password);
+
+    if (!hasUpperCase && !hasSpecialChar) {
+      return { passwordComplexity: { message: 'Password must contain at least one uppercase letter and one special character (@$!%*?#^~).' } };
+    } else if (!hasUpperCase) {
+      return { passwordComplexity: { message: 'Password must contain at least one uppercase letter.' } };
+    } else if (!hasSpecialChar) {
+      return { passwordComplexity: { message: 'Password must contain at least one special character (@$!%*?#^~).' } };
+    }
+
+    return null;
   }
 
   passwordMatchValidator(form: FormGroup) {
