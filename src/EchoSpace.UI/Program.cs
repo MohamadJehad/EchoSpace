@@ -9,6 +9,7 @@ using EchoSpace.Tools.Email;
 using EchoSpace.Tools.Interfaces;
 using EchoSpace.Tools.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -35,17 +36,9 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Add HttpClient for Google OAuth API calls
+// Add HTTP context accessor for ABAC authorization handlers
 builder.Services.AddHttpClient();
-
-// Add session for OAuth state storage
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(10);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
+builder.Services.AddHttpContextAccessor();
 
 // Add CORS support for Angular frontend
 builder.Services.AddCors(options =>
@@ -92,13 +85,37 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     };
 });
 
-// Add Authorization with policies
+// Add Authorization with ABAC policies
 builder.Services.AddAuthorization(options =>
 {
+    // Existing RBAC policies
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ModeratorOrAdmin", policy => policy.RequireRole("Admin", "Moderator"));
     options.AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser());
+    
+    // ABAC: Owner-based policies
+    options.AddPolicy("OwnerOfPost", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.OwnerRequirement("Post")));
+    options.AddPolicy("OwnerOfComment", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.OwnerRequirement("Comment")));
+    
+    // ABAC: Admin OR Owner policies
+    options.AddPolicy("AdminOrOwnerOfPost", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AdminOrOwnerRequirement("Post")));
+    options.AddPolicy("AdminOrOwnerOfComment", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AdminOrOwnerRequirement("Comment")));
+    
+    // ABAC: Role-based policies (can be extended)
+    options.AddPolicy("RequireAdminRole", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.RoleRequirement("Admin")));
+    options.AddPolicy("RequireModeratorRole", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.RoleRequirement("Moderator")));
 });
+
+// Register ABAC authorization handlers
+builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.UI.Authorization.Handlers.OwnerRequirementHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.Core.Authorization.Handlers.RoleRequirementHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.UI.Authorization.Handlers.AdminOrOwnerRequirementHandler>();
 
 // Register repositories and services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
