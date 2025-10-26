@@ -31,6 +31,11 @@ namespace EchoSpace.Core.DTOs.Auth
         public bool RequiresTotp { get; set; }
 
         /// <summary>
+        /// Indicates if email verification is required for registration.
+        /// </summary>
+        public bool RequiresEmailVerification { get; set; }
+
+        /// <summary>
         /// User information including ID, name, and email.
         /// </summary>
         public UserDto User { get; set; } = null!;

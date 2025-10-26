@@ -72,7 +72,13 @@
               [class.border-red-500]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched"
             />
             @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
-              <p class="mt-1 text-sm text-red-600">Password must be at least 10 characters</p>
+              <p class="mt-1 text-sm text-red-600">
+                @if (registerForm.get('password')?.errors?.['passwordComplexity']) {
+                  {{ registerForm.get('password')?.errors?.['passwordComplexity']?.message }}
+                } @else {
+                  Password must be at least 10 characters with one uppercase letter and one special character (&#64;$!%*?&amp;#^~).
+                }
+              </p>
             }
           </div>
 
@@ -155,7 +161,15 @@
     </div>
   </div>
 } @else if (currentStep === 2) {
-  <!-- Step 2: TOTP Setup -->
+  <!-- Step 2: Email Verification -->
+  <app-email-verification 
+    [email]="userEmail" 
+    [isRegistration]="true"
+    (verified)="onEmailVerified()"
+    (back)="onEmailVerificationBack()">
+  </app-email-verification>
+} @else if (currentStep === 3) {
+  <!-- Step 3: TOTP Setup -->
   <app-totp-setup 
     [email]="userEmail" 
     (completed)="onTotpCompleted()"

@@ -14,12 +14,12 @@ namespace EchoSpace.Core.DTOs.Auth
         public string Token { get; set; } = string.Empty;
         
         /// <summary>
-        /// The new password.
+        /// The new password. Must be at least 10 characters with one uppercase letter and one special character.
         /// </summary>
         [Required]
         [MinLength(10)]
-        // [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]",
-        //     ErrorMessage = "Password must contain at least one lowercase letter, one uppercase letter, one digit, and one special character.")]
+        [RegularExpression(@"^(?=.*[A-Z])(?=.*[@$!%*?&#^~])[A-Za-z\d@$!%*?&#^~]{10,}$",
+            ErrorMessage = "Password must be at least 10 characters with at least one uppercase letter and one special character (@$!%*?&#^~).")]
         public string NewPassword { get; set; } = string.Empty;
         
         /// <summary>

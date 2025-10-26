@@ -437,11 +437,36 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, new { message = "An error occurred setting up TOTP." });
             }
         }
+
+        [HttpPost("complete-registration")]
+        public async Task<IActionResult> CompleteRegistration([FromBody] CompleteRegistrationRequest request)
+        {
+            try
+            {
+                var response = await _authService.CompleteRegistrationWithEmailVerificationAsync(request.Email, request.Code);
+                return Ok(response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error completing registration for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred completing registration." });
+            }
+        }
     }
 
     public class TestEmailRequest
     {
         public string Email { get; set; } = string.Empty;
+    }
+
+    public class CompleteRegistrationRequest
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
     }
 }
 

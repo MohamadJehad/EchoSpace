@@ -12,6 +12,7 @@ import { AuthService } from '../../services/auth.service';
 })
 export class EmailVerificationComponent {
   @Input() email: string = '';
+  @Input() isRegistration: boolean = false;
   @Output() verified = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
 
@@ -32,7 +33,11 @@ export class EmailVerificationComponent {
   }
 
   ngOnInit() {
-    this.sendVerificationCode();
+    // Only send email if this is NOT a registration flow
+    // Registration already sends the email in RegisterAsync
+    if (!this.isRegistration) {
+      this.sendVerificationCode();
+    }
   }
 
   ngOnDestroy() {
@@ -48,10 +53,22 @@ export class EmailVerificationComponent {
       
       const { code } = this.verificationForm.value;
       
-      this.authService.verifyEmail(this.email, code).subscribe({
-        next: () => {
+      // For registration flow, use completeRegistration to get tokens
+      // For other flows (like password reset), use verifyEmail
+      const verificationMethod = this.isRegistration ? 
+        this.authService.completeRegistration(this.email, code) :
+        this.authService.verifyEmail(this.email, code);
+
+      verificationMethod.subscribe({
+        next: (response: any) => {
           this.isLoading = false;
           this.successMessage = 'Email verified successfully!';
+          
+          // If this is registration flow and response contains tokens, set session
+          if (this.isRegistration && response.accessToken && response.refreshToken) {
+            this.authService.setSessionFromCallback(response);
+          }
+          
           setTimeout(() => {
             this.verified.emit();
           }, 1500);

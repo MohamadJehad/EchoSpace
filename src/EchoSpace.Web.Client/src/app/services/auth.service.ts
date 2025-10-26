@@ -206,4 +206,8 @@ export class AuthService {
   setupTotpForExistingUser(email: string): Observable<TotpSetupResponse> {
     return this.http.post<TotpSetupResponse>(`${this.apiUrl}/setup-totp-for-existing-user`, { email });
   }
+
+  completeRegistration(email: string, code: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/complete-registration`, { email, code });
+  }
 }
