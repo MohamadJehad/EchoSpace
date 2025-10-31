@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UsersService } from '../../services/users.service';
+import { FollowsService } from '../../services/follows.service';
 import { SuggestedUser } from '../../interfaces';
 
 @Component({
@@ -13,8 +14,12 @@ import { SuggestedUser } from '../../interfaces';
 export class SuggestedUsersComponent implements OnInit {
   suggestedUsers: SuggestedUser[] = [];
   isLoading = false;
+  followingStatus: { [userId: string]: boolean } = {};
 
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private followsService: FollowsService
+  ) {}
 
   ngOnInit(): void {
     this.loadSuggestedUsers();
@@ -29,12 +34,28 @@ export class SuggestedUsersComponent implements OnInit {
           initials: this.getInitials(user.name || user.username || user.email)
         }));
         this.isLoading = false;
+        // Check follow status for each user
+        users.forEach(user => {
+          this.checkFollowStatus(user.id);
+        });
       },
       error: (error) => {
         console.error('Error loading suggested users:', error);
         this.isLoading = false;
         // Fallback to empty array
         this.suggestedUsers = [];
+      }
+    });
+  }
+
+  checkFollowStatus(userId: string): void {
+    this.followsService.getFollowStatus(userId).subscribe({
+      next: (status) => {
+        this.followingStatus[userId] = status.isFollowing;
+      },
+      error: (error) => {
+        console.error('Error checking follow status:', error);
+        this.followingStatus[userId] = false;
       }
     });
   }
@@ -57,10 +78,25 @@ export class SuggestedUsersComponent implements OnInit {
   }
 
   onFollowUser(userId: string): void {
-    // TODO: Implement follow functionality
-    console.log('Follow user:', userId);
-    // For now, just show a message
-    alert('Follow functionality will be implemented soon!');
+    const isFollowing = this.followingStatus[userId];
+    
+    const action = isFollowing 
+      ? this.followsService.unfollowUser(userId)
+      : this.followsService.followUser(userId);
+
+    action.subscribe({
+      next: () => {
+        this.followingStatus[userId] = !isFollowing;
+        // Remove user from suggested list if they just followed (not if unfollowing)
+        if (!isFollowing) {
+          this.suggestedUsers = this.suggestedUsers.filter(u => u.id !== userId);
+        }
+      },
+      error: (error) => {
+        console.error('Error following/unfollowing user:', error);
+        alert('Failed to ' + (isFollowing ? 'unfollow' : 'follow') + ' user. Please try again.');
+      }
+    });
   }
 
   onRefresh(): void {

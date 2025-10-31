@@ -62,4 +62,9 @@ export class PostsService {
         map(response => response.status === 200)
       );
   }
+
+  // Get posts from following users
+  getPostsFromFollowing(): Observable<Post[]> {
+    return this.http.get<Post[]>(`${this.apiUrl}/following`, { headers: this.getHeaders() });
+  }
 }
