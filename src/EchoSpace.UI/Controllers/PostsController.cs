@@ -100,6 +100,31 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
+        /// Get posts from users that the current user is following
+        /// </summary>
+        [HttpGet("following")]
+        public async Task<ActionResult<IEnumerable<PostDto>>> GetPostsFromFollowing(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
+                _logger.LogInformation("Getting posts from following for user {UserId}", userId);
+                var posts = await _postService.GetPostsFromFollowingAsync(userId);
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting posts from following");
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
+
+        /// <summary>
         /// Create a new post
         /// </summary>
         [HttpPost]

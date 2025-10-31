@@ -84,6 +84,12 @@ namespace EchoSpace.Core.Services
             return post?.UserId == userId;
         }
 
+        public async Task<IEnumerable<PostDto>> GetPostsFromFollowingAsync(Guid userId)
+        {
+            var posts = await _postRepository.GetByFollowingUsersAsync(userId);
+            return posts.Select(MapToDto);
+        }
+
         private static PostDto MapToDto(Post post)
         {
             return new PostDto

@@ -12,5 +12,6 @@ namespace EchoSpace.Core.Interfaces
         Task<Post?> UpdateAsync(Post post);
         Task<bool> DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
+        Task<IEnumerable<Post>> GetByFollowingUsersAsync(Guid userId);
     }
 }

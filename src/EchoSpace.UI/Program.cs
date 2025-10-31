@@ -132,6 +132,10 @@ builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 
+// Follow services
+builder.Services.AddScoped<IFollowRepository, EchoSpace.Infrastructure.Repositories.FollowRepository>();
+builder.Services.AddScoped<IFollowService, EchoSpace.Core.Services.FollowService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
