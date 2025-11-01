@@ -48,8 +48,16 @@ namespace EchoSpace.Core.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            var createdComment = await _commentRepository.AddAsync(comment);
-            return MapToDto(createdComment);
+            await _commentRepository.AddAsync(comment);
+            
+            // Reload the comment with User navigation property to get user info
+            var createdCommentWithUser = await _commentRepository.GetByIdAsync(comment.CommentId);
+            if (createdCommentWithUser == null)
+            {
+                throw new InvalidOperationException("Failed to retrieve created comment");
+            }
+            
+            return MapToDto(createdCommentWithUser);
         }
 
         public async Task<CommentDto?> UpdateAsync(Guid id, UpdateCommentRequest request)

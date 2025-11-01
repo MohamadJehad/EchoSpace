@@ -6,7 +6,6 @@ import { AuthService } from '../../services/auth.service';
 import { PostsService } from '../../services/posts.service';
 import { FollowsService } from '../../services/follows.service';
 import { LikesService } from '../../services/likes.service';
-import { CommentsService } from '../../services/comments.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
@@ -14,12 +13,12 @@ import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component'
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { ToastService } from '../../services/toast.service';
 import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
-import { Comment, CreateCommentRequest } from '../../interfaces/comment.interface';
+import { PostCommentsComponent } from '../post-comments/post-comments.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent, PostCommentsComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -55,14 +54,7 @@ export class HomeComponent implements OnInit {
   showDeleteModal = false;
   postToDelete: Post | null = null;
   
-  // Comments
-  postComments: { [postId: string]: Comment[] } = {};
   showComments: { [postId: string]: boolean } = {};
-  isLoadingComments: { [postId: string]: boolean } = {};
-  newCommentContent: { [postId: string]: string } = {};
-  isCreatingComment: { [postId: string]: boolean } = {};
-  editingCommentId: string | null = null;
-  editCommentContent: string = '';
   
   currentUser = {
     name: 'John Doe',
@@ -88,7 +80,6 @@ export class HomeComponent implements OnInit {
     private postsService: PostsService,
     private followsService: FollowsService,
     private likesService: LikesService,
-    private commentsService: CommentsService,
     private toastService: ToastService
   ) {}
   
@@ -546,163 +537,12 @@ export class HomeComponent implements OnInit {
   // Comment methods
   toggleComments(postId: string): void {
     this.showComments[postId] = !this.showComments[postId];
-    
-    // Load comments if not already loaded
-    if (this.showComments[postId] && !this.postComments[postId]) {
-      this.loadCommentsForPost(postId);
+  }
+
+  onCommentsCountChanged(postId: string, newCount: number): void {
+    const post = this.posts.find(p => p.postId === postId);
+    if (post) {
+      post.commentsCount = newCount;
     }
-  }
-
-  loadCommentsForPost(postId: string): void {
-    this.isLoadingComments[postId] = true;
-    
-    this.commentsService.getCommentsByPost(postId).subscribe({
-      next: (comments) => {
-        this.postComments[postId] = comments.map(c => ({
-          ...c,
-          timeAgo: this.calculateTimeAgo(c.createdAt)
-        }));
-        this.isLoadingComments[postId] = false;
-      },
-      error: (error) => {
-        console.error('Error loading comments:', error);
-        this.isLoadingComments[postId] = false;
-        this.toastService.error('Error', 'Failed to load comments. Please try again.');
-      }
-    });
-  }
-
-  createComment(postId: string): void {
-    const content = this.newCommentContent[postId]?.trim();
-    if (!content) {
-      return;
-    }
-
-    if (!this.currentUser.id) {
-      this.toastService.error('Error', 'User not authenticated. Please log in again.');
-      return;
-    }
-
-    this.isCreatingComment[postId] = true;
-
-    const request: CreateCommentRequest = {
-      postId: postId,
-      userId: this.currentUser.id,
-      content: content
-    };
-
-    this.commentsService.createComment(request).subscribe({
-      next: (newComment) => {
-        // Add comment to the list
-        if (!this.postComments[postId]) {
-          this.postComments[postId] = [];
-        }
-        this.postComments[postId].unshift({
-          ...newComment,
-          timeAgo: 'just now'
-        });
-
-        // Clear the input
-        this.newCommentContent[postId] = '';
-
-        // Update comment count
-        const post = this.posts.find(p => p.postId === postId);
-        if (post) {
-          post.commentsCount++;
-        }
-
-        this.isCreatingComment[postId] = false;
-        this.toastService.success('Success!', 'Your comment has been added.');
-      },
-      error: (error) => {
-        console.error('Error creating comment:', error);
-        this.isCreatingComment[postId] = false;
-        this.toastService.error('Error', 'Failed to add comment. Please try again.');
-      }
-    });
-  }
-
-  deleteComment(postId: string, commentId: string): void {
-    if (!confirm('Are you sure you want to delete this comment?')) {
-      return;
-    }
-
-    this.commentsService.deleteComment(commentId).subscribe({
-      next: () => {
-        // Remove comment from the list
-        if (this.postComments[postId]) {
-          this.postComments[postId] = this.postComments[postId].filter(c => c.commentId !== commentId);
-        }
-
-        // Update comment count
-        const post = this.posts.find(p => p.postId === postId);
-        if (post && post.commentsCount > 0) {
-          post.commentsCount--;
-        }
-
-        this.toastService.success('Success!', 'Comment deleted successfully.');
-      },
-      error: (error) => {
-        console.error('Error deleting comment:', error);
-        this.toastService.error('Error', 'Failed to delete comment. Please try again.');
-      }
-    });
-  }
-
-  startEditComment(comment: Comment): void {
-    this.editingCommentId = comment.commentId;
-    this.editCommentContent = comment.content;
-  }
-
-  cancelEditComment(): void {
-    this.editingCommentId = null;
-    this.editCommentContent = '';
-  }
-
-  saveEditComment(postId: string, commentId: string): void {
-    if (!this.editCommentContent.trim()) {
-      return;
-    }
-
-    this.commentsService.updateComment(commentId, { content: this.editCommentContent.trim() }).subscribe({
-      next: (updatedComment) => {
-        // Update comment in the list
-        if (this.postComments[postId]) {
-          const index = this.postComments[postId].findIndex(c => c.commentId === commentId);
-          if (index !== -1) {
-            this.postComments[postId][index] = {
-              ...updatedComment,
-              timeAgo: this.calculateTimeAgo(updatedComment.createdAt)
-            };
-          }
-        }
-
-        this.editingCommentId = null;
-        this.editCommentContent = '';
-        this.toastService.success('Success!', 'Comment updated successfully.');
-      },
-      error: (error) => {
-        console.error('Error updating comment:', error);
-        this.toastService.error('Error', 'Failed to update comment. Please try again.');
-      }
-    });
-  }
-
-  isCommentOwner(comment: Comment): boolean {
-    return comment.userId === this.currentUser.id;
-  }
-
-  getCommentInitials(userName: string, userEmail: string): string {
-    if (userName) {
-      const names = userName.split(' ');
-      if (names.length >= 2) {
-        return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-      }
-      return userName.substring(0, 2).toUpperCase();
-    }
-    if (userEmail) {
-      return userEmail.substring(0, 2).toUpperCase();
-    }
-    return 'U';
   }
 }
