@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="20" cy="20" r="20" fill="url(#faviconGradient)"/>
+  
+  <!-- Echo icon - Sound waves pattern (white) -->
+  <!-- Outer sound wave -->
+  <path d="M 10 20 Q 15 12, 20 20 T 30 20" 
+        stroke="white" 
+        stroke-width="2.5" 
+        fill="none" 
+        stroke-linecap="round"
+        opacity="0.9"/>
+  
+  <!-- Middle sound wave -->
+  <path d="M 10 20 Q 13 16, 16 20 T 22 20" 
+        stroke="white" 
+        stroke-width="2.5" 
+        fill="none" 
+        stroke-linecap="round" 
+        opacity="0.8"/>
+  
+  <!-- Inner sound wave -->
+  <path d="M 11 20 Q 13 18, 15 20 T 19 20" 
+        stroke="white" 
+        stroke-width="2" 
+        fill="none" 
+        stroke-linecap="round" 
+        opacity="0.7"/>
+  
+  <!-- Sound source (circle) -->
+  <circle cx="10" cy="20" r="2.5" fill="white"/>
+</svg>
+
