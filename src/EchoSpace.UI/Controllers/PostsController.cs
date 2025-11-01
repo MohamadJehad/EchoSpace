@@ -13,11 +13,23 @@ namespace EchoSpace.UI.Controllers
     {
         private readonly ILogger<PostsController> _logger;
         private readonly IPostService _postService;
+        private readonly ILikeService _likeService;
 
-        public PostsController(ILogger<PostsController> logger, IPostService postService)
+        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService)
         {
             _logger = logger;
             _postService = postService;
+            _likeService = likeService;
+        }
+
+        private Guid? GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                return userId;
+            }
+            return null;
         }
 
         /// <summary>
@@ -29,7 +41,19 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 _logger.LogInformation("Getting all posts");
-                var posts = await _postService.GetAllAsync();
+                var currentUserId = GetCurrentUserId();
+                var posts = await _postService.GetAllAsync(currentUserId);
+                
+                // Populate like status for current user
+                if (currentUserId.HasValue)
+                {
+                    foreach (var post in posts)
+                    {
+                        post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, currentUserId.Value);
+                        post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                    }
+                }
+                
                 return Ok(posts);
             }
             catch (Exception ex)
@@ -47,11 +71,20 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var post = await _postService.GetByIdAsync(id);
+                var currentUserId = GetCurrentUserId();
+                var post = await _postService.GetByIdAsync(id, currentUserId);
                 if (post == null)
                 {
                     return NotFound($"Post with ID {id} not found");
                 }
+                
+                // Populate like status for current user
+                if (currentUserId.HasValue)
+                {
+                    post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(id, currentUserId.Value);
+                    post.LikesCount = await _likeService.GetLikeCountAsync(id);
+                }
+                
                 return Ok(post);
             }
             catch (Exception ex)
@@ -70,7 +103,19 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 _logger.LogInformation("Getting posts for user {UserId}", userId);
-                var posts = await _postService.GetByUserIdAsync(userId);
+                var currentUserId = GetCurrentUserId();
+                var posts = await _postService.GetByUserIdAsync(userId, currentUserId);
+                
+                // Populate like status for current user
+                if (currentUserId.HasValue)
+                {
+                    foreach (var post in posts)
+                    {
+                        post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, currentUserId.Value);
+                        post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                    }
+                }
+                
                 return Ok(posts);
             }
             catch (Exception ex)
@@ -89,7 +134,19 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 _logger.LogInformation("Getting recent posts (count: {Count})", count);
-                var posts = await _postService.GetRecentAsync(count);
+                var currentUserId = GetCurrentUserId();
+                var posts = await _postService.GetRecentAsync(count, currentUserId);
+                
+                // Populate like status for current user
+                if (currentUserId.HasValue)
+                {
+                    foreach (var post in posts)
+                    {
+                        post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, currentUserId.Value);
+                        post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                    }
+                }
+                
                 return Ok(posts);
             }
             catch (Exception ex)
@@ -115,6 +172,14 @@ namespace EchoSpace.UI.Controllers
 
                 _logger.LogInformation("Getting posts from following for user {UserId}", userId);
                 var posts = await _postService.GetPostsFromFollowingAsync(userId);
+                
+                // Populate like status for current user
+                foreach (var post in posts)
+                {
+                    post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, userId);
+                    post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                }
+                
                 return Ok(posts);
             }
             catch (Exception ex)

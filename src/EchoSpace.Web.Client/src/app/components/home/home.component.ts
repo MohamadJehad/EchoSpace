@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { PostsService } from '../../services/posts.service';
 import { FollowsService } from '../../services/follows.service';
+import { LikesService } from '../../services/likes.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
@@ -12,11 +13,12 @@ import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component'
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { ToastService } from '../../services/toast.service';
 import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
+import { PostCommentsComponent } from '../post-comments/post-comments.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent, PostCommentsComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -52,6 +54,8 @@ export class HomeComponent implements OnInit {
   showDeleteModal = false;
   postToDelete: Post | null = null;
   
+  showComments: { [postId: string]: boolean } = {};
+  
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -75,6 +79,7 @@ export class HomeComponent implements OnInit {
     private authService: AuthService,
     private postsService: PostsService,
     private followsService: FollowsService,
+    private likesService: LikesService,
     private toastService: ToastService
   ) {}
   
@@ -220,11 +225,30 @@ export class HomeComponent implements OnInit {
 
   likePost(postId: string): void {
     const post = this.posts.find(p => p.postId === postId);
-    if (post) {
-      // TODO: Implement like/unlike API call
-      post.isLikedByCurrentUser = !post.isLikedByCurrentUser;
-      post.likesCount += post.isLikedByCurrentUser ? 1 : -1;
+    if (!post) {
+      return;
     }
+
+    // Optimistic update
+    const wasLiked = post.isLikedByCurrentUser;
+    post.isLikedByCurrentUser = !wasLiked;
+    post.likesCount += post.isLikedByCurrentUser ? 1 : -1;
+
+    // Call API to toggle like
+    this.likesService.toggleLike(postId).subscribe({
+      next: (response) => {
+        // Update with actual server response
+        post.isLikedByCurrentUser = response.isLiked ?? post.isLikedByCurrentUser;
+        post.likesCount = response.likesCount;
+      },
+      error: (error) => {
+        console.error('Error toggling like:', error);
+        // Revert optimistic update on error
+        post.isLikedByCurrentUser = wasLiked;
+        post.likesCount += post.isLikedByCurrentUser ? 1 : -1;
+        this.toastService.error('Error', 'Failed to update like. Please try again.');
+      }
+    });
   }
 
   createPost(): void {
@@ -508,5 +532,17 @@ export class HomeComponent implements OnInit {
       return (count / 1000).toFixed(1) + 'K';
     }
     return count.toString();
+  }
+
+  // Comment methods
+  toggleComments(postId: string): void {
+    this.showComments[postId] = !this.showComments[postId];
+  }
+
+  onCommentsCountChanged(postId: string, newCount: number): void {
+    const post = this.posts.find(p => p.postId === postId);
+    if (post) {
+      post.commentsCount = newCount;
+    }
   }
 }
