@@ -310,6 +310,7 @@
                 [currentUserInitials]="currentUser.initials"
                 [currentUserName]="currentUser.name"
                 [currentUserEmail]="currentUser.email"
+                [currentUserProfilePhotoUrl]="currentUser.profilePhotoUrl"
                 [isOpen]="showComments[post.postId]"
                 (commentsCountChanged)="onCommentsCountChanged(post.postId, $event)"
                 (toggleRequested)="toggleComments(post.postId)">

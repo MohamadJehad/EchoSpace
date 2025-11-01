@@ -5,6 +5,8 @@ import { CommentsService } from '../../services/comments.service';
 import { ToastService } from '../../services/toast.service';
 import { Comment, CreateCommentRequest } from '../../interfaces/comment.interface';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
+import { UserService } from '../../services/user.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-post-comments',
@@ -20,6 +22,7 @@ export class PostCommentsComponent implements OnInit, OnChanges {
   @Input() currentUserInitials: string = '';
   @Input() currentUserName: string = '';
   @Input() currentUserEmail: string = '';
+  @Input() currentUserProfilePhotoUrl: string | null = null;
   @Input() isOpen: boolean = false;
 
   @Output() commentsCountChanged = new EventEmitter<number>();
@@ -37,9 +40,13 @@ export class PostCommentsComponent implements OnInit, OnChanges {
   commentIdToDelete: string | null = null;
   isDeletingComment = false;
 
+  // Cache for profile photos by user ID
+  profilePhotoCache: { [userId: string]: string } = {};
+
   constructor(
     private commentsService: CommentsService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private userService: UserService
   ) {}
 
   ngOnInit(): void {
@@ -71,8 +78,15 @@ export class PostCommentsComponent implements OnInit, OnChanges {
       next: (comments) => {
         this.comments = comments.map(c => ({
           ...c,
-          timeAgo: this.calculateTimeAgo(c.createdAt)
+          timeAgo: this.calculateTimeAgo(c.createdAt),
+          // Check cache or set profile photo if current user
+          profilePhotoUrl: c.userId === this.currentUserId 
+            ? this.currentUserProfilePhotoUrl 
+            : this.profilePhotoCache[c.userId] || null
         }));
+        
+        // Load profile photos for all comment authors
+        this.loadProfilePhotosForComments(this.comments);
         this.isLoadingComments = false;
       },
       error: (error) => {
@@ -109,7 +123,8 @@ export class PostCommentsComponent implements OnInit, OnChanges {
           ...newComment,
           userName: newComment.userName || this.currentUserName,
           userEmail: newComment.userEmail || this.currentUserEmail,
-          timeAgo: 'just now'
+          timeAgo: 'just now',
+          profilePhotoUrl: this.currentUserProfilePhotoUrl
         };
         
         this.comments.unshift(commentWithUserInfo);
@@ -193,7 +208,9 @@ export class PostCommentsComponent implements OnInit, OnChanges {
         if (index !== -1) {
           this.comments[index] = {
             ...updatedComment,
-            timeAgo: this.calculateTimeAgo(updatedComment.createdAt)
+            timeAgo: this.calculateTimeAgo(updatedComment.createdAt),
+            // Preserve existing profile photo URL
+            profilePhotoUrl: this.comments[index].profilePhotoUrl
           };
         }
 
@@ -224,6 +241,68 @@ export class PostCommentsComponent implements OnInit, OnChanges {
       return userEmail.substring(0, 2).toUpperCase();
     }
     return 'U';
+  }
+
+  private loadProfilePhotosForComments(comments: Comment[]): void {
+    // Get unique user IDs from comments (excluding current user)
+    const userIds = [...new Set(
+      comments
+        .map(comment => comment.userId)
+        .filter(id => id && id !== this.currentUserId && !this.profilePhotoCache[id])
+    )];
+    
+    // Load profile photos for each unique user
+    userIds.forEach(userId => {
+      if (userId) {
+        this.loadAuthorProfilePhoto(userId);
+      }
+    });
+  }
+
+  private loadAuthorProfilePhoto(userId: string): void {
+    this.userService.getUserById(userId).subscribe({
+      next: (user: any) => {
+        // Handle both camelCase and PascalCase property names
+        const profilePhotoId = user.profilePhotoId || user.ProfilePhotoId;
+        if (profilePhotoId) {
+          this.loadProfilePhotoUrlForAuthor(userId, profilePhotoId);
+        }
+      },
+      error: (error) => {
+        console.error(`Error loading user ${userId}:`, error);
+      }
+    });
+  }
+
+  private loadProfilePhotoUrlForAuthor(userId: string, imageId: string): void {
+    // environment.apiUrl already includes /api, so we don't need to add it again
+    fetch(`${environment.apiUrl}/images/${imageId}/url`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data && data.url) {
+        // Cache the profile photo URL
+        this.profilePhotoCache[userId] = data.url;
+        
+        // Update all comments with this author's profile photo
+        this.comments.forEach(comment => {
+          if (comment.userId === userId) {
+            comment.profilePhotoUrl = data.url;
+          }
+        });
+      }
+    })
+    .catch(error => {
+      console.error(`Error loading profile photo URL for user ${userId}:`, error);
+    });
   }
 
   private calculateTimeAgo(createdAt: string): string {

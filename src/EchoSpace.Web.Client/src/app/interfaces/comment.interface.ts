@@ -7,6 +7,7 @@ export interface Comment {
   userName: string;
   userEmail: string;
   timeAgo?: string;
+  profilePhotoUrl?: string | null;
 }
 
 export interface CreateCommentRequest {

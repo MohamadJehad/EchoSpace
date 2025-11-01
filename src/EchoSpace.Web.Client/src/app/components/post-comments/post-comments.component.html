@@ -6,8 +6,12 @@
     <div class="space-y-4 mb-4">
       @for (comment of comments; track comment.commentId) {
         <div class="flex items-start space-x-3">
-          <div class="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-            {{ getCommentInitials(comment.userName, comment.userEmail) }}
+          <div class="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 overflow-hidden">
+            @if (comment.profilePhotoUrl) {
+              <img [src]="comment.profilePhotoUrl" [alt]="comment.userName" class="w-full h-full object-cover">
+            } @else {
+              {{ getCommentInitials(comment.userName, comment.userEmail) }}
+            }
           </div>
           <div class="flex-1 bg-white rounded-lg p-3">
             <div class="flex items-center justify-between mb-1">
@@ -48,8 +52,12 @@
   <!-- Add Comment Form -->
   <div class="mt-4 pt-4 border-t border-gray-200">
     <div class="flex items-start space-x-3">
-      <div class="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-        {{ currentUserInitials }}
+      <div class="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 overflow-hidden">
+        @if (currentUserProfilePhotoUrl) {
+          <img [src]="currentUserProfilePhotoUrl" [alt]="currentUserName" class="w-full h-full object-cover">
+        } @else {
+          {{ currentUserInitials }}
+        }
       </div>
       <div class="flex-1">
         <textarea 
