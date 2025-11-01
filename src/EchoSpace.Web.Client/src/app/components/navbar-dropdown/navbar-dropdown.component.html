@@ -4,8 +4,12 @@
     (click)="toggleMenu()"
     class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition"
   >
-    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-      {{ currentUser.initials }}
+    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden">
+      @if (currentUser.profilePhotoUrl) {
+        <img [src]="currentUser.profilePhotoUrl" [alt]="currentUser.name" class="w-full h-full object-cover">
+      } @else {
+        {{ currentUser.initials }}
+      }
     </div>
   </button>
 
@@ -15,8 +19,12 @@
       <!-- User Info -->
       <div class="p-4 border-b border-gray-100">
         <div class="flex items-center space-x-3">
-          <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-            {{ currentUser.initials }}
+          <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden">
+            @if (currentUser.profilePhotoUrl) {
+              <img [src]="currentUser.profilePhotoUrl" [alt]="currentUser.name" class="w-full h-full object-cover">
+            } @else {
+              {{ currentUser.initials }}
+            }
           </div>
           <div class="flex-1 min-w-0">
             <p class="font-semibold text-gray-900 truncate">{{ currentUser.name }}</p>

@@ -9,6 +9,7 @@ export interface User {
   email: string;
   createdAt: string;
   updatedAt?: string;
+  profilePhotoId?: string | null;
 }
 
 export interface CreateUserRequest {

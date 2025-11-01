@@ -7,6 +7,7 @@ interface UserData {
   email: string;
   initials: string;
   role?: string;
+  profilePhotoUrl?: string | null;
 }
 
 @Component({

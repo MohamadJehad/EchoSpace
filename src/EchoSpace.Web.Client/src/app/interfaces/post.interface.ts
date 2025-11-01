@@ -4,7 +4,8 @@ export interface Post {
   author: {
     name: string;
     initials: string;
-    userId?: string; 
+    userId?: string;
+    profilePhotoUrl?: string | null;
   };
   content: string;
   imageUrl?: string;
@@ -19,6 +20,7 @@ export interface Post {
   authorName?: string;
   authorEmail?: string;
   authorUserName?: string;
+  authorProfilePhotoId?: string;
 }
 
 export interface CreatePostRequest {
