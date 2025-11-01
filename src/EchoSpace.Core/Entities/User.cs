@@ -42,6 +42,11 @@ namespace EchoSpace.Core.Entities
         
         public DateTime? UpdatedAt { get; set; }
 
+        /// <summary>
+        /// Profile photo image ID (foreign key to Images table)
+        /// </summary>
+        public Guid? ProfilePhotoId { get; set; }
+
         // TOTP Properties
         public string? TotpSecretKey { get; set; }
         public bool EmailVerified { get; set; } = false;
@@ -63,5 +68,10 @@ namespace EchoSpace.Core.Entities
         public virtual ICollection<Follow> Followers { get; set; } = new List<Follow>();
 
         public virtual ICollection<Follow> Following { get; set; } = new List<Follow>();
+
+        /// <summary>
+        /// Navigation property to the profile photo image
+        /// </summary>
+        public virtual Image? ProfilePhoto { get; set; }
     }
 }

@@ -51,6 +51,20 @@ namespace EchoSpace.Core.Services
             return await _userRepository.UpdateAsync(existing);
         }
 
+        public async Task<User?> UpdateProfilePhotoAsync(Guid userId, Guid? profilePhotoId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.ProfilePhotoId = profilePhotoId;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            return await _userRepository.UpdateAsync(user);
+        }
+
         public Task<bool> DeleteAsync(Guid id)
         {
             return _userRepository.DeleteAsync(id);

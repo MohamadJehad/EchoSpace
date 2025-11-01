@@ -4,6 +4,7 @@ using EchoSpace.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EchoSpace.Infrastructure.Migrations
 {
     [DbContext(typeof(EchoSpaceDbContext))]
-    partial class EchoSpaceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251101161120_AddImages")]
+    partial class AddImages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -309,9 +312,6 @@ namespace EchoSpace.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<Guid?>("ProfilePhotoId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
@@ -330,8 +330,6 @@ namespace EchoSpace.Infrastructure.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("ProfilePhotoId");
 
                     b.ToTable("Users");
                 });
@@ -479,16 +477,6 @@ namespace EchoSpace.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("EchoSpace.Core.Entities.User", b =>
-                {
-                    b.HasOne("EchoSpace.Core.Entities.Image", "ProfilePhoto")
-                        .WithMany()
-                        .HasForeignKey("ProfilePhotoId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ProfilePhoto");
                 });
 
             modelBuilder.Entity("EchoSpace.Core.Entities.UserSession", b =>
