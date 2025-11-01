@@ -10,5 +10,6 @@ namespace EchoSpace.Core.Interfaces
         Task<User> CreateAsync(CreateUserRequest request);
         Task<User?> UpdateAsync(Guid id, UpdateUserRequest request);
         Task<bool> DeleteAsync(Guid id);
+        Task<User?> UpdateProfilePhotoAsync(Guid userId, Guid? profilePhotoId);
     }
 }

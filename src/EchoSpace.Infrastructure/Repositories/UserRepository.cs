@@ -23,7 +23,10 @@ namespace EchoSpace.Infrastructure.Repositories
 
         public async Task<User?> GetByIdAsync(Guid id)
         {
-            return await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            return await _dbContext.Users
+                .Include(u => u.ProfilePhoto)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == id);
         }
 
         public async Task<User> AddAsync(User user)
@@ -43,6 +46,7 @@ namespace EchoSpace.Infrastructure.Repositories
 
             existing.Name = user.Name;
             existing.Email = user.Email;
+            existing.ProfilePhotoId = user.ProfilePhotoId;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();

@@ -21,6 +21,7 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Like> Likes { get; set; }
         public DbSet<Follow> Follows { get; set; }
+        public DbSet<Image> Images { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -30,6 +31,11 @@ namespace EchoSpace.Infrastructure.Data
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasIndex(u => u.Email).IsUnique();
+                
+                entity.HasOne(u => u.ProfilePhoto)
+                    .WithMany()
+                    .HasForeignKey(u => u.ProfilePhotoId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // Configure UserSession
@@ -121,6 +127,27 @@ namespace EchoSpace.Infrastructure.Data
 
                 // Prevent self-follow
                 entity.ToTable(t => t.HasCheckConstraint("CK_Follow_NotSelf", "[FollowerId] != [FollowedId]"));
+            });
+
+            // Configure Image
+            modelBuilder.Entity<Image>(entity =>
+            {
+                entity.HasIndex(i => i.BlobName).IsUnique();
+                entity.HasIndex(i => new { i.ContainerName, i.BlobName }).IsUnique();
+                entity.HasIndex(i => i.UserId);
+                entity.HasIndex(i => i.PostId);
+                entity.HasIndex(i => i.Source);
+
+                // Use NO ACTION to avoid cascade path conflicts with Posts -> Users cascade
+                entity.HasOne(i => i.User)
+                    .WithMany()
+                    .HasForeignKey(i => i.UserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(i => i.Post)
+                    .WithMany()
+                    .HasForeignKey(i => i.PostId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }
