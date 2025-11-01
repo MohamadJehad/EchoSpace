@@ -14,6 +14,8 @@ import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-m
 import { ToastService } from '../../services/toast.service';
 import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
+import { UserService } from '../../services/user.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-home',
@@ -61,7 +63,8 @@ export class HomeComponent implements OnInit {
     email: 'john.doe@example.com',
     initials: 'JD',
     role: 'User',
-    id: ''
+    id: '',
+    profilePhotoUrl: null as string | null
   };
 
   // User statistics
@@ -74,13 +77,19 @@ export class HomeComponent implements OnInit {
 
   feedType: 'all' | 'following' = 'following';
 
+  // Profile photo upload
+  isUploadingPhoto = false;
+  profilePhotoFile: File | null = null;
+  profilePhotoPreview: string | null = null;
+
   constructor(
     private router: Router,
     private authService: AuthService,
     private postsService: PostsService,
     private followsService: FollowsService,
     private likesService: LikesService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private userService: UserService
   ) {}
   
 
@@ -110,12 +119,14 @@ export class HomeComponent implements OnInit {
           email: user.email || '',
           initials: this.getInitials(user.username || user.name || user.email || 'U'),
           role: user.role || 'User',
-          id: user.id || ''
+          id: user.id || '',
+          profilePhotoUrl: null
         };
         
         // Load user statistics once we have the user ID
         if (this.currentUser.id) {
           this.loadUserStatistics();
+          this.loadUserProfile();
         }
       } else {
         // Fallback: Try to get from localStorage
@@ -127,11 +138,121 @@ export class HomeComponent implements OnInit {
             email: parsedUser.email || '',
             initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U'),
             role: parsedUser.role || 'User',
-            id: parsedUser.id || ''
+            id: parsedUser.id || '',
+            profilePhotoUrl: null
           };
+          if (this.currentUser.id) {
+            this.loadUserProfile();
+          }
         }
       }
     });
+  }
+
+  loadUserProfile(): void {
+    if (!this.currentUser.id) return;
+    
+    this.userService.getCurrentUser().subscribe({
+      next: (user: any) => {
+        if (user.profilePhotoId) {
+          this.loadProfilePhotoUrl(user.profilePhotoId);
+        }
+      },
+      error: (error) => {
+        console.error('Error loading user profile:', error);
+      }
+    });
+  }
+
+  loadProfilePhotoUrl(imageId: string): void {
+    fetch(`${environment.apiUrl}/api/images/${imageId}/url`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      this.currentUser.profilePhotoUrl = data.url;
+    })
+    .catch(error => {
+      console.error('Error loading profile photo URL:', error);
+    });
+  }
+
+  onProfilePhotoClick(): void {
+    console.log('Avatar clicked!');
+    // Use setTimeout to ensure the DOM is ready
+    setTimeout(() => {
+      const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.click();
+      } else {
+        console.error('Profile photo input not found');
+      }
+    }, 0);
+  }
+
+  onProfilePhotoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      
+      if (!file.type.startsWith('image/')) {
+        this.toastService.error('Error', 'Please select an image file');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        this.toastService.error('Error', 'File size must be less than 10MB');
+        return;
+      }
+      
+      this.profilePhotoFile = file;
+      
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.profilePhotoPreview = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  uploadProfilePhoto(): void {
+    if (!this.profilePhotoFile) {
+      this.toastService.error('Error', 'Please select a photo first');
+      return;
+    }
+    
+    this.isUploadingPhoto = true;
+    
+    this.userService.uploadProfilePhoto(this.profilePhotoFile).subscribe({
+      next: (response) => {
+        this.currentUser.profilePhotoUrl = response.imageUrl;
+        this.profilePhotoPreview = null;
+        this.profilePhotoFile = null;
+        this.isUploadingPhoto = false;
+        this.toastService.success('Success!', 'Profile photo uploaded successfully');
+        
+        const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      },
+      error: (error) => {
+        console.error('Error uploading profile photo:', error);
+        this.isUploadingPhoto = false;
+        this.toastService.error('Error', error.error?.message || 'Failed to upload profile photo');
+      }
+    });
+  }
+
+  cancelProfilePhotoUpload(): void {
+    this.profilePhotoFile = null;
+    this.profilePhotoPreview = null;
+    const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   }
 
   getInitials(name: string): string {
