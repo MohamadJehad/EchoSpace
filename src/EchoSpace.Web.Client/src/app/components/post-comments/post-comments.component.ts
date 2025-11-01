@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { CommentsService } from '../../services/comments.service';
 import { ToastService } from '../../services/toast.service';
 import { Comment, CreateCommentRequest } from '../../interfaces/comment.interface';
+import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 
 @Component({
   selector: 'app-post-comments',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmationModalComponent],
   templateUrl: './post-comments.component.html',
   styleUrl: './post-comments.component.css'
 })
@@ -30,6 +31,11 @@ export class PostCommentsComponent implements OnInit, OnChanges {
   isCreatingComment = false;
   editingCommentId: string | null = null;
   editCommentContent: string = '';
+  
+  // Delete confirmation modal state
+  showDeleteModal = false;
+  commentIdToDelete: string | null = null;
+  isDeletingComment = false;
 
   constructor(
     private commentsService: CommentsService,
@@ -126,13 +132,20 @@ export class PostCommentsComponent implements OnInit, OnChanges {
   }
 
   deleteComment(commentId: string): void {
-    if (!confirm('Are you sure you want to delete this comment?')) {
+    this.commentIdToDelete = commentId;
+    this.showDeleteModal = true;
+  }
+
+  onConfirmDelete(): void {
+    if (!this.commentIdToDelete) {
       return;
     }
 
-    this.commentsService.deleteComment(commentId).subscribe({
+    this.isDeletingComment = true;
+
+    this.commentsService.deleteComment(this.commentIdToDelete).subscribe({
       next: () => {
-        this.comments = this.comments.filter(c => c.commentId !== commentId);
+        this.comments = this.comments.filter(c => c.commentId !== this.commentIdToDelete);
 
         // Update comment count
         if (this.commentsCount > 0) {
@@ -140,13 +153,23 @@ export class PostCommentsComponent implements OnInit, OnChanges {
           this.commentsCountChanged.emit(this.commentsCount);
         }
 
+        this.isDeletingComment = false;
+        this.showDeleteModal = false;
+        this.commentIdToDelete = null;
+
         this.toastService.success('Success!', 'Comment deleted successfully.');
       },
       error: (error) => {
         console.error('Error deleting comment:', error);
+        this.isDeletingComment = false;
         this.toastService.error('Error', 'Failed to delete comment. Please try again.');
       }
     });
+  }
+
+  onCancelDelete(): void {
+    this.showDeleteModal = false;
+    this.commentIdToDelete = null;
   }
 
   startEditComment(comment: Comment): void {
