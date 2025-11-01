@@ -13,12 +13,14 @@ namespace EchoSpace.UI.Controllers
         private readonly ILogger<SuggestedUsersController> _logger;
         private readonly IUserService _userService;
         private readonly IPostService _postService;
+        private readonly IFollowService _followService;
 
-        public SuggestedUsersController(ILogger<SuggestedUsersController> logger, IUserService userService, IPostService postService)
+        public SuggestedUsersController(ILogger<SuggestedUsersController> logger, IUserService userService, IPostService postService, IFollowService followService)
         {
             _logger = logger;
             _userService = userService;
             _postService = postService;
+            _followService = followService;
         }
 
         /// <summary>
@@ -56,10 +58,20 @@ namespace EchoSpace.UI.Controllers
 
                 var users = await _userService.GetAllAsync();
 
+                // Get users that current user is already following (to exclude them)
+                var followingUserIds = new HashSet<Guid>();
+                if (currentUserId.HasValue)
+                {
+                    var following = await _followService.GetFollowingAsync(currentUserId.Value);
+                    followingUserIds = following.Select(u => u.Id).ToHashSet();
+                    _logger.LogInformation("User {UserId} is following {Count} users", currentUserId, followingUserIds.Count);
+                }
+
                 // Filter and order users first
                 var filteredUsers = users
                     .Where(u => u.Role == Core.Enums.UserRole.User) // Only regular users
                     .Where(u => currentUserId == null || u.Id != currentUserId) // Exclude current user if authenticated
+                    .Where(u => !followingUserIds.Contains(u.Id)) // Exclude users already being followed
                     .OrderByDescending(u => u.CreatedAt) // Most recent first
                     .Take(count)
                     .ToList();

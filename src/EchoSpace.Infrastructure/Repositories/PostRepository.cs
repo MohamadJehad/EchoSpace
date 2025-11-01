@@ -99,5 +99,23 @@ namespace EchoSpace.Infrastructure.Repositories
         {
             return await _dbContext.Posts.AnyAsync(p => p.PostId == id);
         }
+
+        public async Task<IEnumerable<Post>> GetByFollowingUsersAsync(Guid userId)
+        {
+            // Get posts from users that the current user is following
+            var followedUserIds = await _dbContext.Follows
+                .Where(f => f.FollowerId == userId)
+                .Select(f => f.FollowedId)
+                .ToListAsync();
+
+            return await _dbContext.Posts
+                .AsNoTracking()
+                .Include(p => p.User)
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Where(p => followedUserIds.Contains(p.UserId))
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+        }
     }
 }

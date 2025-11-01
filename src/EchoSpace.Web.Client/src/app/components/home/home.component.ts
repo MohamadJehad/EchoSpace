@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { PostsService } from '../../services/posts.service';
+import { FollowsService } from '../../services/follows.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
@@ -59,10 +60,13 @@ export class HomeComponent implements OnInit {
     id: ''
   };
 
+  feedType: 'all' | 'following' = 'following';
+
   constructor(
     private router: Router,
     private authService: AuthService,
     private postsService: PostsService,
+    private followsService: FollowsService,
     private toastService: ToastService
   ) {}
   
@@ -131,7 +135,12 @@ export class HomeComponent implements OnInit {
 
   loadPosts(): void {
     this.isLoading = true;
-    this.postsService.getRecentPosts(20).subscribe({
+    
+    const postsObservable = this.feedType === 'following' 
+      ? this.postsService.getPostsFromFollowing()
+      : this.postsService.getRecentPosts(20);
+
+    postsObservable.subscribe({
       next: (posts) => {
         this.posts = posts.map(post => this.transformPostForDisplay(post));
         this.isLoading = false;
@@ -141,8 +150,16 @@ export class HomeComponent implements OnInit {
         this.isLoading = false;
         // Fallback to empty array or show error message
         this.posts = [];
+        if (this.feedType === 'following') {
+          this.toastService.info('No Posts', 'No posts from followed users yet');
+        }
       }
     });
+  }
+
+  switchFeed(type: 'all' | 'following'): void {
+    this.feedType = type;
+    this.loadPosts();
   }
 
   private transformPostForDisplay(apiPost: any): Post {
@@ -411,5 +428,12 @@ export class HomeComponent implements OnInit {
 
   navigateToSearch(): void {
     this.router.navigate(['/search']);
+  }
+
+  onFollowStatusChanged(): void {
+    // Reload posts if on following feed
+    if (this.feedType === 'following') {
+      this.loadPosts();
+    }
   }
 }

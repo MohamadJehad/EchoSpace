@@ -14,5 +14,6 @@ namespace EchoSpace.Core.Interfaces
         Task<bool> DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
         Task<bool> IsOwnerAsync(Guid postId, Guid userId);
+        Task<IEnumerable<PostDto>> GetPostsFromFollowingAsync(Guid userId);
     }
 }
