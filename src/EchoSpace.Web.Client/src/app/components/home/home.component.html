@@ -59,15 +59,33 @@
             
             <div class="mt-4 flex justify-around py-4 border-t border-gray-100">
               <div class="text-center">
-                <p class="text-xl font-bold text-gray-900">142</p>
+                <p class="text-xl font-bold text-gray-900">
+                  @if (isLoadingStats) {
+                    ...
+                  } @else {
+                    {{ formatCount(userStats.postsCount) }}
+                  }
+                </p>
                 <p class="text-xs text-gray-600">Posts</p>
               </div>
               <div class="text-center">
-                <p class="text-xl font-bold text-gray-900">1.2K</p>
+                <p class="text-xl font-bold text-gray-900">
+                  @if (isLoadingStats) {
+                    ...
+                  } @else {
+                    {{ formatCount(userStats.followersCount) }}
+                  }
+                </p>
                 <p class="text-xs text-gray-600">Followers</p>
               </div>
               <div class="text-center">
-                <p class="text-xl font-bold text-gray-900">890</p>
+                <p class="text-xl font-bold text-gray-900">
+                  @if (isLoadingStats) {
+                    ...
+                  } @else {
+                    {{ formatCount(userStats.followingCount) }}
+                  }
+                </p>
                 <p class="text-xs text-gray-600">Following</p>
               </div>
             </div>

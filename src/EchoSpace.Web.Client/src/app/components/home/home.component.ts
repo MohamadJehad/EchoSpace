@@ -60,6 +60,14 @@ export class HomeComponent implements OnInit {
     id: ''
   };
 
+  // User statistics
+  userStats = {
+    postsCount: 0,
+    followersCount: 0,
+    followingCount: 0
+  };
+  isLoadingStats = false;
+
   feedType: 'all' | 'following' = 'following';
 
   constructor(
@@ -84,7 +92,7 @@ export class HomeComponent implements OnInit {
     // Load current user data
     this.loadUserData();
     
-    // Simulate loading posts
+    // Load posts
     this.loadPosts();
   }
 
@@ -99,6 +107,11 @@ export class HomeComponent implements OnInit {
           role: user.role || 'User',
           id: user.id || ''
         };
+        
+        // Load user statistics once we have the user ID
+        if (this.currentUser.id) {
+          this.loadUserStatistics();
+        }
       } else {
         // Fallback: Try to get from localStorage
         const storedUser = localStorage.getItem('user');
@@ -252,6 +265,9 @@ export class HomeComponent implements OnInit {
         this.isCreatingPost = false;
         this.toastService.success('Success!', 'Your post has been created successfully.');
         console.log('Post created successfully:', newPost);
+        
+        // Update user statistics (posts count)
+        this.loadUserStatistics();
       },
       error: (error) => {
         console.error('Error creating post:', error);
@@ -402,6 +418,9 @@ export class HomeComponent implements OnInit {
         this.postToDelete = null;
         this.toastService.success('Success!', 'Your post has been deleted successfully.');
         console.log('Post deleted successfully');
+        
+        // Update user statistics (posts count)
+        this.loadUserStatistics();
       },
       error: (error) => {
         console.error('Error deleting post:', error);
@@ -435,5 +454,59 @@ export class HomeComponent implements OnInit {
     if (this.feedType === 'following') {
       this.loadPosts();
     }
+    // Reload user statistics to update counts after follow/unfollow
+    if (this.currentUser.id) {
+      this.loadUserStatistics();
+    }
+  }
+
+  loadUserStatistics(): void {
+    if (!this.currentUser.id) {
+      return;
+    }
+
+    this.isLoadingStats = true;
+
+    // Load posts count
+    this.postsService.getPostsByUser(this.currentUser.id).subscribe({
+      next: (posts) => {
+        this.userStats.postsCount = posts.length;
+        this.isLoadingStats = false;
+      },
+      error: (error) => {
+        console.error('Error loading posts count:', error);
+        this.userStats.postsCount = 0;
+        this.isLoadingStats = false;
+      }
+    });
+
+    // Load followers count
+    this.followsService.getFollowerCount(this.currentUser.id).subscribe({
+      next: (response) => {
+        this.userStats.followersCount = response.count;
+      },
+      error: (error) => {
+        console.error('Error loading followers count:', error);
+        this.userStats.followersCount = 0;
+      }
+    });
+
+    // Load following count
+    this.followsService.getFollowingCount(this.currentUser.id).subscribe({
+      next: (response) => {
+        this.userStats.followingCount = response.count;
+      },
+      error: (error) => {
+        console.error('Error loading following count:', error);
+        this.userStats.followingCount = 0;
+      }
+    });
+  }
+
+  formatCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'K';
+    }
+    return count.toString();
   }
 }
