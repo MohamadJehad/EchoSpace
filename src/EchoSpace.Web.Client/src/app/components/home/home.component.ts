@@ -429,4 +429,11 @@ export class HomeComponent implements OnInit {
   navigateToSearch(): void {
     this.router.navigate(['/search']);
   }
+
+  onFollowStatusChanged(): void {
+    // Reload posts if on following feed
+    if (this.feedType === 'following') {
+      this.loadPosts();
+    }
+  }
 }

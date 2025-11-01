@@ -227,7 +227,8 @@
                   [isOpen]="isDropdownOpen(post.postId)"
                   (editPost)="onEditPost($event)"
                   (deletePost)="onDeletePost($event)"
-                  (toggleDropdown)="togglePostDropdown(post.postId)">
+                  (toggleDropdown)="togglePostDropdown(post.postId)"
+                  (followStatusChanged)="onFollowStatusChanged()">
                 </app-post-dropdown>
               </div>
 
