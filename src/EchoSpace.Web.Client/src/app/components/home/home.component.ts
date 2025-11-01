@@ -15,12 +15,13 @@ import { ToastService } from '../../services/toast.service';
 import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
 import { UserService } from '../../services/user.service';
+import { ProfileCardComponent } from '../profile-card/profile-card.component';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent, PostCommentsComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent, PostCommentsComponent, ProfileCardComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -77,10 +78,8 @@ export class HomeComponent implements OnInit {
 
   feedType: 'all' | 'following' = 'following';
 
-  // Profile photo upload
-  isUploadingPhoto = false;
-  profilePhotoFile: File | null = null;
-  profilePhotoPreview: string | null = null;
+  // Cache for profile photos by user ID
+  profilePhotoCache: { [userId: string]: string } = {};
 
   constructor(
     private router: Router,
@@ -150,109 +149,121 @@ export class HomeComponent implements OnInit {
   }
 
   loadUserProfile(): void {
-    if (!this.currentUser.id) return;
+    if (!this.currentUser.id) {
+      console.log('loadUserProfile: No user ID available');
+      return;
+    }
+    
+    console.log('loadUserProfile: Loading user profile for ID:', this.currentUser.id);
     
     this.userService.getCurrentUser().subscribe({
       next: (user: any) => {
-        if (user.profilePhotoId) {
-          this.loadProfilePhotoUrl(user.profilePhotoId);
+        console.log('loadUserProfile: Received user data:', user);
+        
+        // Update user info if needed
+        if (user.name) {
+          this.currentUser.name = user.name;
+          this.currentUser.initials = this.getInitials(user.name);
+        }
+        if (user.email) {
+          this.currentUser.email = user.email;
+        }
+        
+        // Handle both camelCase and PascalCase property names
+        const profilePhotoId = user.profilePhotoId || user.ProfilePhotoId;
+        
+        console.log('loadUserProfile: Profile photo ID:', profilePhotoId);
+        
+        // Load profile photo if exists
+        if (profilePhotoId) {
+          console.log('loadUserProfile: Loading profile photo URL for imageId:', profilePhotoId);
+          this.loadProfilePhotoUrl(profilePhotoId);
+        } else {
+          console.log('loadUserProfile: No profile photo ID found');
+          // Clear profile photo if none exists
+          this.currentUser.profilePhotoUrl = null;
+          if (this.currentUser.id) {
+            delete this.profilePhotoCache[this.currentUser.id];
+          }
         }
       },
       error: (error) => {
         console.error('Error loading user profile:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
       }
     });
   }
 
   loadProfilePhotoUrl(imageId: string): void {
-    fetch(`${environment.apiUrl}/api/images/${imageId}/url`, {
+    if (!imageId) {
+      console.warn('loadProfilePhotoUrl: No imageId provided');
+      return;
+    }
+    
+    console.log('loadProfilePhotoUrl: Loading URL for imageId:', imageId);
+    // environment.apiUrl already includes /api, so we don't need to add it again
+    const url = `${environment.apiUrl}/images/${imageId}/url`;
+    console.log('loadProfilePhotoUrl: Fetching from:', url);
+    
+    fetch(url, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      console.log('loadProfilePhotoUrl: Response status:', response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then(data => {
-      this.currentUser.profilePhotoUrl = data.url;
+      console.log('loadProfilePhotoUrl: Received data:', data);
+      if (data && data.url) {
+        // Only update if we got a valid URL
+        console.log('loadProfilePhotoUrl: Setting profile photo URL:', data.url);
+        this.currentUser.profilePhotoUrl = data.url;
+        
+        // Update cache for current user
+        if (this.currentUser.id) {
+          this.profilePhotoCache[this.currentUser.id] = data.url;
+          console.log('loadProfilePhotoUrl: Updated cache for user:', this.currentUser.id);
+        }
+        
+        // Update all posts by current user
+        this.posts.forEach(post => {
+          if (post.author.userId === this.currentUser.id) {
+            post.author.profilePhotoUrl = data.url;
+          }
+        });
+        console.log('loadProfilePhotoUrl: Updated', this.posts.filter(p => p.author.userId === this.currentUser.id).length, 'posts with new profile photo');
+      } else {
+        console.warn('loadProfilePhotoUrl: Response did not contain a valid URL:', data);
+      }
     })
     .catch(error => {
-      console.error('Error loading profile photo URL:', error);
+      console.error('loadProfilePhotoUrl: Error loading profile photo URL:', error);
+      console.error('loadProfilePhotoUrl: Error details:', error.message);
+      // Don't clear the existing URL on error - keep what we have
     });
   }
 
-  onProfilePhotoClick(): void {
-    console.log('Avatar clicked!');
-    // Use setTimeout to ensure the DOM is ready
-    setTimeout(() => {
-      const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.click();
-      } else {
-        console.error('Profile photo input not found');
-      }
-    }, 0);
-  }
-
-  onProfilePhotoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      
-      if (!file.type.startsWith('image/')) {
-        this.toastService.error('Error', 'Please select an image file');
-        return;
-      }
-      
-      if (file.size > 10 * 1024 * 1024) {
-        this.toastService.error('Error', 'File size must be less than 10MB');
-        return;
-      }
-      
-      this.profilePhotoFile = file;
-      
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.profilePhotoPreview = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  }
-
-  uploadProfilePhoto(): void {
-    if (!this.profilePhotoFile) {
-      this.toastService.error('Error', 'Please select a photo first');
-      return;
+  onProfilePhotoUpdated(imageUrl: string): void {
+    // Handle profile photo update from profile card component
+    console.log('onProfilePhotoUpdated: Profile photo updated:', imageUrl);
+    
+    // Update cache for current user
+    if (this.currentUser.id) {
+      this.profilePhotoCache[this.currentUser.id] = imageUrl;
     }
     
-    this.isUploadingPhoto = true;
-    
-    this.userService.uploadProfilePhoto(this.profilePhotoFile).subscribe({
-      next: (response) => {
-        this.currentUser.profilePhotoUrl = response.imageUrl;
-        this.profilePhotoPreview = null;
-        this.profilePhotoFile = null;
-        this.isUploadingPhoto = false;
-        this.toastService.success('Success!', 'Profile photo uploaded successfully');
-        
-        const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
-        }
-      },
-      error: (error) => {
-        console.error('Error uploading profile photo:', error);
-        this.isUploadingPhoto = false;
-        this.toastService.error('Error', error.error?.message || 'Failed to upload profile photo');
+    // Update all posts by current user to show new profile photo
+    this.posts.forEach(post => {
+      if (post.author.userId === this.currentUser.id) {
+        post.author.profilePhotoUrl = imageUrl;
       }
     });
-  }
-
-  cancelProfilePhotoUpload(): void {
-    this.profilePhotoFile = null;
-    this.profilePhotoPreview = null;
-    const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
-    }
+    console.log('onProfilePhotoUpdated: Updated posts count:', this.posts.filter(p => p.author.userId === this.currentUser.id).length);
   }
 
   getInitials(name: string): string {
@@ -282,6 +293,8 @@ export class HomeComponent implements OnInit {
     postsObservable.subscribe({
       next: (posts) => {
         this.posts = posts.map(post => this.transformPostForDisplay(post));
+        // Load profile photos for all post authors
+        this.loadProfilePhotosForPosts(this.posts);
         this.isLoading = false;
       },
       error: (error) => {
@@ -305,6 +318,15 @@ export class HomeComponent implements OnInit {
     // Use backend author information if available, otherwise fallback to current user
     const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
     const authorUserName = apiPost.authorUserName || apiPost.author?.username || '';
+    const userId = apiPost.userId;
+    
+    // Check if we already have profile photo in cache
+    const profilePhotoUrl = this.profilePhotoCache[userId] || null;
+    
+    // If it's the current user, use their profile photo
+    if (userId === this.currentUser.id && this.currentUser.profilePhotoUrl) {
+      this.profilePhotoCache[userId] = this.currentUser.profilePhotoUrl;
+    }
     
     return {
       ...apiPost,
@@ -312,8 +334,10 @@ export class HomeComponent implements OnInit {
       author: {
         name: authorName,
         initials: this.getInitials(authorName),
-        userId: apiPost.userId
-      }
+        userId: userId,
+        profilePhotoUrl: profilePhotoUrl || (userId === this.currentUser.id ? this.currentUser.profilePhotoUrl : null)
+      },
+      authorProfilePhotoId: apiPost.authorProfilePhotoId
     };
   }
 
@@ -321,6 +345,7 @@ export class HomeComponent implements OnInit {
     // For newly created posts, use current user info if author info is not available
     const authorName = apiPost.authorName || apiPost.author?.name || this.currentUser.name || 'Unknown User';
     const authorUserName = apiPost.authorUserName || apiPost.author?.username || this.currentUser.email || '';
+    const userId = apiPost.userId || this.currentUser.id;
     
     return {
       ...apiPost,
@@ -328,9 +353,59 @@ export class HomeComponent implements OnInit {
       author: {
         name: authorName,
         initials: this.getInitials(authorName),
-        userId: apiPost.userId
+        userId: userId,
+        profilePhotoUrl: userId === this.currentUser.id ? this.currentUser.profilePhotoUrl : null
       }
     };
+  }
+
+  private loadProfilePhotosForPosts(posts: Post[]): void {
+    // Get unique user IDs from posts
+    const userIds = [...new Set(posts.map(post => post.author.userId).filter(id => id && id !== this.currentUser.id))];
+    
+    // Load profile photos for each unique user
+    userIds.forEach(userId => {
+      if (userId && !this.profilePhotoCache[userId]) {
+        this.loadAuthorProfilePhoto(userId);
+      }
+    });
+  }
+
+  private loadAuthorProfilePhoto(userId: string): void {
+    this.userService.getUserById(userId).subscribe({
+      next: (user: any) => {
+        if (user.profilePhotoId) {
+          this.loadProfilePhotoUrlForAuthor(userId, user.profilePhotoId);
+        }
+      },
+      error: (error) => {
+        console.error(`Error loading user ${userId}:`, error);
+      }
+    });
+  }
+
+  private loadProfilePhotoUrlForAuthor(userId: string, imageId: string): void {
+    // environment.apiUrl already includes /api, so we don't need to add it again
+    fetch(`${environment.apiUrl}/images/${imageId}/url`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Cache the profile photo URL
+      this.profilePhotoCache[userId] = data.url;
+      
+      // Update all posts with this author's profile photo
+      this.posts.forEach(post => {
+        if (post.author.userId === userId) {
+          post.author.profilePhotoUrl = data.url;
+        }
+      });
+    })
+    .catch(error => {
+      console.error(`Error loading profile photo URL for user ${userId}:`, error);
+    });
   }
 
   private calculateTimeAgo(createdAt: string): string {
