@@ -121,8 +121,8 @@ builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.UI.Authorization.Han
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ITotpService, EchoSpace.Infrastructure.Services.TotpService>();
-builder.Services.AddScoped<ISearchService, EchoSpace.Infrastructure.Services.SearchService>();
+builder.Services.AddScoped<ITotpService, TotpService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
 
 // Post services
 builder.Services.AddScoped<IPostRepository, PostRepository>();
@@ -133,8 +133,12 @@ builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 
 // Follow services
-builder.Services.AddScoped<IFollowRepository, EchoSpace.Infrastructure.Repositories.FollowRepository>();
-builder.Services.AddScoped<IFollowService, EchoSpace.Core.Services.FollowService>();
+builder.Services.AddScoped<IFollowRepository, FollowRepository>();
+builder.Services.AddScoped<IFollowService, FollowService>();
+
+// Like services
+builder.Services.AddScoped<ILikeRepository, LikeRepository>();
+builder.Services.AddScoped<ILikeService, LikeService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
