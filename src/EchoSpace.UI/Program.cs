@@ -8,6 +8,7 @@ using EchoSpace.Infrastructure.Services;
 using EchoSpace.Tools.Email;
 using EchoSpace.Tools.Interfaces;
 using EchoSpace.Tools.Services;
+using EchoSpace.UI.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -85,34 +86,62 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     };
 });
 
-// Add Authorization with ABAC policies
+// Add Authorization with ABAC (Attribute-Based Access Control) policies
 builder.Services.AddAuthorization(options =>
 {
-    // Existing RBAC policies
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("ModeratorOrAdmin", policy => policy.RequireRole("Admin", "Moderator"));
-    options.AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser());
-    
+    // ABAC: Authenticated User Policy
+    var authenticatedUserPolicy = AbacPolicyBuilder.CreateAuthenticatedUserPolicy();
+    options.AddAbacPolicy(authenticatedUserPolicy, "General");
+
+    // ABAC: Admin Role Policy
+    var adminPolicy = AbacPolicyBuilder.CreateAdminRolePolicy();
+    options.AddAbacPolicy(adminPolicy, "General", "Admin");
+
+    // ABAC: Moderator or Admin Role Policy
+    var moderatorOrAdminPolicy = AbacPolicyBuilder.CreateModeratorOrAdminRolePolicy();
+    options.AddAbacPolicy(moderatorOrAdminPolicy, "General", "Moderate");
+
     // ABAC: Owner-based policies
-    options.AddPolicy("OwnerOfPost", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.OwnerRequirement("Post")));
-    options.AddPolicy("OwnerOfComment", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.OwnerRequirement("Comment")));
+    var ownerOfPostPolicy = AbacPolicyBuilder.CreateOwnerPolicy("Post");
+    options.AddAbacPolicy(ownerOfPostPolicy, "Post");
     
+    var ownerOfCommentPolicy = AbacPolicyBuilder.CreateOwnerPolicy("Comment");
+    options.AddAbacPolicy(ownerOfCommentPolicy, "Comment");
+
     // ABAC: Admin OR Owner policies
-    options.AddPolicy("AdminOrOwnerOfPost", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.AdminOrOwnerRequirement("Post")));
-    options.AddPolicy("AdminOrOwnerOfComment", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.AdminOrOwnerRequirement("Comment")));
+    var adminOrOwnerOfPostPolicy = AbacPolicyBuilder.CreateAdminOrOwnerPolicy("Post");
+    options.AddAbacPolicy(adminOrOwnerOfPostPolicy, "Post", "UpdateOrDelete");
     
-    // ABAC: Role-based policies (can be extended)
-    options.AddPolicy("RequireAdminRole", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.RoleRequirement("Admin")));
-    options.AddPolicy("RequireModeratorRole", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.RoleRequirement("Moderator")));
+    var adminOrOwnerOfCommentPolicy = AbacPolicyBuilder.CreateAdminOrOwnerPolicy("Comment");
+    options.AddAbacPolicy(adminOrOwnerOfCommentPolicy, "Comment", "UpdateOrDelete");
+
+    // Legacy policy names for backward compatibility (now using ABAC)
+    options.AddPolicy("AdminOnly", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(adminPolicy, "General", "Admin")));
+    
+    options.AddPolicy("ModeratorOrAdmin", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(moderatorOrAdminPolicy, "General", "Moderate")));
+    
+    options.AddPolicy("AuthenticatedUser", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(authenticatedUserPolicy, "General")));
+    
+    options.AddPolicy("OwnerOfPost", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(ownerOfPostPolicy, "Post")));
+    
+    options.AddPolicy("OwnerOfComment", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(ownerOfCommentPolicy, "Comment")));
+    
+    options.AddPolicy("AdminOrOwnerOfPost", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(adminOrOwnerOfPostPolicy, "Post", "UpdateOrDelete")));
+    
+    options.AddPolicy("AdminOrOwnerOfComment", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(adminOrOwnerOfCommentPolicy, "Comment", "UpdateOrDelete")));
 });
 
-// Register ABAC authorization handlers
+// Register ABAC authorization handler (primary handler for all ABAC policies)
+builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.UI.Authorization.Handlers.AbacRequirementHandler>();
+
+// Keep legacy handlers for backward compatibility (can be removed after full migration)
 builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.UI.Authorization.Handlers.OwnerRequirementHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.Core.Authorization.Handlers.RoleRequirementHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, EchoSpace.UI.Authorization.Handlers.AdminOrOwnerRequirementHandler>();
