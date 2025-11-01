@@ -15,12 +15,13 @@ import { ToastService } from '../../services/toast.service';
 import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
 import { UserService } from '../../services/user.service';
+import { ProfileCardComponent } from '../profile-card/profile-card.component';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent, PostCommentsComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarDropdownComponent, SearchBarComponent, SuggestedUsersComponent, PostDropdownComponent, ConfirmationModalComponent, PostCommentsComponent, ProfileCardComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -76,11 +77,6 @@ export class HomeComponent implements OnInit {
   isLoadingStats = false;
 
   feedType: 'all' | 'following' = 'following';
-
-  // Profile photo upload
-  isUploadingPhoto = false;
-  profilePhotoFile: File | null = null;
-  profilePhotoPreview: string | null = null;
 
   // Cache for profile photos by user ID
   profilePhotoCache: { [userId: string]: string } = {};
@@ -252,111 +248,22 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  onProfilePhotoClick(): void {
-    console.log('Avatar clicked!');
-    // Use setTimeout to ensure the DOM is ready
-    setTimeout(() => {
-      const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.click();
-      } else {
-        console.error('Profile photo input not found');
-      }
-    }, 0);
-  }
-
-  onProfilePhotoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      
-      if (!file.type.startsWith('image/')) {
-        this.toastService.error('Error', 'Please select an image file');
-        return;
-      }
-      
-      if (file.size > 10 * 1024 * 1024) {
-        this.toastService.error('Error', 'File size must be less than 10MB');
-        return;
-      }
-      
-      this.profilePhotoFile = file;
-      
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.profilePhotoPreview = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  }
-
-  uploadProfilePhoto(): void {
-    if (!this.profilePhotoFile) {
-      this.toastService.error('Error', 'Please select a photo first');
-      return;
+  onProfilePhotoUpdated(imageUrl: string): void {
+    // Handle profile photo update from profile card component
+    console.log('onProfilePhotoUpdated: Profile photo updated:', imageUrl);
+    
+    // Update cache for current user
+    if (this.currentUser.id) {
+      this.profilePhotoCache[this.currentUser.id] = imageUrl;
     }
     
-    this.isUploadingPhoto = true;
-    
-    this.userService.uploadProfilePhoto(this.profilePhotoFile).subscribe({
-      next: (response) => {
-        console.log('uploadProfilePhoto: Upload response:', response);
-        
-        // Use the imageUrl from response immediately for display
-        if (response.imageUrl) {
-          console.log('uploadProfilePhoto: Setting profile photo URL from response:', response.imageUrl);
-          this.currentUser.profilePhotoUrl = response.imageUrl;
-          
-          // Update cache for current user
-          if (this.currentUser.id) {
-            this.profilePhotoCache[this.currentUser.id] = response.imageUrl;
-            console.log('uploadProfilePhoto: Updated cache for user:', this.currentUser.id);
-          }
-          
-          // Update all posts by current user to show new profile photo
-          this.posts.forEach(post => {
-            if (post.author.userId === this.currentUser.id) {
-              post.author.profilePhotoUrl = response.imageUrl;
-            }
-          });
-          console.log('uploadProfilePhoto: Updated posts count:', this.posts.filter(p => p.author.userId === this.currentUser.id).length);
-        } else {
-          console.warn('uploadProfilePhoto: No imageUrl in response:', response);
-        }
-        
-        // Clear preview and file AFTER we've set the URL
-        // This prevents the image from disappearing
-        this.profilePhotoPreview = null;
-        this.profilePhotoFile = null;
-        this.isUploadingPhoto = false;
-        
-        console.log('uploadProfilePhoto: Current user profilePhotoUrl:', this.currentUser.profilePhotoUrl);
-        
-        // Note: We don't need to reload the URL since we already have it from the upload response
-        // The URL from the response is valid and will work. We only reload on component init.
-        
-        this.toastService.success('Success!', 'Profile photo uploaded successfully');
-        
-        const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
-        }
-      },
-      error: (error) => {
-        console.error('Error uploading profile photo:', error);
-        this.isUploadingPhoto = false;
-        this.toastService.error('Error', error.error?.message || 'Failed to upload profile photo');
+    // Update all posts by current user to show new profile photo
+    this.posts.forEach(post => {
+      if (post.author.userId === this.currentUser.id) {
+        post.author.profilePhotoUrl = imageUrl;
       }
     });
-  }
-
-  cancelProfilePhotoUpload(): void {
-    this.profilePhotoFile = null;
-    this.profilePhotoPreview = null;
-    const fileInput = document.getElementById('profilePhotoInput') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
-    }
+    console.log('onProfilePhotoUpdated: Updated posts count:', this.posts.filter(p => p.author.userId === this.currentUser.id).length);
   }
 
   getInitials(name: string): string {
