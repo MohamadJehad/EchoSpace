@@ -2,6 +2,7 @@ using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Tools.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using EchoSpace.Infrastructure.Data;
@@ -32,6 +33,7 @@ namespace EchoSpace.UI.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("LoginAndRegisterPolicy")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
@@ -52,6 +54,7 @@ namespace EchoSpace.UI.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("LoginAndRegisterPolicy")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try
@@ -72,6 +75,7 @@ namespace EchoSpace.UI.Controllers
         }
 
         [HttpPost("refresh")]
+        [EnableRateLimiting("RefreshTokenPolicy")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             try
