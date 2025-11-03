@@ -227,6 +227,20 @@ builder.Services.AddHeaderPolicy(options =>
     options.AddReferrerPolicyStrictOriginWhenCrossOrigin(); // Control referrer behavior
 });
 
+
+// 2. Configure Secure TLS
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ConfigureHttpsDefaults(httpsOptions =>
+    {
+        httpsOptions.SslProtocols =
+            System.Security.Authentication.SslProtocols.Tls13 |
+            System.Security.Authentication.SslProtocols.Tls12;
+    });
+});
+
+
 //=============================================================
 
 
