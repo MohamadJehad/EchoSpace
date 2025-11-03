@@ -213,6 +213,22 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 // 2. Register your EmailSender as a service
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
+//=============================================================
+// Security settings
+//=============================================================
+
+// 1. Configure Security Headers
+
+builder.Services.AddHeaderPolicy(options =>
+{
+    options.AddFrameOptionsDeny();                 // Prevent website from being embedded in iframes
+    options.AddXssProtectionBlock();               // Add basic XSS protection
+    options.AddContentTypeOptionsNoSniff();        // Stop MIME type sniffing
+    options.AddReferrerPolicyStrictOriginWhenCrossOrigin(); // Control referrer behavior
+});
+
+//=============================================================
+
 
 var app = builder.Build();
 
@@ -231,5 +247,7 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.UseHeaderPolicy(); // This applies the rules to every response
+
 
 app.Run();
