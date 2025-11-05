@@ -15,31 +15,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using Serilog;
-using Serilog.Events;
-using EchoSpace.Infrastructure.Services.Logging; // Ensure this using directive is present
-using EchoSpace.Core.Interfaces.Services; 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("logs/audit/audit-.log", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
-// Use Serilog for logging
-builder.Host.UseSerilog();
-
-// Add services to the container.
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-    });
 // Add services to the container.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -190,9 +168,6 @@ builder.Services.AddScoped<IFollowService, FollowService>();
 // Like services
 builder.Services.AddScoped<ILikeRepository, LikeRepository>();
 builder.Services.AddScoped<ILikeService, LikeService>();
-// builder.Services.AddScoped<EchoSpace.Core.Services.IAuditService, EchoSpace.Infrastructure.Services.AuditService>();
-builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // Ensure this line is present
-builder.Services.AddSingleton<Serilog.ILogger>(Log.Logger);
 
 // Image services
 builder.Services.AddScoped<IImageRepository, ImageRepository>();

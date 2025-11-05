@@ -73,6 +73,5 @@ namespace EchoSpace.Core.Entities
         /// Navigation property to the profile photo image
         /// </summary>
         public virtual Image? ProfilePhoto { get; set; }
-        
     }
 }

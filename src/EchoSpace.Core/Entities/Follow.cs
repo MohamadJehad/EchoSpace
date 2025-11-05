@@ -14,10 +14,10 @@ namespace EchoSpace.Core.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation Properties
-        // [ForeignKey(nameof(FollowerId))]
+        [ForeignKey(nameof(FollowerId))]
         public virtual User Follower { get; set; } = null!;
 
-        // [ForeignKey(nameof(FollowedId))]
+        [ForeignKey(nameof(FollowedId))]
         public virtual User Followed { get; set; } = null!;
     }
 }

@@ -22,7 +22,6 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<Like> Likes { get; set; }
         public DbSet<Follow> Follows { get; set; }
         public DbSet<Image> Images { get; set; }
-        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
