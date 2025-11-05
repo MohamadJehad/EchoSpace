@@ -25,5 +25,12 @@
     <ProjectReference Include="..\EchoSpace.Infrastructure\EchoSpace.Infrastructure.csproj" />
     <ProjectReference Include="..\EchoSpace.Tools\EchoSpace.Tools.csproj" />
   </ItemGroup>
+<ItemGroup>
+  <PackageReference Include="Serilog" Version="3.1.1" />
+  <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+  <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+  <PackageReference Include="Serilog.Enrichers.Environment" Version="2.3.0" />
+  <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
+</ItemGroup>
 
 </Project>

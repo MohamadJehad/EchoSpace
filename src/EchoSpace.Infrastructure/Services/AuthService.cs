@@ -12,7 +12,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-
+using System.Text.Json;  
 namespace EchoSpace.Infrastructure.Services
 {
     public class AuthService : IAuthService
@@ -22,7 +22,7 @@ namespace EchoSpace.Infrastructure.Services
         private readonly ILogger<AuthService> _logger;
         private readonly IEmailSender _emailSender;
         private readonly ITotpService _totpService;
-
+        
         public AuthService(EchoSpaceDbContext context, IConfiguration configuration, ILogger<AuthService> logger, IEmailSender emailSender, ITotpService totpService)
         {
             _context = context;
@@ -30,6 +30,7 @@ namespace EchoSpace.Infrastructure.Services
             _logger = logger;
             _emailSender = emailSender;
             _totpService = totpService;
+           
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -53,7 +54,7 @@ namespace EchoSpace.Infrastructure.Services
                 AccessFailedCount = 0,
                 CreatedAt = DateTime.UtcNow
             };
-
+            
             // Hash password
             user.PasswordHash = HashPassword(request.Password);
 
