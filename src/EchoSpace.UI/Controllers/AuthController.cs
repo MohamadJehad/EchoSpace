@@ -6,7 +6,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using EchoSpace.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-
+using EchoSpace.Core.Interfaces.Services;
 
 namespace EchoSpace.UI.Controllers
 {
@@ -20,8 +20,8 @@ namespace EchoSpace.UI.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IEmailSender _emailSender;
         private readonly EchoSpaceDbContext _context;
-
-        public AuthController(IAuthService authService, ITotpService totpService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context)
+        private readonly IAuditLogService _auditLogService; 
+        public AuthController(IAuthService authService, ITotpService totpService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context, IAuditLogService auditLogService)
         {
             _authService = authService;
             _totpService = totpService;
@@ -29,6 +29,7 @@ namespace EchoSpace.UI.Controllers
             _httpClientFactory = httpClientFactory;
             _emailSender = emailSender;
             _context = context;
+            _auditLogService = auditLogService;
         }
 
         [HttpPost("register")]
@@ -57,12 +58,24 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 var response = await _authService.LoginAsync(request);
+                await _auditLogService.LogAsync(
+                action: "POST /api/auth/login",
+                entityType: "User",
+                entityId: request.Email,
+                result: "success"
+            );
                 return Ok(response);
             }
             catch (UnauthorizedAccessException)
             {
                 // Generic error to prevent user enumeration
-                return Unauthorized(new { message = "Invalid credentials." });
+                 await _auditLogService.LogAsync(
+                action: "POST /api/auth/login",
+                entityType: "User",
+                entityId: request.Email,
+                result: "failure"
+            );
+            return Unauthorized(new { message = "Invalid credentials." });
             }
             catch (Exception ex)
             {
@@ -96,11 +109,18 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 await _authService.LogoutAsync(request.RefreshToken);
+                await _auditLogService.LogAsync(
+                action: "POST /api/auth/logout",
+                entityType: "User",
+                entityId: request.RefreshToken.ToString(),
+                result: "success"
+            );
                 return Ok(new { message = "Logged out successfully." });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during logout");
+               
                 return StatusCode(500, new { message = "An error occurred during logout." });
             }
         }
@@ -199,11 +219,23 @@ namespace EchoSpace.UI.Controllers
 
                 // Redirect to Angular with tokens in URL
                 var redirectUrl = $"{frontendCallbackUrl}?accessToken={encodedAccessToken}&refreshToken={encodedRefreshToken}&user={encodedUser}";
+                 await _auditLogService.LogAsync(
+                action: "POST /api/auth/GoogleLogin",
+                entityType: "User",
+                entityId: email,
+                result: "success"
+            );
                 return Redirect(redirectUrl);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during Google authentication");
+                 await _auditLogService.LogAsync(
+                action: "POST /api/auth/GoogleLogin",
+                entityType: "User",
+                entityId: HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                result: "Failure"
+            );
                 return StatusCode(500, new { message = "An error occurred during Google authentication." });
             }
         }
@@ -238,11 +270,23 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 var response = await _authService.ForgotPasswordAsync(request);
+                 await _auditLogService.LogAsync(
+                action: "POST /api/auth/ForgotPassword",
+                entityType: "User",
+                entityId: request.Email,
+                result: "success"
+            );
                 return Ok(response);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during forgot password request for email: {Email}", request.Email);
+                 await _auditLogService.LogAsync(
+                action: "POST /api/auth/ForgotPassword",
+                entityType: "User",
+                entityId: request.Email,
+                result: "failure"
+            );
                 return StatusCode(500, new { message = "An error occurred while processing your request." });
             }
         }
@@ -290,16 +334,34 @@ namespace EchoSpace.UI.Controllers
                 
                 if (success)
                 {
+                     await _auditLogService.LogAsync(
+                action: "POST /api/auth/password-reset",
+                entityType: "User",
+                entityId: HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                result: "success"
+            );
                     return Ok(new { message = "Password has been reset successfully." });
                 }
                 else
                 {
+                     await _auditLogService.LogAsync(
+                action: "POST /api/auth/password-reset",
+                entityType: "User",
+                entityId: HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                result: "failure"
+            );
                     return BadRequest(new { message = "Invalid or expired reset token." });
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during password reset");
+                 await _auditLogService.LogAsync(
+                action: "POST /api/auth/password-reset",
+                entityType: "User",
+                entityId: HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                result: "failure"
+            );
                 return StatusCode(500, new { message = "An error occurred while resetting the password." });
             }
         }

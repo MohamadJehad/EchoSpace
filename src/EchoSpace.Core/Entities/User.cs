@@ -63,5 +63,6 @@ namespace EchoSpace.Core.Entities
         public virtual ICollection<Follow> Followers { get; set; } = new List<Follow>();
 
         public virtual ICollection<Follow> Following { get; set; } = new List<Follow>();
+        
     }
 }

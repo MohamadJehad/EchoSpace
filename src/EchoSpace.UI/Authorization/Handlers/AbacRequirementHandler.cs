@@ -5,7 +5,11 @@ using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using EchoSpace.Core.Authorization.Requirements;
 using EchoSpace.Core.Authorization.ABAC;
-using EchoSpace.Core.Interfaces;
+using System;
+using System.Text.Json;
+using System.Threading.Tasks;
+using EchoSpace.Core.Entities;
+using EchoSpace.Core.Interfaces; 
 
 namespace EchoSpace.UI.Authorization.Handlers
 {
