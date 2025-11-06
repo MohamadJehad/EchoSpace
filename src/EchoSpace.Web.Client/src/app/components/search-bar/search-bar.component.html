@@ -1,0 +1,87 @@
+<div class="relative flex-1 max-w-2xl">
+  <!-- Search Input -->
+  <div class="relative">
+    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    </div>
+    <input
+      type="text"
+      [(ngModel)]="searchQuery"
+      (input)="onSearchInput()"
+      (focus)="onFocus()"
+      placeholder="Search users..."
+      class="w-full pl-11 pr-4 py-2.5 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200 outline-none"
+    />
+    
+    @if (searchQuery) {
+      <button
+        (click)="clearSearch()"
+        class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+      >
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    }
+  </div>
+
+  <!-- Search Results Dropdown -->
+  @if (showDropdown && searchQuery) {
+    <div class="absolute top-full mt-2 w-full bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 max-h-96">
+      <!-- Loading State -->
+      @if (isSearching) {
+        <div class="p-6 text-center">
+          <svg class="animate-spin h-8 w-8 text-primary-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="text-sm text-gray-600">Searching...</p>
+        </div>
+      } @else if (searchResults.length > 0) {
+        <!-- Results List -->
+        <div class="overflow-y-auto max-h-80">
+          @for (result of searchResults; track result.id) {
+            <a
+              [routerLink]="['/profile', result.id]"
+              class="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0"
+            >
+              <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                {{ getInitials(result.name) }}
+              </div>
+              <div class="ml-3 flex-1 min-w-0">
+                <p class="text-sm font-semibold text-gray-900 truncate">{{ result.name }}</p>
+                <p class="text-xs text-gray-600 truncate">&#64;{{ result.userName }}</p>
+              </div>
+              <!-- <div class="ml-2 flex-shrink-0">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                  {{ (result.matchScore * 100).toFixed(0) }}% match
+                </span>
+              </div> -->
+            </a>
+          }
+        </div>
+
+        <!-- See All Results Button -->
+        <div class="border-t border-gray-100 p-3">
+          <button
+            (click)="seeAllResults()"
+            class="w-full py-2 px-4 bg-primary-50 hover:bg-primary-100 text-primary-700 font-medium rounded-lg transition-colors"
+          >
+            See all results for "{{ searchQuery }}"
+          </button>
+        </div>
+      } @else {
+        <!-- No Results -->
+        <div class="p-6 text-center">
+          <svg class="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-sm text-gray-600">No results found for "{{ searchQuery }}"</p>
+          <p class="text-xs text-gray-500 mt-1">Try a different search term</p>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,42 @@
+<nav class="bg-white shadow-sm border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+    <div class="flex justify-between items-center h-14 sm:h-16">
+      <!-- Logo/Brand -->
+      <div class="flex items-center">
+        <a routerLink="/" class="flex items-center">
+          <img src="images/echospace-logo.svg" alt="EchoSpace" class="h-8 sm:h-9 lg:h-10" />
+        </a>
+      </div>
+
+      <!-- Right side - User info and logout -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Current user info - Hidden on mobile, shown on tablet+ -->
+        <div class="hidden md:flex items-center gap-2 lg:gap-3" *ngIf="currentUser$ | async as user">
+          <div class="text-right">
+            <p class="text-xs lg:text-sm font-medium text-gray-900 truncate max-w-[120px] lg:max-w-none">{{ user.name }}</p>
+            <p class="text-xs text-gray-500 hidden lg:block truncate max-w-[150px]">{{ user.email }}</p>
+          </div>
+          <div class="h-8 w-8 lg:h-10 lg:w-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+            <span class="text-indigo-600 font-semibold text-xs lg:text-sm">{{ user.name.charAt(0).toUpperCase() }}</span>
+          </div>
+        </div>
+
+        <!-- Avatar only on mobile -->
+        <div class="md:hidden flex items-center" *ngIf="currentUser$ | async as user">
+          <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+            <span class="text-indigo-600 font-semibold text-xs">{{ user.name.charAt(0).toUpperCase() }}</span>
+          </div>
+        </div>
+
+        <!-- Logout button -->
+        <button
+          (click)="logout()"
+          class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
+        >
+          <span class="hidden sm:inline">Logout</span>
+          <span class="sm:hidden">Out</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>

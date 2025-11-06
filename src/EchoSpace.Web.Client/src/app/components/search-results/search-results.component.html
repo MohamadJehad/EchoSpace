@@ -1,0 +1,115 @@
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+  <!-- Navbar -->
+  <nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a routerLink="/home" class="flex items-center space-x-3 cursor-pointer">
+          <img src="images/echospace-logo.svg" alt="EchoSpace" class="h-10" />
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Search Results Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Search Results</h1>
+      <p class="text-gray-600">
+        @if (searchQuery) {
+          <span>Results for "<span class="font-semibold text-primary-600">{{ searchQuery }}</span>"</span>
+        }
+      </p>
+    </div>
+
+    <!-- Search Input (Mobile-friendly) -->
+    <div class="mb-8">
+      <div class="relative max-w-2xl">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (input)="performSearch()"
+          placeholder="Search users..."
+          class="w-full pl-11 pr-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all duration-200 outline-none shadow-sm"
+        />
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading) {
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @for (i of [1,2,3,4,5,6]; track i) {
+          <div class="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+            <div class="flex items-center space-x-4">
+              <div class="w-16 h-16 rounded-full bg-gray-300"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-4 bg-gray-300 rounded w-3/4"></div>
+                <div class="h-3 bg-gray-300 rounded w-1/2"></div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else if (results.length > 0) {
+      <!-- Results Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @for (result of results; track result.id) {
+          <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden">
+            <div class="p-6">
+              <div class="flex items-center space-x-4 mb-4">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                  {{ getInitials(result.name) }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-lg font-semibold text-gray-900 truncate">{{ result.name }}</h3>
+                  <p class="text-sm text-gray-600 truncate">&#64;{{ result.userName }}</p>
+                </div>
+              </div>
+              
+              <div class="mb-4">
+                <p class="text-sm text-gray-600 truncate">{{ result.email }}</p>
+              </div>
+
+              <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                  {{ (result.matchScore * 100).toFixed(0) }}% match
+                </span>
+                <button class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+                  View Profile
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Results Count -->
+      <div class="mt-8 text-center">
+        <p class="text-gray-600">
+          Showing <span class="font-semibold text-primary-600">{{ results.length }}</span> 
+          {{ results.length === 1 ? 'result' : 'results' }}
+        </p>
+      </div>
+    } @else if (!isLoading && searchQuery) {
+      <!-- No Results State -->
+      <div class="text-center py-12">
+        <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No results found</h3>
+        <p class="text-gray-600 mb-6">We couldn't find anyone matching "{{ searchQuery }}"</p>
+        <button
+          (click)="clearAndGoHome()"
+          class="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+        >
+          Back to Home
+        </button>
+      </div>
+    }
+  </div>
+</div>

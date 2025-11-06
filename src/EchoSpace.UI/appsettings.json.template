@@ -1,0 +1,27 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=EchoSpaceLocalDb;Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True"
+  },
+  "Jwt": {
+    "Key": "YOUR_JWT_SECRET_KEY_MINIMUM_32_CHARACTERS_LONG",
+    "Issuer": "https://localhost:7131",
+    "Audience": "https://localhost:4200",
+    "ExpirationMinutes": "15"
+  },
+  "Google": {
+    "ClientId": "YOUR_GOOGLE_CLIENT_ID",
+    "ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET"
+  },
+  "OAuth": {
+    "CallbackUrl": "https://localhost:7131/api/auth/google-callback",
+    "FrontendCallbackUrl": "http://localhost:4200/auth-callback"
+  }
+}
+

@@ -1,0 +1,76 @@
+<div class="post-dropdown relative">
+  <!-- Three dots button -->
+  <button 
+    (click)="onToggleDropdown($event)"
+    class="p-2 rounded-full hover:bg-gray-100 transition"
+    [class.bg-gray-100]="isOpen"
+    [attr.aria-expanded]="isOpen"
+    aria-label="Post options"
+  >
+    <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+    </svg>
+  </button>
+
+  <!-- Dropdown menu -->
+  <div 
+    *ngIf="isOpen && (canEditOrDelete || canFollow)"
+    class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+    role="menu"
+    aria-orientation="vertical"
+  >
+    <!-- Follow/Unfollow option (for other users' posts) -->
+    <button
+      *ngIf="canFollow"
+      (click)="onFollowToggle()"
+      [disabled]="isLoadingFollowStatus || isLoadingFollowAction"
+      [class.text-primary-600]="!isFollowing"
+      [class.text-gray-700]="isFollowing"
+      [class.hover:bg-primary-50]="!isFollowing"
+      [class.hover:bg-gray-50]="isFollowing"
+      class="w-full px-4 py-3 text-left transition flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
+      role="menuitem"
+    >
+      <svg *ngIf="!isLoadingFollowAction && !isFollowing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+      </svg>
+      <svg *ngIf="!isLoadingFollowAction && isFollowing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+      </svg>
+      <span *ngIf="isLoadingFollowAction" class="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-0"></span>
+      <span class="font-medium">
+        <span *ngIf="isLoadingFollowStatus">Loading...</span>
+        <span *ngIf="!isLoadingFollowStatus">{{ isFollowing ? 'Unfollow' : 'Follow' }}</span>
+      </span>
+    </button>
+
+    <!-- Divider if both options are shown -->
+    <div *ngIf="canFollow && canEditOrDelete" class="border-t border-gray-200 my-2"></div>
+
+    <!-- Edit option (for own posts) -->
+    <button
+      *ngIf="canEditOrDelete"
+      (click)="onEdit()"
+      class="w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 transition flex items-center space-x-3"
+      role="menuitem"
+    >
+      <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+      <span class="font-medium">Edit Post</span>
+    </button>
+    
+    <!-- Delete option (for own posts) -->
+    <button
+      *ngIf="canEditOrDelete"
+      (click)="onDelete()"
+      class="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 transition flex items-center space-x-3"
+      role="menuitem"
+    >
+      <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+      <span class="font-medium">Delete Post</span>
+    </button>
+  </div>
+</div>

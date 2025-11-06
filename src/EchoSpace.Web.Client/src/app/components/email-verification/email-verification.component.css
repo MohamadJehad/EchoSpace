@@ -1,0 +1,25 @@
+/* Custom styles for email verification component */
+input[type="text"] {
+  letter-spacing: 0.5em;
+}
+
+input[type="text"]:focus {
+  letter-spacing: 0.5em;
+}
+
+/* Animation for success state */
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.success-checkmark {
+  animation: checkmark 0.6s ease-in-out;
+}

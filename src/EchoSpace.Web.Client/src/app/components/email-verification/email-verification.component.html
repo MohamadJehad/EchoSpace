@@ -1,0 +1,100 @@
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8">
+    <!-- Header -->
+    <div class="text-center">
+      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
+        <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
+      <p class="text-gray-600">We've sent a 6-digit code to</p>
+      <p class="text-indigo-600 font-medium">{{ email }}</p>
+    </div>
+
+    <!-- Verification Card -->
+    <div class="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+      <!-- Success Message -->
+      @if (successMessage) {
+        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+          {{ successMessage }}
+        </div>
+      }
+
+      <!-- Error Message -->
+      @if (errorMessage) {
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {{ errorMessage }}
+        </div>
+      }
+
+      <!-- Verification Form -->
+      <form [formGroup]="verificationForm" (ngSubmit)="onSubmit()" class="space-y-6">
+        <!-- Code Input -->
+        <div>
+          <label for="code" class="block text-sm font-medium text-gray-700 mb-2">
+            Enter Verification Code
+          </label>
+          <input
+            id="code"
+            type="text"
+            formControlName="code"
+            maxlength="6"
+            class="w-full px-4 py-3 text-center text-2xl font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 tracking-widest"
+            placeholder="000000"
+            [class.border-red-500]="verificationForm.get('code')?.invalid && verificationForm.get('code')?.touched"
+          />
+          @if (verificationForm.get('code')?.invalid && verificationForm.get('code')?.touched) {
+            <p class="mt-1 text-sm text-red-600">Please enter a valid 6-digit code</p>
+          }
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          [disabled]="verificationForm.invalid || isLoading"
+          class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
+        >
+          @if (isLoading) {
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Verifying...
+          } @else {
+            Verify Email
+          }
+        </button>
+      </form>
+
+      <!-- Resend Code -->
+      <div class="text-center">
+        <p class="text-sm text-gray-600 mb-2">Didn't receive the code?</p>
+        @if (resendCooldown > 0) {
+          <p class="text-sm text-gray-500">Resend code in {{ resendCooldown }}s</p>
+        } @else {
+          <button
+            type="button"
+            (click)="sendVerificationCode()"
+            [disabled]="isLoading"
+            class="text-indigo-600 hover:text-indigo-500 text-sm font-medium disabled:opacity-50"
+          >
+            Resend Code
+          </button>
+        }
+      </div>
+
+      <!-- Back Button -->
+      <div class="text-center">
+        <button
+          type="button"
+          (click)="onBack()"
+          [disabled]="isLoading"
+          class="text-gray-600 hover:text-gray-500 text-sm font-medium disabled:opacity-50"
+        >
+          ← Back to Registration
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

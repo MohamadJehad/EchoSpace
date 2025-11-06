@@ -1,0 +1,82 @@
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden sticky top-24">
+  <div class="h-24 bg-gradient-to-r from-primary-500 to-indigo-600"></div>
+  <div class="px-6 pb-6">
+    <div class="-mt-12 mb-4 relative">
+      <div class="w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden relative group cursor-pointer"
+           (click)="onProfilePhotoClick()">
+        @if (currentUser.profilePhotoUrl || profilePhotoPreview) {
+          <img [src]="profilePhotoPreview || currentUser.profilePhotoUrl" 
+               [alt]="currentUser.name" 
+               class="w-full h-full object-cover">
+        } @else {
+          <div class="w-full h-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl">
+            {{ currentUser.initials }}
+          </div>
+        }
+        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center pointer-events-none">
+          <span class="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Change</span>
+        </div>
+      </div>
+      <input type="file" 
+             id="profilePhotoInput" 
+             accept="image/*" 
+             class="hidden" 
+             (change)="onProfilePhotoSelected($event)">
+      
+      @if (profilePhotoPreview) {
+        <div class="mt-2 flex gap-2">
+          <button (click)="uploadProfilePhoto()" 
+                  [disabled]="isUploadingPhoto"
+                  class="flex-1 px-3 py-1.5 bg-primary-600 text-white text-xs rounded-lg hover:bg-primary-700 disabled:opacity-50">
+            @if (isUploadingPhoto) {
+              Uploading...
+            } @else {
+              Upload
+            }
+          </button>
+          <button (click)="cancelProfilePhotoUpload()" 
+                  [disabled]="isUploadingPhoto"
+                  class="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300">
+            Cancel
+          </button>
+        </div>
+      }
+    </div>
+    <h3 class="text-lg font-semibold text-gray-900">{{ currentUser.name }}</h3>
+    <p class="text-sm text-gray-600">{{ currentUser.email }}</p>
+    
+    <div class="mt-4 flex justify-around py-4 border-t border-gray-100">
+      <div class="text-center">
+        <p class="text-xl font-bold text-gray-900">
+          @if (isLoadingStats) {
+            ...
+          } @else {
+            {{ formatCount(userStats.postsCount) }}
+          }
+        </p>
+        <p class="text-xs text-gray-600">Posts</p>
+      </div>
+      <div class="text-center">
+        <p class="text-xl font-bold text-gray-900">
+          @if (isLoadingStats) {
+            ...
+          } @else {
+            {{ formatCount(userStats.followersCount) }}
+          }
+        </p>
+        <p class="text-xs text-gray-600">Followers</p>
+      </div>
+      <div class="text-center">
+        <p class="text-xl font-bold text-gray-900">
+          @if (isLoadingStats) {
+            ...
+          } @else {
+            {{ formatCount(userStats.followingCount) }}
+          }
+        </p>
+        <p class="text-xs text-gray-600">Following</p>
+      </div>
+    </div>
+  </div>
+</div>
+

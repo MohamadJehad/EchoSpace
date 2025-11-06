@@ -1,0 +1,13 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "OAuth": {
+    "CallbackUrl": "https://localhost:7131/api/auth/google-callback",
+    "FrontendCallbackUrl": "http://localhost:4200/auth-callback"
+  }
+}
+
