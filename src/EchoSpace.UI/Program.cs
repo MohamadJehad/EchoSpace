@@ -16,8 +16,24 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using Serilog;
+using EchoSpace.Core.Interfaces.Services;
+using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog - using simpler configuration to avoid build issues
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        Path.Combine("logs", "audit", "audit-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+);
 
 // Add services to the container.
 builder.Services.AddControllers()
@@ -56,8 +72,21 @@ builder.Services.AddCors(options =>
 });
 
 // Add Entity Framework
-builder.Services.AddDbContext<EchoSpaceDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:EnableDatabaseCommandLogging", false);
+
+builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    
+    // Add database command interceptor for audit logging (optional - can be verbose)
+    // Enable via appsettings.json: "Logging:EnableDatabaseCommandLogging": true
+    // WARNING: This logs EVERY database command - use only when needed for security/compliance
+    if (enableDbCommandLogging)
+    {
+        var auditLogService = serviceProvider.GetRequiredService<IAuditLogService>();
+        options.AddInterceptors(new EchoSpace.Infrastructure.Logging.EchoSpaceDbCommandInterceptor(auditLogService, isEnabled: true));
+    }
+});
 
 // Auth service will handle password hashing and validation
 
@@ -174,6 +203,9 @@ builder.Services.AddScoped<ILikeService, LikeService>();
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IImageService, ImageService>();
+
+// Audit logging service
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
