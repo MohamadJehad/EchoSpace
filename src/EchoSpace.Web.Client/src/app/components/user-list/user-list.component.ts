@@ -52,5 +52,55 @@ export class UserListComponent implements OnInit {
       });
     }
   }
+
+  lockUser(id: string): void {
+    if (confirm('Are you sure you want to lock this user account?')) {
+      this.userService.lockUser(id).subscribe({
+        next: () => {
+          this.loadUsers(); // Reload the list
+        },
+        error: (err) => {
+          console.error('Failed to lock user', err);
+          alert('Failed to lock user account');
+        }
+      });
+    }
+  }
+
+  unlockUser(id: string): void {
+    if (confirm('Are you sure you want to unlock this user account?')) {
+      this.userService.unlockUser(id).subscribe({
+        next: () => {
+          this.loadUsers(); // Reload the list
+        },
+        error: (err) => {
+          console.error('Failed to unlock user', err);
+          alert('Failed to unlock user account');
+        }
+      });
+    }
+  }
+
+  isAccountLocked(user: User): boolean {
+    if (!user.lockoutEnabled || !user.lockoutEnd) {
+      return false;
+    }
+    const lockoutEnd = new Date(user.lockoutEnd);
+    return lockoutEnd > new Date();
+  }
+
+  getLockoutStatus(user: User): string {
+    if (!user.lockoutEnabled) {
+      return 'Disabled';
+    }
+    if (!user.lockoutEnd) {
+      return 'Active';
+    }
+    const lockoutEnd = new Date(user.lockoutEnd);
+    if (lockoutEnd > new Date()) {
+      return `Locked until ${lockoutEnd.toLocaleString()}`;
+    }
+    return 'Active';
+  }
 }
 

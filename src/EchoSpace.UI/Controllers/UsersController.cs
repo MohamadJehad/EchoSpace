@@ -6,6 +6,8 @@ using EchoSpace.Core.DTOs;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.DTOs.Images;
 using EchoSpace.Core.Enums;
+using EchoSpace.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace EchoSpace.UI.Controllers
@@ -18,15 +20,21 @@ namespace EchoSpace.UI.Controllers
         private readonly ILogger<UsersController> _logger;
         private readonly IUserService _userService;
         private readonly IImageService _imageService;
+        private readonly IAuthService _authService;
+        private readonly EchoSpaceDbContext _context;
 
         public UsersController(
             ILogger<UsersController> logger, 
             IUserService userService,
-            IImageService imageService)
+            IImageService imageService,
+            IAuthService authService,
+            EchoSpaceDbContext context)
         {
             _logger = logger;
             _userService = userService;
             _imageService = imageService;
+            _authService = authService;
+            _context = context;
         }
 
         private Guid? GetCurrentUserId()
@@ -277,6 +285,61 @@ namespace EchoSpace.UI.Controllers
             {
                 _logger.LogError(ex, "Error getting current user");
                 return StatusCode(500, new { message = "An error occurred while retrieving user" });
+            }
+        }
+
+        /// <summary>
+        /// Lock a user account (Admin only)
+        /// </summary>
+        [HttpPost("{id}/lock")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> LockUser(Guid id)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { message = "User not found" });
+                }
+
+                // Lock the account
+                user.LockoutEnabled = true;
+                user.LockoutEnd = DateTimeOffset.UtcNow.AddYears(1); // Lock for 1 year (effectively permanent until admin unlocks)
+                user.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                _logger.LogWarning("User {UserId} locked by admin", id);
+                return Ok(new { message = "User account locked successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error locking user {UserId}", id);
+                return StatusCode(500, new { message = "An error occurred while locking the account." });
+            }
+        }
+
+        /// <summary>
+        /// Unlock a user account (Admin only)
+        /// </summary>
+        [HttpPost("{id}/unlock")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult> UnlockUser(Guid id)
+        {
+            try
+            {
+                var success = await _authService.AdminUnlockAccountAsync(id);
+                if (success)
+                {
+                    _logger.LogInformation("User {UserId} unlocked by admin", id);
+                    return Ok(new { message = "User account unlocked successfully." });
+                }
+                return BadRequest(new { message = "User not found or account is not locked." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking user {UserId}", id);
+                return StatusCode(500, new { message = "An error occurred while unlocking the account." });
             }
         }
     }

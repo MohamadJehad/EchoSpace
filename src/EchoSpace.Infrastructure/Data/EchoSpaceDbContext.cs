@@ -15,6 +15,7 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<AuthProvider> AuthProviders { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<AccountUnlockToken> AccountUnlockTokens { get; set; }
 
         // Content Tables
         public DbSet<Post> Posts { get; set; }
@@ -59,6 +60,19 @@ namespace EchoSpace.Infrastructure.Data
 
             // Configure PasswordResetToken
             modelBuilder.Entity<PasswordResetToken>(entity =>
+            {
+                entity.HasIndex(t => t.Token).IsUnique();
+                entity.HasIndex(t => t.UserId);
+                entity.HasIndex(t => t.ExpiresAt);
+                
+                entity.HasOne(t => t.User)
+                    .WithMany()
+                    .HasForeignKey(t => t.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure AccountUnlockToken
+            modelBuilder.Entity<AccountUnlockToken>(entity =>
             {
                 entity.HasIndex(t => t.Token).IsUnique();
                 entity.HasIndex(t => t.UserId);

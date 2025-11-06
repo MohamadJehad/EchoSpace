@@ -1,6 +1,7 @@
 using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Tools.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json;
@@ -62,10 +63,29 @@ namespace EchoSpace.UI.Controllers
                 var response = await _authService.LoginAsync(request);
                 return Ok(response);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                // Generic error to prevent user enumeration
-                return Unauthorized(new { message = "Invalid credentials." });
+                // Get user to check failed attempts count
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                
+                // Check if it's a lockout message
+                if (ex.Message.Contains("locked"))
+                {
+                    return Unauthorized(new { 
+                        message = ex.Message,
+                        isLocked = true,
+                        failedAttempts = user?.AccessFailedCount ?? 0,
+                        maxAttempts = 5
+                    });
+                }
+                
+                // Return failed attempts count for invalid credentials
+                return Unauthorized(new { 
+                    message = "Invalid credentials.",
+                    failedAttempts = user?.AccessFailedCount ?? 0,
+                    maxAttempts = 5,
+                    remainingAttempts = user != null ? Math.Max(0, 5 - user.AccessFailedCount) : 5
+                });
             }
             catch (Exception ex)
             {
@@ -460,6 +480,79 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, new { message = "An error occurred completing registration." });
             }
         }
+
+        [HttpPost("unlock-account")]
+        [EnableRateLimiting("ForgotPasswordPolicy")]
+        public async Task<IActionResult> UnlockAccount([FromBody] UnlockAccountRequest request)
+        {
+            try
+            {
+                // URL decode the token to handle + characters that get converted to spaces in URLs
+                var decodedToken = Uri.UnescapeDataString(request.Token);
+                
+                var success = await _authService.UnlockAccountAsync(decodedToken);
+                if (success)
+                {
+                    return Ok(new { message = "Account unlocked successfully. You can now log in." });
+                }
+                return BadRequest(new { message = "Invalid or expired unlock token." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking account");
+                return StatusCode(500, new { message = "An error occurred while unlocking the account." });
+            }
+        }
+
+        [HttpPost("request-unlock")]
+        [EnableRateLimiting("ForgotPasswordPolicy")]
+        public async Task<IActionResult> RequestUnlock([FromBody] RequestUnlockRequest request)
+        {
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (user == null)
+                {
+                    // Generic response to prevent user enumeration
+                    return Ok(new { message = "If an account exists with this email, an unlock link has been sent." });
+                }
+                
+                // Check if account is actually locked
+                if (!user.LockoutEnabled || !user.LockoutEnd.HasValue || user.LockoutEnd.Value <= DateTimeOffset.UtcNow)
+                {
+                    return Ok(new { message = "Your account is not locked." });
+                }
+                
+                await _authService.SendUnlockEmailAsync(user);
+                return Ok(new { message = "If an account exists with this email, an unlock link has been sent." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error requesting unlock for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred while processing your request." });
+            }
+        }
+
+        // Admin unlock endpoint (requires admin role)
+        [HttpPost("admin/unlock-account")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> AdminUnlockAccount([FromBody] AdminUnlockRequest request)
+        {
+            try
+            {
+                var success = await _authService.AdminUnlockAccountAsync(request.UserId);
+                if (success)
+                {
+                    return Ok(new { message = "Account unlocked successfully." });
+                }
+                return BadRequest(new { message = "User not found or account is not locked." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking account {UserId} by admin", request.UserId);
+                return StatusCode(500, new { message = "An error occurred while unlocking the account." });
+            }
+        }
     }
 
     public class TestEmailRequest
@@ -471,6 +564,21 @@ namespace EchoSpace.UI.Controllers
     {
         public string Email { get; set; } = string.Empty;
         public string Code { get; set; } = string.Empty;
+    }
+
+    public class UnlockAccountRequest
+    {
+        public string Token { get; set; } = string.Empty;
+    }
+
+    public class RequestUnlockRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class AdminUnlockRequest
+    {
+        public Guid UserId { get; set; }
     }
 }
 
