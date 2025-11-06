@@ -159,8 +159,9 @@ namespace EchoSpace.UI.Controllers
         /// Upload profile photo for current user
         /// </summary>
         [HttpPost("me/profile-photo")]
+        [Consumes("multipart/form-data")]
         [Authorize]
-        public async Task<ActionResult<object>> UploadProfilePhoto([FromForm] IFormFile file)
+        public async Task<ActionResult<object>> UploadProfilePhoto(IFormFile file)
         {
             try
             {
