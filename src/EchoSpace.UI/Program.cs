@@ -9,6 +9,7 @@ using EchoSpace.Tools.Email;
 using EchoSpace.Tools.Interfaces;
 using EchoSpace.Tools.Services;
 using EchoSpace.UI.Authorization;
+using EchoSpace.UI.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -219,14 +220,7 @@ builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 // 1. Configure Security Headers
 
-builder.Services.AddHeaderPolicy(options =>
-{
-    options.AddFrameOptionsDeny();                 // Prevent website from being embedded in iframes
-    options.AddXssProtectionBlock();               // Add basic XSS protection
-    options.AddContentTypeOptionsNoSniff();        // Stop MIME type sniffing
-    options.AddReferrerPolicyStrictOriginWhenCrossOrigin(); // Control referrer behavior
-});
-
+// Added in middle ware
 
 // 2. Configure Secure TLS
 
@@ -246,12 +240,20 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 
 var app = builder.Build();
 
+
+// app.UseSecurityHeaders();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// if (!app.Environment.IsDevelopment())
+//     app.UseHsts();
+
+
 
 // IMPORTANT: Order matters - UseCors, UseSession, UseAuthentication, UseAuthorization
 app.UseCors("AllowAngular");
@@ -261,7 +263,6 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.UseHeaderPolicy(); // This applies the rules to every response
 
 
 app.Run();
