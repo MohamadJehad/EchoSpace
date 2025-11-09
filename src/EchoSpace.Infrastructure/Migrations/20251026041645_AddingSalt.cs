@@ -5,7 +5,7 @@
 namespace EchoSpace.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddMissing : Migration
+    public partial class AddingSalt : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

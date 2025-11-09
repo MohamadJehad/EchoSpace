@@ -15,4 +15,3 @@ namespace EchoSpace.Core.DTOs.Auth
         public string RefreshToken { get; set; } = string.Empty;
     }
 }
-

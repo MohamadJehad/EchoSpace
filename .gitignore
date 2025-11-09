@@ -363,6 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Configuration files with secrets
+appsettings.json
+appsettings.*.json
 src/EchoSpace.UI/appsettings.json
 src/EchoSpace.UI/appsettings.Development.json
 src/EchoSpace.UI/appsettings.Production.json

@@ -1,5 +1,10 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
+using EchoSpace.Core.Validators.Auth;
+using EchoSpace.Core.Validators.Comments;
+using EchoSpace.Core.Validators.Posts;
+using EchoSpace.Core.Validators.Users;
+
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
@@ -9,6 +14,7 @@ using EchoSpace.Tools.Email;
 using EchoSpace.Tools.Interfaces;
 using EchoSpace.Tools.Services;
 using EchoSpace.UI.Authorization;
+using EchoSpace.UI.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +22,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using System.Threading.RateLimiting;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
 using EchoSpace.Infrastructure.Services.Logging;
@@ -49,9 +58,11 @@ builder.Services.AddHttpClient();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(10);
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Increased for OAuth flows
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax; // Allows OAuth redirects
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Works with HTTPS
 });
 
 // Add HTTP context accessor for ABAC authorization handlers
@@ -76,7 +87,15 @@ var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:Enabl
 
 builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        // Enable retry logic for transient failures (common with Azure SQL)
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null);
+    });
     
     // Add database command interceptor for audit logging (optional - can be verbose)
     // Enable via appsettings.json: "Logging:EnableDatabaseCommandLogging": true
@@ -253,8 +272,185 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 // 2. Register your EmailSender as a service
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
+//=============================================================
+// Security settings
+//=============================================================
+
+// 1. Configure Security Headers
+
+// Added in middle ware
+
+// 2. Configure Secure TLS
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ConfigureHttpsDefaults(httpsOptions =>
+    {
+        httpsOptions.SslProtocols =
+            System.Security.Authentication.SslProtocols.Tls13 |
+            System.Security.Authentication.SslProtocols.Tls12;
+    });
+});
+
+
+//=============================================================
+// Input Validation
+//=============================================================
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddFluentValidationClientsideAdapters();
+
+
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<EmailVerificationRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ForgotPasswordRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RefreshTokenRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LogoutRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ResetPasswordRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<TotpSetupRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<TotpVerificationRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ValidateResetTokenRequestValidator>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreatePostRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdatePostRequestValidator>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreateCommentRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateCommentRequestValidator>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateUserRequestValidator>();
+
+//=============================================================
+
+
+
+// Configure Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Configure global rejection handler
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync(
+            "Rate limit exceeded. Please try again later.", cancellationToken: token);
+    };
+
+    // Use IP address for login/register
+    options.AddPolicy("LoginAndRegisterPolicy", context =>
+    {
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:PermitLimit", 5),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:LoginAndRegisterPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+
+    // Use IP for refresh token (token is in body, so we use IP-based limiting)
+    options.AddPolicy("RefreshTokenPolicy", context =>
+    {
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:RefreshTokenPolicy:PermitLimit", 10),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:RefreshTokenPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:RefreshTokenPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+
+    // Use authenticated user ID or IP for general API
+    options.AddPolicy("GeneralApiPolicy", context =>
+    {
+        var userId = context.User?.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous"
+            : "anonymous";
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var partitionKey = $"{ipAddress}:{userId}";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:GeneralApiPolicy:PermitLimit", 100),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:GeneralApiPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:GeneralApiPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+
+    // Use authenticated user ID or IP for search
+    options.AddPolicy("SearchPolicy", context =>
+    {
+        var userId = context.User?.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous"
+            : "anonymous";
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var partitionKey = $"{ipAddress}:{userId}";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:SearchPolicy:PermitLimit", 30),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:SearchPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:SearchPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+});
+
 
 var app = builder.Build();
+
+app.UseSecurityHeaders();
+
+// Test database connection on startup
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<EchoSpaceDbContext>();
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        
+        // Log connection string info (without password)
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            var safeConnectionString = connectionString.Contains("Password=") 
+                ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***"
+                : connectionString;
+            logger.LogInformation("Attempting database connection. Connection string: {ConnectionString}", safeConnectionString);
+        }
+        
+        var canConnect = dbContext.Database.CanConnect();
+        if (canConnect)
+        {
+            logger.LogInformation("Database connection successful.");
+        }
+        else
+        {
+            logger.LogWarning("Database connection test returned false, but no exception was thrown.");
+        }
+    }
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "Failed to connect to database. Please check:");
+    logger.LogError("1. Azure SQL Server firewall rules - ensure your IP address is allowed");
+    logger.LogError("2. Connection string is correct in appsettings.json");
+    logger.LogError("3. Database server is accessible and credentials are correct");
+    logger.LogError("4. Connection string uses SQL authentication (User ID/Password) not Windows authentication");
+    logger.LogError("Error details: {Message}", ex.Message);
+    logger.LogError("Inner exception: {InnerException}", ex.InnerException?.Message);
+    // Don't throw - let the app start so you can see the error in logs
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -263,7 +459,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// IMPORTANT: Order matters - UseCors, UseSession, UseAuthentication, UseAuthorization
+// if (!app.Environment.IsDevelopment())
+//     app.UseHsts();
+
+
+
+// IMPORTANT: Order matters - UseCors, UseSession, UseAuthentication, UseAuthorization, UseRateLimiter
 app.UseCors("AllowAngular");
 
 app.UseHttpsRedirection();
@@ -271,5 +472,6 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 
 app.Run();
