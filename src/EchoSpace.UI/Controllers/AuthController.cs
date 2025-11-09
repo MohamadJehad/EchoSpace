@@ -22,8 +22,9 @@ namespace EchoSpace.UI.Controllers
         private readonly IEmailSender _emailSender;
         private readonly EchoSpaceDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(IAuthService authService, ITotpService totpService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context, IAuditLogService auditLogService)
+        public AuthController(IAuthService authService, ITotpService totpService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context, IAuditLogService auditLogService, IConfiguration configuration)
         {
             _authService = authService;
             _totpService = totpService;
@@ -32,6 +33,7 @@ namespace EchoSpace.UI.Controllers
             _emailSender = emailSender;
             _context = context;
             _auditLogService = auditLogService;
+            _configuration = configuration;
         }
 
         [HttpPost("register")]
@@ -102,19 +104,54 @@ namespace EchoSpace.UI.Controllers
                 
                 return Ok(response);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
+                // Get user to check lockout status and failed attempts
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                var maxAttempts = int.TryParse(_configuration["AccountLockout:MaxFailedAttempts"], out var max) ? max : 5;
+                
+                var isLocked = user != null && user.LockoutEnabled && 
+                               user.LockoutEnd.HasValue && 
+                               user.LockoutEnd.Value > DateTimeOffset.UtcNow;
+                
+                var failedAttempts = user?.AccessFailedCount ?? 0;
+                var remainingAttempts = Math.Max(0, maxAttempts - failedAttempts);
+                
                 // Audit log failed login attempt
                 await _auditLogService.LogAsync(
                     action: "Login",
                     entityType: "User",
                     entityId: request.Email,
                     result: "Failed",
-                    newValues: new Dictionary<string, object> { { "Email", request.Email }, { "Reason", "Invalid credentials" } }
+                    newValues: new Dictionary<string, object> 
+                    { 
+                        { "Email", request.Email }, 
+                        { "Reason", ex.Message },
+                        { "FailedAttempts", failedAttempts },
+                        { "IsLocked", isLocked }
+                    }
                 );
                 
-                // Generic error to prevent user enumeration
-                return Unauthorized(new { message = "Invalid credentials." });
+                // Return detailed error information for frontend
+                if (isLocked)
+                {
+                    return Unauthorized(new 
+                    { 
+                        message = ex.Message,
+                        isLocked = true,
+                        failedAttempts = failedAttempts,
+                        remainingAttempts = 0
+                    });
+                }
+                
+                // Return failed attempts info if account is not locked yet
+                return Unauthorized(new 
+                { 
+                    message = "Invalid credentials.",
+                    isLocked = false,
+                    failedAttempts = failedAttempts,
+                    remainingAttempts = remainingAttempts
+                });
             }
             catch (Exception ex)
             {
@@ -334,6 +371,25 @@ namespace EchoSpace.UI.Controllers
 
                 // Redirect to Angular with tokens in URL
                 var redirectUrl = $"{frontendCallbackUrl}?accessToken={encodedAccessToken}&refreshToken={encodedRefreshToken}&user={encodedUser}";
+                return Redirect(redirectUrl);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning("Google OAuth login blocked: {Message}", ex.Message);
+                
+                // Audit log blocked Google OAuth login (likely due to lockout)
+                await _auditLogService.LogAsync(
+                    action: "GoogleOAuthLogin",
+                    entityType: "User",
+                    entityId: "Unknown",
+                    result: "Blocked - Account Locked",
+                    newValues: new Dictionary<string, object> { { "Reason", ex.Message } }
+                );
+                
+                // Redirect to frontend with error message
+                var frontendCallbackUrl = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["OAuth:FrontendCallbackUrl"];
+                var encodedError = Uri.EscapeDataString(ex.Message);
+                var redirectUrl = $"{frontendCallbackUrl}?error={encodedError}";
                 return Redirect(redirectUrl);
             }
             catch (Exception ex)
@@ -729,6 +785,53 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, new { message = "An error occurred completing registration." });
             }
         }
+
+        /// <summary>
+        /// Unlock account using token from email
+        /// </summary>
+        [HttpPost("unlock-account")]
+        public async Task<IActionResult> UnlockAccount([FromBody] UnlockAccountRequest request)
+        {
+            try
+            {
+                var success = await _authService.UnlockAccountAsync(request.Token);
+                if (success)
+                {
+                    return Ok(new { message = "Account unlocked successfully. You can now log in." });
+                }
+                return BadRequest(new { message = "Invalid or expired unlock token." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking account with token");
+                return StatusCode(500, new { message = "An error occurred while unlocking the account." });
+            }
+        }
+
+        /// <summary>
+        /// Request unlock email (for locked accounts)
+        /// </summary>
+        [HttpPost("request-unlock-email")]
+        public async Task<IActionResult> RequestUnlockEmail([FromBody] RequestUnlockEmailRequest request)
+        {
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (user == null)
+                {
+                    // Don't reveal if user exists
+                    return Ok(new { message = "If the account exists and is locked, an unlock email has been sent." });
+                }
+
+                await _authService.SendUnlockEmailAsync(user);
+                return Ok(new { message = "If the account exists and is locked, an unlock email has been sent." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending unlock email to {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred while sending the unlock email." });
+            }
+        }
     }
 
     public class TestEmailRequest
@@ -740,6 +843,16 @@ namespace EchoSpace.UI.Controllers
     {
         public string Email { get; set; } = string.Empty;
         public string Code { get; set; } = string.Empty;
+    }
+
+    public class UnlockAccountRequest
+    {
+        public string Token { get; set; } = string.Empty;
+    }
+
+    public class RequestUnlockEmailRequest
+    {
+        public string Email { get; set; } = string.Empty;
     }
 }
 

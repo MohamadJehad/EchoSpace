@@ -277,5 +277,55 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, new { message = "An error occurred while retrieving user" });
             }
         }
+
+        /// <summary>
+        /// Lock a user account (Admin only)
+        /// </summary>
+        [HttpPost("{id}/lock")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<User>> LockUser(Guid id)
+        {
+            try
+            {
+                var user = await _userService.LockUserAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { message = $"User with ID {id} not found" });
+                }
+
+                _logger.LogInformation("User {UserId} locked by admin", id);
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error locking user {UserId}", id);
+                return StatusCode(500, new { message = "An error occurred while locking the user" });
+            }
+        }
+
+        /// <summary>
+        /// Unlock a user account (Admin only)
+        /// </summary>
+        [HttpPost("{id}/unlock")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<User>> UnlockUser(Guid id)
+        {
+            try
+            {
+                var user = await _userService.UnlockUserAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { message = $"User with ID {id} not found" });
+                }
+
+                _logger.LogInformation("User {UserId} unlocked by admin", id);
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking user {UserId}", id);
+                return StatusCode(500, new { message = "An error occurred while unlocking the user" });
+            }
+        }
     }
 }

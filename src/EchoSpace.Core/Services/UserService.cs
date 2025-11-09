@@ -69,5 +69,37 @@ namespace EchoSpace.Core.Services
         {
             return _userRepository.DeleteAsync(id);
         }
+
+        public async Task<User?> LockUserAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.LockoutEnabled = true;
+            user.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100); // Effectively permanent lock until manually unlocked
+            user.UpdatedAt = DateTime.UtcNow;
+
+            return await _userRepository.UpdateAsync(user);
+        }
+
+        public async Task<User?> UnlockUserAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            // Fully unlock the account and reset failed attempts
+            user.LockoutEnabled = false;
+            user.LockoutEnd = null;
+            user.AccessFailedCount = 0;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            return await _userRepository.UpdateAsync(user);
+        }
     }
 }

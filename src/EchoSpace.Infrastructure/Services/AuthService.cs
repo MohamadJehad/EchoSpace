@@ -89,30 +89,24 @@ namespace EchoSpace.Infrastructure.Services
                 throw new UnauthorizedAccessException("Invalid credentials.");
             }
 
-            // Check lockout
-            if (user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+            // Check if account is locked
+            if (IsAccountLocked(user))
             {
-                throw new UnauthorizedAccessException("Account is locked.");
+                var lockoutInfo = GetLockoutInfo(user);
+                throw new UnauthorizedAccessException($"Account is locked. {lockoutInfo}");
             }
 
             // Verify password
             if (!VerifyPassword(request.Password, user.PasswordHash))
             {
-                // Increment failed attempts
-                user.AccessFailedCount++;
-                if (user.AccessFailedCount >= 3)
-                {
-                    user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(15);
-                }
-                await _context.SaveChangesAsync();
+                await HandleFailedLoginAttempt(user);
                 
                 // Generic error to prevent user enumeration
                 throw new UnauthorizedAccessException("Invalid credentials.");
             }
 
             // Reset failed attempts on successful login
-            user.AccessFailedCount = 0;
-            user.LockoutEnd = null;
+            await ResetLockoutAsync(user);
             user.LastLoginAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
@@ -211,6 +205,13 @@ namespace EchoSpace.Infrastructure.Services
         {
             // Find existing user by email
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            // Check if existing user account is locked (new users won't be locked)
+            if (user != null && IsAccountLocked(user))
+            {
+                var lockoutInfo = GetLockoutInfo(user);
+                throw new UnauthorizedAccessException($"Account is locked. {lockoutInfo}");
+            }
 
             if (user == null)
             {
@@ -632,6 +633,262 @@ namespace EchoSpace.Infrastructure.Services
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomBytes);
             return Convert.ToBase64String(randomBytes);
+        }
+
+        // Account Lockout Methods
+        private bool IsAccountLocked(User user)
+        {
+            if (!user.LockoutEnabled) return false;
+
+            // Check if lockout period has expired
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+            {
+                return true;
+            }
+
+            // Auto-unlock if lockout expired
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value <= DateTimeOffset.UtcNow)
+            {
+                user.LockoutEnd = null;
+                user.AccessFailedCount = 0;
+                _context.SaveChangesAsync(); // Fire and forget
+                return false;
+            }
+
+            return false;
+        }
+
+        private async Task HandleFailedLoginAttempt(User user)
+        {
+            user.AccessFailedCount++;
+            var maxAttempts = int.TryParse(_configuration["AccountLockout:MaxFailedAttempts"], out var max) ? max : 5;
+            var lockoutDuration = int.TryParse(_configuration["AccountLockout:LockoutDurationMinutes"], out var duration) ? duration : 30;
+
+            if (user.AccessFailedCount >= maxAttempts)
+            {
+                // Lock the account after max failed attempts
+                user.LockoutEnabled = true;
+                user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(lockoutDuration);
+                user.UpdatedAt = DateTime.UtcNow;
+
+                // Send lockout notification email
+                var enableEmailUnlock = bool.TryParse(_configuration["AccountLockout:EnableEmailUnlock"], out var enable) ? enable : true;
+                if (enableEmailUnlock)
+                {
+                    await SendLockoutNotificationAsync(user);
+                }
+
+                _logger.LogWarning("Account locked for user {UserId} after {Attempts} failed attempts. Lockout ends at {LockoutEnd}", 
+                    user.Id, user.AccessFailedCount, user.LockoutEnd);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private string GetLockoutInfo(User user)
+        {
+            if (!user.LockoutEnd.HasValue) return string.Empty;
+
+            var remainingTime = user.LockoutEnd.Value - DateTimeOffset.UtcNow;
+            if (remainingTime.TotalMinutes > 0)
+            {
+                return $"Please try again in {Math.Ceiling(remainingTime.TotalMinutes)} minutes, or use the unlock link sent to your email.";
+            }
+
+            return "Your account has been unlocked. Please try logging in again.";
+        }
+
+        private async Task ResetLockoutAsync(User user)
+        {
+            user.AccessFailedCount = 0;
+            user.LockoutEnd = null;
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SendLockoutNotificationAsync(User user)
+        {
+            try
+            {
+                var emailBody = $@"
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset=""utf-8"">
+                        <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+                        <title>Account Locked - EchoSpace</title>
+                    </head>
+                    <body style=""font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                        <div style=""background-color: #fff3cd; padding: 30px; border-radius: 10px; border: 1px solid #ffc107;"">
+                            <h1 style=""color: #856404; text-align: center; margin-bottom: 30px;"">Account Locked</h1>
+                            
+                            <p>Hello {user.Name},</p>
+                            
+                            <p>Your account has been temporarily locked due to multiple failed login attempts.</p>
+                            
+                            <div style=""background-color: #f8f9fa; padding: 20px; border-radius: 5px; border-left: 4px solid #856404; margin: 20px 0;"">
+                                <p style=""margin: 0; font-size: 15px; color: #333;"">
+                                    <strong>To unlock your account, please contact our support team.</strong>
+                                </p>
+                            </div>
+                            
+                            <p style=""font-size: 14px; color: #666;"">
+                                Our support team will be able to assist you in unlocking your account and ensuring the security of your information.
+                            </p>
+                            
+                            <p style=""font-size: 14px; color: #666;"">
+                                <strong>If you didn't attempt to log in, please contact support immediately to secure your account.</strong>
+                            </p>
+                            
+                            <hr style=""border: none; border-top: 1px solid #e9ecef; margin: 30px 0;"">
+                            
+                            <p style=""font-size: 12px; color: #999; text-align: center;"">
+                                Best regards,<br/>
+                                The EchoSpace Team<br/>
+                                <a href=""{_configuration["Frontend:BaseUrl"]}"" style=""color: #007bff;"">EchoSpace</a>
+                            </p>
+                        </div>
+                    </body>
+                    </html>
+                ";
+
+                await _emailSender.SendEmailAsync(user.Email, "Account Locked - EchoSpace", emailBody);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send lockout notification email to {Email}", user.Email);
+                // Don't throw - lockout should still proceed even if email fails
+            }
+        }
+
+        public async Task<bool> UnlockAccountAsync(string token)
+        {
+            var unlockToken = await _context.AccountUnlockTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == token);
+
+            if (unlockToken == null || unlockToken.IsUsed || unlockToken.ExpiresAt < DateTime.UtcNow)
+            {
+                return false;
+            }
+
+            // Unlock account
+            unlockToken.User.AccessFailedCount = 0;
+            unlockToken.User.LockoutEnd = null;
+
+            // Mark token as used
+            unlockToken.IsUsed = true;
+            unlockToken.UsedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Account unlocked for user {UserId} using token", unlockToken.UserId);
+            return true;
+        }
+
+        public async Task SendUnlockEmailAsync(User user)
+        {
+            if (!IsAccountLocked(user)) return;
+
+            try
+            {
+                var unlockToken = await GenerateUnlockTokenAsync(user);
+                var unlockUrl = $"{_configuration["Frontend:BaseUrl"]}/unlock-account?token={unlockToken}";
+
+                var emailBody = $@"
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset=""utf-8"">
+                        <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+                        <title>Unlock Your Account - EchoSpace</title>
+                    </head>
+                    <body style=""font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                        <div style=""background-color: #f8f9fa; padding: 30px; border-radius: 10px; border: 1px solid #e9ecef;"">
+                            <h1 style=""color: #007bff; text-align: center; margin-bottom: 30px;"">Unlock Your Account</h1>
+                            
+                            <p>Hello {user.Name},</p>
+                            
+                            <p>You have requested to unlock your EchoSpace account.</p>
+                            
+                            <p>Click the button below to unlock your account:</p>
+                            
+                            <div style=""text-align: center; margin: 30px 0;"">
+                                <a href=""{unlockUrl}"" style=""background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;"">Unlock My Account</a>
+                            </div>
+                            
+                            <p style=""font-size: 15px; color: #666;"">Or copy the following link:</p>
+                            <p style=""font-size: 15px; color: #666;"">{unlockUrl}</p>
+                            
+                            <p style=""font-size: 14px; color: #666;"">This link will expire in 1 hour for security reasons.</p>
+                            
+                            <hr style=""border: none; border-top: 1px solid #e9ecef; margin: 30px 0;"">
+                            
+                            <p style=""font-size: 12px; color: #999; text-align: center;"">
+                                Best regards,<br/>
+                                The EchoSpace Team<br/>
+                                <a href=""{_configuration["Frontend:BaseUrl"]}"" style=""color: #007bff;"">EchoSpace</a>
+                            </p>
+                        </div>
+                    </body>
+                    </html>
+                ";
+
+                await _emailSender.SendEmailAsync(user.Email, "Unlock Your Account - EchoSpace", emailBody);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send unlock email to {Email}", user.Email);
+                throw;
+            }
+        }
+
+        public async Task<bool> AdminUnlockAccountAsync(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            // Fully unlock the account and reset failed attempts
+            user.LockoutEnabled = false;
+            user.LockoutEnd = null;
+            user.AccessFailedCount = 0;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Account unlocked for user {UserId} by admin. Failed attempts reset to 0.", userId);
+            return true;
+        }
+
+        private async Task<string> GenerateUnlockTokenAsync(User user)
+        {
+            // Invalidate any existing unlock tokens for this user
+            var existingTokens = await _context.AccountUnlockTokens
+                .Where(t => t.UserId == user.Id && !t.IsUsed)
+                .ToListAsync();
+
+            foreach (var token in existingTokens)
+            {
+                token.IsUsed = true;
+                token.UsedAt = DateTime.UtcNow;
+            }
+
+            // Generate secure unlock token
+            var unlockToken = GenerateSecureToken();
+            var expiresAt = DateTime.UtcNow.AddHours(1); // Token expires in 1 hour
+
+            // Save unlock token to database
+            var accountUnlockToken = new AccountUnlockToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                Token = unlockToken,
+                ExpiresAt = expiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.AccountUnlockTokens.Add(accountUnlockToken);
+            await _context.SaveChangesAsync();
+
+            return unlockToken;
         }
     }
 }

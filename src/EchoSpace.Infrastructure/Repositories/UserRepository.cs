@@ -47,6 +47,12 @@ namespace EchoSpace.Infrastructure.Repositories
             existing.Name = user.Name;
             existing.Email = user.Email;
             existing.ProfilePhotoId = user.ProfilePhotoId;
+            
+            // Update lockout-related fields if they are being modified
+            existing.LockoutEnabled = user.LockoutEnabled;
+            existing.LockoutEnd = user.LockoutEnd;
+            existing.AccessFailedCount = user.AccessFailedCount;
+            
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();

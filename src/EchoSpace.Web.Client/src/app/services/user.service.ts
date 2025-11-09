@@ -10,6 +10,9 @@ export interface User {
   createdAt: string;
   updatedAt?: string;
   profilePhotoId?: string | null;
+  lockoutEnabled?: boolean;
+  lockoutEnd?: string | null;
+  accessFailedCount?: number;
 }
 
 export interface CreateUserRequest {
@@ -38,23 +41,23 @@ export class UserService {
   }
 
   getAllUsers(): Observable<User[]> {
-    return this.http.get<User[]>(this.apiUrl);
+    return this.http.get<User[]>(this.apiUrl, { headers: this.getHeaders() });
   }
 
   getUserById(id: string): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/${id}`);
+    return this.http.get<User>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
   }
 
   createUser(user: CreateUserRequest): Observable<User> {
-    return this.http.post<User>(this.apiUrl, user);
+    return this.http.post<User>(this.apiUrl, user, { headers: this.getHeaders() });
   }
 
   updateUser(id: string, user: UpdateUserRequest): Observable<User> {
-    return this.http.put<User>(`${this.apiUrl}/${id}`, user);
+    return this.http.put<User>(`${this.apiUrl}/${id}`, user, { headers: this.getHeaders() });
   }
 
   deleteUser(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
   }
 
   uploadProfilePhoto(file: File): Observable<{ message: string; imageId: string; imageUrl: string }> {
@@ -73,6 +76,14 @@ export class UserService {
 
   getCurrentUser(): Observable<User> {
     return this.http.get<User>(`${this.apiUrl}/me`, { headers: this.getHeaders() });
+  }
+
+  lockUser(id: string): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/${id}/lock`, {}, { headers: this.getHeaders() });
+  }
+
+  unlockUser(id: string): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/${id}/unlock`, {}, { headers: this.getHeaders() });
   }
 }
 
