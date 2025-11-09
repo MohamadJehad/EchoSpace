@@ -74,6 +74,12 @@
                       <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider hidden lg:table-cell">
                         Created At
                       </th>
+                      <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider hidden lg:table-cell">
+                        Status
+                      </th>
+                      <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider hidden xl:table-cell">
+                        Failed Attempts
+                      </th>
                       <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Actions
                       </th>
@@ -81,7 +87,7 @@
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
                     @for (user of users; track user.id) {
-                      <tr class="hover:bg-gray-50 transition-colors duration-150">
+                      <tr [class.bg-red-50]="isAccountLocked(user)" class="hover:bg-gray-50 transition-colors duration-150">
                         <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 font-mono">
                           <span class="hidden sm:inline">{{ user.id }}</span>
                           <span class="sm:hidden">{{ user.id.substring(0, 8) }}...</span>
@@ -95,16 +101,79 @@
                         <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
                           {{ user.createdAt | date:'short' }}
                         </td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm hidden lg:table-cell">
+                          @if (isAccountLocked(user)) {
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                              </svg>
+                              Locked
+                            </span>
+                          } @else {
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                              </svg>
+                              Active
+                            </span>
+                          }
+                          @if (user.lockoutEnd && isAccountLocked(user)) {
+                            <div class="text-xs text-gray-500 mt-1">
+                              Until: {{ user.lockoutEnd | date:'short' }}
+                            </div>
+                          }
+                        </td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden xl:table-cell">
+                          @if (user.accessFailedCount !== undefined && user.accessFailedCount > 0) {
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" 
+                                  [class.bg-yellow-100]="user.accessFailedCount < 3"
+                                  [class.text-yellow-800]="user.accessFailedCount < 3"
+                                  [class.bg-orange-100]="user.accessFailedCount >= 3 && user.accessFailedCount < 5"
+                                  [class.text-orange-800]="user.accessFailedCount >= 3 && user.accessFailedCount < 5"
+                                  [class.bg-red-100]="user.accessFailedCount >= 5"
+                                  [class.text-red-800]="user.accessFailedCount >= 5">
+                              {{ user.accessFailedCount }}
+                            </span>
+                          } @else {
+                            <span class="text-gray-400">0</span>
+                          }
+                        </td>
                         <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                          <div class="flex items-center gap-2">
+                            @if (isAccountLocked(user)) {
+                              <button
+                                (click)="unlockUser(user.id)"
+                                class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+                                title="Unlock Account"
+                              >
+                                <svg class="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                                </svg>
+                                <span class="hidden sm:inline">Unlock</span>
+                              </button>
+                            } @else {
+                              <button
+                                (click)="lockUser(user.id)"
+                                class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
+                                title="Lock Account"
+                              >
+                                <svg class="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                                <span class="hidden sm:inline">Lock</span>
+                              </button>
+                            }
                           <button
                             (click)="deleteUser(user.id)"
                             class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+                              title="Delete User"
                           >
                             <svg class="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                             </svg>
                             <span class="hidden sm:inline">Delete</span>
                           </button>
+                          </div>
                         </td>
                       </tr>
                     }
@@ -126,4 +195,19 @@
     </div>
   </div>
 </div>
+
+<!-- Confirmation Modal -->
+@if (showModal) {
+  <app-confirmation-modal
+    [isOpen]="showModal"
+    [isLoading]="isProcessing"
+    [title]="getModalConfig().title"
+    [message]="getModalConfig().message"
+    [confirmText]="getModalConfig().confirmText"
+    cancelText="Cancel"
+    [confirmButtonClass]="getModalConfig().buttonClass"
+    (confirm)="onConfirm()"
+    (cancel)="onCancelModal()">
+  </app-confirmation-modal>
+}
 

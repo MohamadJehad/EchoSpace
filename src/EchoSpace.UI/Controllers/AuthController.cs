@@ -1,7 +1,9 @@
 using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Tools.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using EchoSpace.Infrastructure.Data;
@@ -12,71 +14,82 @@ namespace EchoSpace.UI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(
+        IAuthService authService,
+        ITotpService totpService,
+        ILogger<AuthController> logger,
+        IHttpClientFactory httpClientFactory,
+        IEmailSender emailSender,
+        EchoSpaceDbContext context) : ControllerBase
     {
-        private readonly IAuthService _authService;
-        private readonly ITotpService _totpService;
-        private readonly ILogger<AuthController> _logger;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IEmailSender _emailSender;
-        private readonly EchoSpaceDbContext _context;
-
-        public AuthController(IAuthService authService, ITotpService totpService, ILogger<AuthController> logger, IHttpClientFactory httpClientFactory, IEmailSender emailSender, EchoSpaceDbContext context)
-        {
-            _authService = authService;
-            _totpService = totpService;
-            _logger = logger;
-            _httpClientFactory = httpClientFactory;
-            _emailSender = emailSender;
-            _context = context;
-        }
-
         [HttpPost("register")]
+        [EnableRateLimiting("LoginAndRegisterPolicy")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
             {
-                var response = await _authService.RegisterAsync(request);
+                var response = await authService.RegisterAsync(request);
                 return Ok(response);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Registration failed for email: {Email}", request.Email);
+                logger.LogWarning(ex, "Registration failed for email: {Email}", request.Email);
                 return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during registration");
+                logger.LogError(ex, "Error during registration");
                 return StatusCode(500, new { message = "An error occurred during registration." });
             }
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("LoginAndRegisterPolicy")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try
             {
-                var response = await _authService.LoginAsync(request);
+                var response = await authService.LoginAsync(request);
                 return Ok(response);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                // Generic error to prevent user enumeration
-                return Unauthorized(new { message = "Invalid credentials." });
+                // Get user to check failed attempts count
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            
+                // Check if it's a lockout message
+                if (ex.Message.Contains("locked"))
+                {
+                    return Unauthorized(new { 
+                        message = ex.Message,
+                        isLocked = true,
+                        failedAttempts = user?.AccessFailedCount ?? 0,
+                        maxAttempts = 5
+                    });
+                }
+            
+                // Return failed attempts count for invalid credentials
+                return Unauthorized(new { 
+                    message = "Invalid credentials.",
+                    failedAttempts = user?.AccessFailedCount ?? 0,
+                    maxAttempts = 5,
+                    remainingAttempts = user != null ? Math.Max(0, 5 - user.AccessFailedCount) : 5
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login");
+                logger.LogError(ex, "Error during login");
                 return StatusCode(500, new { message = "An error occurred during login." });
             }
         }
 
         [HttpPost("refresh")]
+        [EnableRateLimiting("RefreshTokenPolicy")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             try
             {
-                var response = await _authService.RefreshTokenAsync(request.RefreshToken);
+                var response = await authService.RefreshTokenAsync(request.RefreshToken);
                 return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
@@ -85,7 +98,7 @@ namespace EchoSpace.UI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during token refresh");
+                logger.LogError(ex, "Error during token refresh");
                 return StatusCode(500, new { message = "An error occurred during token refresh." });
             }
         }
@@ -95,12 +108,12 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                await _authService.LogoutAsync(request.RefreshToken);
+                await authService.LogoutAsync(request.RefreshToken);
                 return Ok(new { message = "Logged out successfully." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during logout");
+                logger.LogError(ex, "Error during logout");
                 return StatusCode(500, new { message = "An error occurred during logout." });
             }
         }
@@ -112,17 +125,17 @@ namespace EchoSpace.UI.Controllers
             var clientId = configuration["Google:ClientId"];
             var redirectUri = configuration["OAuth:CallbackUrl"];
             var state = Guid.NewGuid().ToString(); // CSRF protection
-            
+        
             // Store state in session or use a more secure method
             HttpContext.Session.SetString("oauth_state", state);
-            
+        
             var googleAuthUrl = $"https://accounts.google.com/o/oauth2/v2/auth?" +
                 $"client_id={Uri.EscapeDataString(clientId!)}&" +
                 $"redirect_uri={Uri.EscapeDataString(redirectUri!)}&" +
                 $"response_type=code&" +
                 $"scope=openid email profile&" +
                 $"state={state}";
-            
+        
             return Redirect(googleAuthUrl);
         }
 
@@ -144,8 +157,8 @@ namespace EchoSpace.UI.Controllers
                     return BadRequest(new { message = "Invalid state parameter." });
                 }
 
-                // Exchange authorization code for access token
-                var httpClient = _httpClientFactory.CreateClient();
+                // Exchange authorization code for an access token
+                var httpClient = httpClientFactory.CreateClient();
                 var tokenRequest = new Dictionary<string, string>
                 {
                     { "code", code },
@@ -170,7 +183,7 @@ namespace EchoSpace.UI.Controllers
                 // Get user info from Google
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
                 var userInfoResponse = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v2/userinfo");
-                
+            
                 if (!userInfoResponse.IsSuccessStatusCode)
                 {
                     return BadRequest(new { message = "Failed to retrieve user information from Google." });
@@ -178,7 +191,7 @@ namespace EchoSpace.UI.Controllers
 
                 var userInfoContent = await userInfoResponse.Content.ReadAsStringAsync();
                 var userInfo = JsonSerializer.Deserialize<JsonElement>(userInfoContent);
-                
+            
                 var email = userInfo.GetProperty("email").GetString();
                 var name = userInfo.GetProperty("name").GetString();
                 var googleId = userInfo.GetProperty("id").GetString();
@@ -189,7 +202,7 @@ namespace EchoSpace.UI.Controllers
                     return BadRequest(new { message });
                 }
 
-                var authResponse = await _authService.GoogleLoginAsync(email, name, googleId);
+                var authResponse = await authService.GoogleLoginAsync(email, name, googleId);
 
                 // URL encode the tokens
                 var encodedAccessToken = Uri.EscapeDataString(authResponse.AccessToken);
@@ -203,7 +216,7 @@ namespace EchoSpace.UI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during Google authentication");
+                logger.LogError(ex, "Error during Google authentication");
                 return StatusCode(500, new { message = "An error occurred during Google authentication." });
             }
         }
@@ -220,14 +233,14 @@ namespace EchoSpace.UI.Controllers
                     <p>Best regards,<br/>The EchoSpace Team</p>
                 ";
 
-                await _emailSender.SendEmailAsync(request.Email, "EchoSpace Email Test", emailBody);
-                
-                _logger.LogInformation("Test email sent successfully to {Email}", request.Email);
+                await emailSender.SendEmailAsync(request.Email, "EchoSpace Email Test", emailBody);
+            
+                logger.LogInformation("Test email sent successfully to {Email}", request.Email);
                 return Ok(new { message = "Test email sent successfully!" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send test email to {Email}", request.Email);
+                logger.LogError(ex, "Failed to send test email to {Email}", request.Email);
                 return StatusCode(500, new { message = "Failed to send test email." });
             }
         }
@@ -237,12 +250,12 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var response = await _authService.ForgotPasswordAsync(request);
+                var response = await authService.ForgotPasswordAsync(request);
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during forgot password request for email: {Email}", request.Email);
+                logger.LogError(ex, "Error during forgot password request for email: {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred while processing your request." });
             }
         }
@@ -254,17 +267,17 @@ namespace EchoSpace.UI.Controllers
             {
                 // URL decode the token to handle + characters that get converted to spaces in URLs
                 var decodedToken = Uri.UnescapeDataString(request.Token);
-                _logger.LogInformation("Original token: {OriginalToken}", request.Token);
-                _logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
-                
+                logger.LogInformation("Original token: {OriginalToken}", request.Token);
+                logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
+            
                 // Create a new request with the decoded token
                 var decodedRequest = new ValidateResetTokenRequest { Token = decodedToken };
-                var response = await _authService.ValidateResetTokenAsync(decodedRequest);
+                var response = await authService.ValidateResetTokenAsync(decodedRequest);
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error validating reset token");
+                logger.LogError(ex, "Error validating reset token");
                 return StatusCode(500, new { message = "An error occurred while validating the reset token." });
             }
         }
@@ -276,18 +289,18 @@ namespace EchoSpace.UI.Controllers
             {
                 // URL decode the token to handle + characters that get converted to spaces in URLs
                 var decodedToken = Uri.UnescapeDataString(request.Token);
-                _logger.LogInformation("Original token: {OriginalToken}", request.Token);
-                _logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
-                
+                logger.LogInformation("Original token: {OriginalToken}", request.Token);
+                logger.LogInformation("Decoded token: {DecodedToken}", decodedToken);
+            
                 // Create a new request with the decoded token
                 var decodedRequest = new ResetPasswordRequest 
                 { 
                     Token = decodedToken, 
                     NewPassword = request.NewPassword 
                 };
-                
-                var success = await _authService.ResetPasswordAsync(decodedRequest);
-                
+            
+                var success = await authService.ResetPasswordAsync(decodedRequest);
+            
                 if (success)
                 {
                     return Ok(new { message = "Password has been reset successfully." });
@@ -299,58 +312,8 @@ namespace EchoSpace.UI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during password reset");
+                logger.LogError(ex, "Error during password reset");
                 return StatusCode(500, new { message = "An error occurred while resetting the password." });
-            }
-        }
-
-        [HttpGet("debug-reset-tokens")]
-        public async Task<IActionResult> DebugResetTokens()
-        {
-            try
-            {
-                // This is a debug endpoint to help troubleshoot token issues
-                // Remove this in production
-                var tokens = await _context.PasswordResetTokens
-                    .Include(t => t.User)
-                    .OrderByDescending(t => t.CreatedAt)
-                    .Take(10)
-                    .Select(t => new
-                    {
-                        t.Id,
-                        t.Token,
-                        t.UserId,
-                        t.ExpiresAt,
-                        t.IsUsed,
-                        t.CreatedAt,
-                        UserEmail = t.User.Email
-                    })
-                    .ToListAsync();
-
-                return Ok(new { 
-                    message = "Debug endpoint - remove in production",
-                    tokens = tokens
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving debug tokens");
-                return StatusCode(500, new { message = "An error occurred while retrieving debug tokens." });
-            }
-        }
-
-        [HttpPost("setup-totp")]
-        public async Task<IActionResult> SetupTotp([FromBody] TotpSetupRequest request)
-        {
-            try
-            {
-                var response = await _totpService.SetupTotpAsync(request.Email);
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error setting up TOTP for {Email}", request.Email);
-                return StatusCode(500, new { message = "An error occurred setting up TOTP." });
             }
         }
 
@@ -359,12 +322,12 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var response = await _authService.VerifyTotpAndLoginAsync(request.Email, request.Code);
+                var response = await authService.VerifyTotpAndLoginAsync(request.Email, request.Code);
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error verifying TOTP for {Email}", request.Email);
+                logger.LogError(ex, "Error verifying TOTP for {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred verifying TOTP." });
             }
         }
@@ -379,9 +342,9 @@ namespace EchoSpace.UI.Controllers
                     return BadRequest(new { message = "Email is required." });
                 }
 
-                _logger.LogInformation("Received request to send email verification to {Email}", request.Email);
-                
-                var success = await _totpService.SendEmailVerificationCodeAsync(request.Email);
+                logger.LogInformation("Received request to send email verification to {Email}", request.Email);
+            
+                var success = await totpService.SendEmailVerificationCodeAsync(request.Email);
                 if (success)
                 {
                     return Ok(new { message = "Verification code sent to your email." });
@@ -390,7 +353,7 @@ namespace EchoSpace.UI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending email verification to {Email}", request.Email);
+                logger.LogError(ex, "Error sending email verification to {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred sending verification code." });
             }
         }
@@ -400,7 +363,7 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var isValid = await _totpService.VerifyEmailCodeAsync(request.Email, request.Code);
+                var isValid = await totpService.VerifyEmailCodeAsync(request.Email, request.Code);
                 if (isValid)
                 {
                     return Ok(new { message = "Email verified successfully." });
@@ -409,7 +372,7 @@ namespace EchoSpace.UI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error verifying email for {Email}", request.Email);
+                logger.LogError(ex, "Error verifying email for {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred verifying email." });
             }
         }
@@ -419,8 +382,8 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                // Check if user exists
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                // Check if a user exists
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
                 if (user == null)
                 {
                     return BadRequest(new { message = "User not found." });
@@ -428,12 +391,12 @@ namespace EchoSpace.UI.Controllers
 
                 // Allow reconfiguration - we'll generate a new TOTP secret even if one exists
 
-                var response = await _totpService.SetupTotpAsync(request.Email);
+                var response = await totpService.SetupTotpAsync(request.Email);
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error setting up TOTP for existing user {Email}", request.Email);
+                logger.LogError(ex, "Error setting up TOTP for existing user {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred setting up TOTP." });
             }
         }
@@ -443,7 +406,7 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
-                var response = await _authService.CompleteRegistrationWithEmailVerificationAsync(request.Email, request.Code);
+                var response = await authService.CompleteRegistrationWithEmailVerificationAsync(request.Email, request.Code);
                 return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
@@ -452,8 +415,81 @@ namespace EchoSpace.UI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error completing registration for {Email}", request.Email);
+                logger.LogError(ex, "Error completing registration for {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred completing registration." });
+            }
+        }
+
+        [HttpPost("unlock-account")]
+        [EnableRateLimiting("ForgotPasswordPolicy")]
+        public async Task<IActionResult> UnlockAccount([FromBody] UnlockAccountRequest request)
+        {
+            try
+            {
+                // URL decode the token to handle + characters that get converted to spaces in URLs
+                var decodedToken = Uri.UnescapeDataString(request.Token);
+            
+                var success = await authService.UnlockAccountAsync(decodedToken);
+                if (success)
+                {
+                    return Ok(new { message = "Account unlocked successfully. You can now log in." });
+                }
+                return BadRequest(new { message = "Invalid or expired unlock token." });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error unlocking account");
+                return StatusCode(500, new { message = "An error occurred while unlocking the account." });
+            }
+        }
+
+        [HttpPost("request-unlock")]
+        [EnableRateLimiting("ForgotPasswordPolicy")]
+        public async Task<IActionResult> RequestUnlock([FromBody] RequestUnlockRequest request)
+        {
+            try
+            {
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (user == null)
+                {
+                    // Generic response to prevent user enumeration
+                    return Ok(new { message = "If an account exists with this email, an unlock link has been sent." });
+                }
+            
+                // Check if an account is actually locked
+                if (!user.LockoutEnabled || !user.LockoutEnd.HasValue || user.LockoutEnd.Value <= DateTimeOffset.UtcNow)
+                {
+                    return Ok(new { message = "Your account is not locked." });
+                }
+            
+                await authService.SendUnlockEmailAsync(user);
+                return Ok(new { message = "If an account exists with this email, an unlock link has been sent." });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error requesting unlock for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred while processing your request." });
+            }
+        }
+
+        // Admin unlock endpoint (requires admin role)
+        [HttpPost("admin/unlock-account")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> AdminUnlockAccount([FromBody] AdminUnlockRequest request)
+        {
+            try
+            {
+                var success = await authService.AdminUnlockAccountAsync(request.UserId);
+                if (success)
+                {
+                    return Ok(new { message = "Account unlocked successfully." });
+                }
+                return BadRequest(new { message = "User not found or account is not locked." });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error unlocking account {UserId} by admin", request.UserId);
+                return StatusCode(500, new { message = "An error occurred while unlocking the account." });
             }
         }
     }
@@ -468,6 +504,19 @@ namespace EchoSpace.UI.Controllers
         public string Email { get; set; } = string.Empty;
         public string Code { get; set; } = string.Empty;
     }
+
+    public class UnlockAccountRequest
+    {
+        public string Token { get; set; } = string.Empty;
+    }
+
+    public class RequestUnlockRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class AdminUnlockRequest
+    {
+        public Guid UserId { get; set; }
+    }
 }
-
-
