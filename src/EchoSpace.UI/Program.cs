@@ -9,11 +9,14 @@ using EchoSpace.Tools.Email;
 using EchoSpace.Tools.Interfaces;
 using EchoSpace.Tools.Services;
 using EchoSpace.UI.Authorization;
+using EchoSpace.UI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Threading.RateLimiting;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Serilog;
@@ -70,16 +73,32 @@ builder.Services.AddCors(options =>
                   .AllowCredentials();
         });
 });
-
-// Add Entity Framework
+// Add Entity Framework with support for enhanced error logging and (optionally) audit logging interceptor
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+}
+// Whether to enable DB command/audit logging interceptor
 var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:EnableDatabaseCommandLogging", false);
 
 builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-    
-    // Add database command interceptor for audit logging (optional - can be verbose)
-    // Enable via appsettings.json: "Logging:EnableDatabaseCommandLogging": true
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null);
+    });
+    // Enable sensitive logging only in development
+    var env = serviceProvider.GetRequiredService<IWebHostEnvironment>();
+    if (env.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
+    // Optionally add database command interceptor for audit logging
     // WARNING: This logs EVERY database command - use only when needed for security/compliance
     if (enableDbCommandLogging)
     {
@@ -253,8 +272,110 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 // 2. Register your EmailSender as a service
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
+// Configure Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Configure global rejection handler
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync(
+            "Rate limit exceeded. Please try again later.", cancellationToken: token);
+    };
+
+    // Use IP address for login/register
+    options.AddPolicy("LoginAndRegisterPolicy", context =>
+    {
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:PermitLimit", 5),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:LoginAndRegisterPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+
+    // Use IP for refresh token (token is in body, so we use IP-based limiting)
+    options.AddPolicy("RefreshTokenPolicy", context =>
+    {
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:RefreshTokenPolicy:PermitLimit", 10),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:RefreshTokenPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:RefreshTokenPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+
+    // Use authenticated user ID or IP for general API
+    options.AddPolicy("GeneralApiPolicy", context =>
+    {
+        var userId = context.User?.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous"
+            : "anonymous";
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var partitionKey = $"{ipAddress}:{userId}";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:GeneralApiPolicy:PermitLimit", 100),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:GeneralApiPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:GeneralApiPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+
+    // Use authenticated user ID or IP for search
+    options.AddPolicy("SearchPolicy", context =>
+    {
+        var userId = context.User?.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous"
+            : "anonymous";
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var partitionKey = $"{ipAddress}:{userId}";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:SearchPolicy:PermitLimit", 30),
+                Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:SearchPolicy:Window") ?? "00:01:00"),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:SearchPolicy:QueueLimit", 0),
+                AutoReplenishment = true
+            });
+    });
+});
+
 
 var app = builder.Build();
+
+// Test database connection on startup
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<EchoSpaceDbContext>();
+        dbContext.Database.CanConnect();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Database connection successful.");
+    }
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "Failed to connect to database. Please check:");
+    logger.LogError("1. Azure SQL Server firewall rules - ensure your IP address is allowed");
+    logger.LogError("2. Connection string is correct in appsettings.json");
+    logger.LogError("3. Database server is accessible and credentials are correct");
+    logger.LogError("Error details: {Message}", ex.Message);
+    // Don't throw - let the app start so you can see the error in logs
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -263,13 +384,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// IMPORTANT: Order matters - UseCors, UseSession, UseAuthentication, UseAuthorization
+// IMPORTANT: Order matters - UseCors, UseSession, UseAuthentication, UseAuthorization, UseRateLimiter
 app.UseCors("AllowAngular");
 
 app.UseHttpsRedirection();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Add custom middleware for email-based rate limiting on forgot-password
+app.UseMiddleware<ForgotPasswordRateLimitingMiddleware>();
+
+// Add rate limiting middleware (must be after authentication)
+app.UseRateLimiter();
+
 app.MapControllers();
 
 app.Run();
