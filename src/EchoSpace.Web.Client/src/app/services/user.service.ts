@@ -10,10 +10,6 @@ export interface User {
   createdAt: string;
   updatedAt?: string;
   profilePhotoId?: string | null;
-  lockoutEnabled?: boolean;
-  lockoutEnd?: string | null;
-  accessFailedCount?: number;
-  lastLoginAt?: string | null;
 }
 
 export interface CreateUserRequest {
@@ -77,14 +73,6 @@ export class UserService {
 
   getCurrentUser(): Observable<User> {
     return this.http.get<User>(`${this.apiUrl}/me`, { headers: this.getHeaders() });
-  }
-
-  lockUser(id: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiUrl}/${id}/lock`, {}, { headers: this.getHeaders() });
-  }
-
-  unlockUser(id: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiUrl}/${id}/unlock`, {}, { headers: this.getHeaders() });
   }
 }
 

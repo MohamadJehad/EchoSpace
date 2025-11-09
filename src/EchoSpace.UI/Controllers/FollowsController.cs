@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.DTOs.Auth;
 using System.Security.Claims;
@@ -10,7 +9,6 @@ namespace EchoSpace.UI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    [EnableRateLimiting("GeneralApiPolicy")]
     public class FollowsController : ControllerBase
     {
         private readonly ILogger<FollowsController> _logger;

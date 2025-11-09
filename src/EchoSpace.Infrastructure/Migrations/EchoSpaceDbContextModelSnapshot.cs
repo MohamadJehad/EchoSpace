@@ -22,44 +22,6 @@ namespace EchoSpace.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("EchoSpace.Core.Entities.AccountUnlockToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("AccountUnlockTokens");
-                });
-
             modelBuilder.Entity("EchoSpace.Core.Entities.AuthProvider", b =>
                 {
                     b.Property<Guid>("AuthId")
@@ -410,17 +372,6 @@ namespace EchoSpace.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserSessions");
-                });
-
-            modelBuilder.Entity("EchoSpace.Core.Entities.AccountUnlockToken", b =>
-                {
-                    b.HasOne("EchoSpace.Core.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("EchoSpace.Core.Entities.AuthProvider", b =>

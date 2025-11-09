@@ -1,6 +1,6 @@
 # EchoSpace - Clean Architecture
 
-A full-stack social media application built with ASP.NET Core Web API (Backend) and Angular (Frontend), structured using Clean Architecture principles with proper separation of concerns.
+A .NET 8.0 Web API project structured using Clean Architecture principles with proper separation of concerns.
 
 ## Project Structure
 
@@ -10,8 +10,7 @@ EchoSpace.CleanArchitecture/
 │   ├── EchoSpace.Core/           # Business logic and domain entities
 │   ├── EchoSpace.Infrastructure/ # Data access and external services
 │   ├── EchoSpace.UI/            # Web API controllers and presentation
-│   ├── EchoSpace.Tools/         # Utility services and cross-cutting concerns
-│   └── EchoSpace.Web.Client/    # Angular frontend application
+│   └── EchoSpace.Tools/         # Utility services and cross-cutting concerns
 ├── tests/
 │   └── EchoSpace.Tests/         # Unit and integration tests
 └── .github/workflows/           # CI/CD pipeline
@@ -51,26 +50,16 @@ EchoSpace.CleanArchitecture/
 - **Integration Tests**: Infrastructure testing
 - **API Tests**: Controller testing
 
-### 💻 Frontend Project (`EchoSpace.Web.Client`)
-**Purpose**: Angular-based user interface
-- **Components**: Login, Register, User List components
-- **Services**: API integration and data management
-- **Routing**: Client-side navigation
-- **Styling**: Tailwind CSS for modern UI
-
 ## Features
 
 - ✅ **Clean Architecture**: Proper separation of concerns
 - ✅ **Entity Framework Core**: Data access with SQL Server
 - ✅ **Swagger/OpenAPI**: API documentation
 - ✅ **Unit Tests**: Comprehensive test coverage with xUnit and Moq
-- ✅ **CI/CD**: GitHub Actions workflow for PR builds (Backend + Frontend)
+- ✅ **CI/CD**: GitHub Actions workflow for PR builds
 - ✅ **Error Handling**: Try-catch blocks with proper logging
 - ✅ **DTOs**: Separate request/response models
 - ✅ **Dependency Injection**: Proper DI container setup
-- ✅ **Angular Frontend**: Modern SPA with Tailwind CSS
-- ✅ **Responsive Design**: Mobile-first approach
-- ✅ **Authentication Pages**: Login and Register with social OAuth ready
 
 ## API Endpoints
 
@@ -100,64 +89,6 @@ EchoSpace.CleanArchitecture/
    dotnet run --project src/EchoSpace.UI/EchoSpace.UI.csproj
    ```
 
-## 🚀 Running the Application
-
-### **Backend (ASP.NET Core API)**
-
-#### Quick Start
-```bash
-cd src/EchoSpace.UI
-dotnet restore
-dotnet run
-```
-
-#### Access the API
-- **HTTPS**: `https://localhost:7131`
-- **HTTP**: `http://localhost:5005`
-- **Swagger UI**: `https://localhost:7131/swagger/index.html`
-
-### **Frontend (Angular)**
-
-#### Prerequisites
-- Node.js v18 or higher
-- npm or yarn
-
-#### Installation
-```bash
-cd src/EchoSpace.Web.Client
-npm install
-```
-
-#### Run Development Server
-```bash
-npm start
-# or
-ng s
-```
-
-#### Access the Frontend
-- **Development**: `http://localhost:4200`
-- **Available Routes**:
-  - `/` - User list page
-  - `/login` - Login page
-  - `/register` - Registration page
-
-### **Running Both Services**
-
-**Terminal 1 - Backend:**
-```bash
-cd src/EchoSpace.UI
-dotnet run
-```
-
-**Terminal 2 - Frontend:**
-```bash
-cd src/EchoSpace.Web.Client
-npm start
-```
-
-Then open `http://localhost:4200` in your browser!
-
 ## Database Setup
 
 1. **Create migration**:
@@ -179,43 +110,10 @@ Then open `http://localhost:4200` in your browser!
 
 ## Technology Stack
 
-### Backend
-- **.NET 9.0**
+- **.NET 8.0**
 - **Entity Framework Core 9.0**
 - **SQL Server**
 - **Swagger/OpenAPI**
-- **ASP.NET Core Web API**
-
-### Frontend
-- **Angular 19**
-- **TypeScript**
-- **Tailwind CSS**
-- **RxJS**
-- **Standalone Components**
-
-### Testing & DevOps
 - **xUnit** (Testing)
 - **Moq** (Mocking)
 - **GitHub Actions** (CI/CD)
-- **Karma/Jasmine** (Angular Testing)
-
-## 📚 Additional Resources
-
-### API Documentation
-- **Swagger UI**: `https://localhost:7131/swagger/index.html`
-- **Postman Collection**: Import endpoints from Swagger UI
-
-### Frontend Documentation
-- **Environment Config**: See `src/EchoSpace.Web.Client/ENV_GUIDE.md`
-- **Auth Pages**: See `src/EchoSpace.Web.Client/AUTH_PAGES.md`
-- **Frontend README**: See `src/EchoSpace.Web.Client/README.md`
-
-## 🎯 Application URLs
-
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend | `http://localhost:4200` | Angular SPA |
-| Backend API | `https://localhost:7131` | ASP.NET Core API |
-| Swagger | `https://localhost:7131/swagger` | API Documentation |
-| Login Page | `http://localhost:4200/login` | User Login |
-| Register Page | `http://localhost:4200/register` | User Registration |
