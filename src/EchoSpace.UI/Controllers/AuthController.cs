@@ -213,15 +213,19 @@ namespace EchoSpace.UI.Controllers
         }
 
         [HttpGet("google")]
-        public IActionResult GoogleLogin()
+        public async Task<IActionResult> GoogleLogin()
         {
             var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
             var clientId = configuration["Google:ClientId"];
             var redirectUri = configuration["OAuth:CallbackUrl"];
             var state = Guid.NewGuid().ToString(); // CSRF protection
             
-            // Store state in session or use a more secure method
+            // Ensure session is loaded and store state
+            await HttpContext.Session.LoadAsync();
             HttpContext.Session.SetString("oauth_state", state);
+            await HttpContext.Session.CommitAsync(); // Ensure session is persisted
+            
+            _logger.LogInformation("OAuth state stored. State: {State}, SessionId: {SessionId}", state, HttpContext.Session.Id);
             
             var googleAuthUrl = $"https://accounts.google.com/o/oauth2/v2/auth?" +
                 $"client_id={Uri.EscapeDataString(clientId!)}&" +
@@ -245,10 +249,25 @@ namespace EchoSpace.UI.Controllers
                 var frontendCallbackUrl = configuration["OAuth:FrontendCallbackUrl"];
 
                 // Verify state (CSRF protection)
+                // Ensure session is loaded
+                await HttpContext.Session.LoadAsync();
+                
                 var storedState = HttpContext.Session.GetString("oauth_state");
                 if (string.IsNullOrEmpty(storedState) || storedState != state)
                 {
-                    return BadRequest(new { message = "Invalid state parameter." });
+                    _logger.LogWarning("OAuth state validation failed. Stored: {StoredState}, Received: {ReceivedState}, SessionId: {SessionId}", 
+                        storedState ?? "null", state, HttpContext.Session.Id);
+                    
+                    // Audit log failed OAuth attempt
+                    await _auditLogService.LogAsync(
+                        action: "GoogleOAuthLogin",
+                        entityType: "User",
+                        entityId: "Unknown",
+                        result: "Failed - Invalid State",
+                        newValues: new Dictionary<string, object> { { "Reason", "Invalid state parameter" } }
+                    );
+                    
+                    return BadRequest(new { message = "Invalid state parameter. Session may have expired. Please try again." });
                 }
 
                 // Exchange authorization code for access token

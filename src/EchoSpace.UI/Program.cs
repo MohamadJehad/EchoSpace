@@ -58,9 +58,11 @@ builder.Services.AddHttpClient();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(10);
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Increased for OAuth flows
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax; // Allows OAuth redirects
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Works with HTTPS
 });
 
 // Add HTTP context accessor for ABAC authorization handlers
@@ -85,7 +87,15 @@ var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:Enabl
 
 builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        // Enable retry logic for transient failures (common with Azure SQL)
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null);
+    });
     
     // Add database command interceptor for audit logging (optional - can be verbose)
     // Enable via appsettings.json: "Logging:EnableDatabaseCommandLogging": true
@@ -406,9 +416,27 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<EchoSpaceDbContext>();
-        dbContext.Database.CanConnect();
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("Database connection successful.");
+        
+        // Log connection string info (without password)
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            var safeConnectionString = connectionString.Contains("Password=") 
+                ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***"
+                : connectionString;
+            logger.LogInformation("Attempting database connection. Connection string: {ConnectionString}", safeConnectionString);
+        }
+        
+        var canConnect = dbContext.Database.CanConnect();
+        if (canConnect)
+        {
+            logger.LogInformation("Database connection successful.");
+        }
+        else
+        {
+            logger.LogWarning("Database connection test returned false, but no exception was thrown.");
+        }
     }
 }
 catch (Exception ex)
@@ -418,7 +446,9 @@ catch (Exception ex)
     logger.LogError("1. Azure SQL Server firewall rules - ensure your IP address is allowed");
     logger.LogError("2. Connection string is correct in appsettings.json");
     logger.LogError("3. Database server is accessible and credentials are correct");
+    logger.LogError("4. Connection string uses SQL authentication (User ID/Password) not Windows authentication");
     logger.LogError("Error details: {Message}", ex.Message);
+    logger.LogError("Inner exception: {InnerException}", ex.InnerException?.Message);
     // Don't throw - let the app start so you can see the error in logs
 }
 
