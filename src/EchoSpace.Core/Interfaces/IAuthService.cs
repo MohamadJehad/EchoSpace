@@ -1,5 +1,4 @@
 using EchoSpace.Core.DTOs.Auth;
-using EchoSpace.Core.Entities;
 
 namespace EchoSpace.Core.Interfaces
 {
@@ -19,11 +18,6 @@ namespace EchoSpace.Core.Interfaces
         
         // Email verification methods
         Task<AuthResponse> CompleteRegistrationWithEmailVerificationAsync(string email, string verificationCode);
-        
-        // Account unlock methods
-        Task<bool> UnlockAccountAsync(string token);
-        Task SendUnlockEmailAsync(User user);
-        Task<bool> AdminUnlockAccountAsync(Guid userId);
     }
 }
 

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using EchoSpace.Core.DTOs.Posts;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Authorization.Attributes;
@@ -10,7 +9,6 @@ namespace EchoSpace.UI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    [EnableRateLimiting("GeneralApiPolicy")]
     public class PostsController : ControllerBase
     {
         private readonly ILogger<PostsController> _logger;

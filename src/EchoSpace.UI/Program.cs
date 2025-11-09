@@ -15,20 +15,34 @@ using EchoSpace.Tools.Interfaces;
 using EchoSpace.Tools.Services;
 using EchoSpace.UI.Authorization;
 using EchoSpace.UI.Security;
-using EchoSpace.UI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Threading.RateLimiting;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using System.Threading.RateLimiting;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Serilog;
+using EchoSpace.Core.Interfaces.Services;
+using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog - using simpler configuration to avoid build issues
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        Path.Combine("logs", "audit", "audit-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+);
 
 // Add services to the container.
 builder.Services.AddControllers()
@@ -66,27 +80,20 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Add Entity Framework with enhanced error logging
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
-}
+// Add Entity Framework
+var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:EnableDatabaseCommandLogging", false);
 
-builder.Services.AddDbContext<EchoSpaceDbContext>(options =>
+builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
 {
-    options.UseSqlServer(connectionString, sqlOptions =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    
+    // Add database command interceptor for audit logging (optional - can be verbose)
+    // Enable via appsettings.json: "Logging:EnableDatabaseCommandLogging": true
+    // WARNING: This logs EVERY database command - use only when needed for security/compliance
+    if (enableDbCommandLogging)
     {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 3,
-            maxRetryDelay: TimeSpan.FromSeconds(5),
-            errorNumbersToAdd: null);
-    });
-    // Enable sensitive data logging in development for better error diagnostics
-    if (builder.Environment.IsDevelopment())
-    {
-        options.EnableSensitiveDataLogging();
-        options.EnableDetailedErrors();
+        var auditLogService = serviceProvider.GetRequiredService<IAuditLogService>();
+        options.AddInterceptors(new EchoSpace.Infrastructure.Logging.EchoSpaceDbCommandInterceptor(auditLogService, isEnabled: true));
     }
 });
 
@@ -205,6 +212,9 @@ builder.Services.AddScoped<ILikeService, LikeService>();
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IImageService, ImageService>();
+
+// Audit logging service
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -431,13 +441,6 @@ app.UseHttpsRedirection();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Add custom middleware for email-based rate limiting on forgot-password
-app.UseMiddleware<ForgotPasswordRateLimitingMiddleware>();
-
-// Add rate limiting middleware (must be after authentication)
-app.UseRateLimiter();
-
 app.MapControllers();
 
 
