@@ -27,6 +27,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
+using EchoSpace.Infrastructure.Services;
 using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -225,6 +226,9 @@ builder.Services.AddScoped<IImageService, ImageService>();
 
 // Audit logging service
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+
+// Analytics service
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
