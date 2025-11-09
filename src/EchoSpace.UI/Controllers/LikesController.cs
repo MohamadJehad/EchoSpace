@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using EchoSpace.Core.Interfaces;
 
 namespace EchoSpace.UI.Controllers
@@ -8,7 +7,6 @@ namespace EchoSpace.UI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    [EnableRateLimiting("GeneralApiPolicy")]
     public class LikesController : ControllerBase
     {
         private readonly ILogger<LikesController> _logger;

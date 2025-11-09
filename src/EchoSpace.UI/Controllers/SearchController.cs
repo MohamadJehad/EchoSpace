@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.DTOs;
 
@@ -9,7 +8,6 @@ namespace EchoSpace.UI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    [EnableRateLimiting("SearchPolicy")]
     public class SearchController : ControllerBase
     {
         private readonly ISearchService _searchService;

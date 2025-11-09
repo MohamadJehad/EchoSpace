@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using EchoSpace.Core.Interfaces;
 using System.Security.Claims;
 
@@ -9,7 +8,6 @@ namespace EchoSpace.UI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    [EnableRateLimiting("GeneralApiPolicy")]
     public class SuggestedUsersController : ControllerBase
     {
         private readonly ILogger<SuggestedUsersController> _logger;
