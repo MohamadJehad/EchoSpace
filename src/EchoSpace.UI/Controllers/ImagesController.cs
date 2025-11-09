@@ -35,7 +35,8 @@ namespace EchoSpace.UI.Controllers
         /// Upload an image
         /// </summary>
         [HttpPost("upload")]
-        public async Task<ActionResult<ImageDto>> UploadImage([FromForm] UploadImageRequest request)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ImageDto>> UploadImage(UploadImageRequest request)
         {
             try
             {
@@ -70,7 +71,8 @@ namespace EchoSpace.UI.Controllers
         /// Upload an AI-generated image
         /// </summary>
         [HttpPost("upload-ai")]
-        public async Task<ActionResult<ImageDto>> UploadAIImage([FromForm] UploadImageRequest request)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ImageDto>> UploadAIImage(UploadImageRequest request)
         {
             try
             {

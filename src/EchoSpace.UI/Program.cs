@@ -1,5 +1,10 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
+using EchoSpace.Core.Validators.Auth;
+using EchoSpace.Core.Validators.Comments;
+using EchoSpace.Core.Validators.Posts;
+using EchoSpace.Core.Validators.Users;
+
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
@@ -16,6 +21,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Microsoft.AspNetCore.Http;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -205,6 +213,13 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+    
+    // Configure Swagger to handle file uploads (IFormFile)
+    c.MapType<IFormFile>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Format = "binary"
+    });
 });
 
 
@@ -236,12 +251,39 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 
 
 //=============================================================
+// Input Validation
+//=============================================================
 
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddFluentValidationClientsideAdapters();
+
+
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<EmailVerificationRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ForgotPasswordRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RefreshTokenRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LogoutRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ResetPasswordRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<TotpSetupRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<TotpVerificationRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ValidateResetTokenRequestValidator>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreatePostRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdatePostRequestValidator>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreateCommentRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateCommentRequestValidator>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreateUserRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateUserRequestValidator>();
+
+//=============================================================
 
 var app = builder.Build();
 
 
-// app.UseSecurityHeaders();
+app.UseSecurityHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
