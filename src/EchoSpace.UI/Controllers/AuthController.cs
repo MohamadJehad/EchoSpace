@@ -408,29 +408,6 @@ namespace EchoSpace.UI.Controllers
             }
         }
 
-        [HttpPost("test-email")]
-        public async Task<IActionResult> TestEmail([FromBody] TestEmailRequest request)
-        {
-            try
-            {
-                var emailBody = $@"
-                    <h1>Welcome to EchoSpace!</h1>
-                    <p>This is a test email from EchoSpace.</p>
-                    <p>If you received this email, the email service is working correctly.</p>
-                    <p>Best regards,<br/>The EchoSpace Team</p>
-                ";
-
-                await _emailSender.SendEmailAsync(request.Email, "EchoSpace Email Test", emailBody);
-                
-                _logger.LogInformation("Test email sent successfully to {Email}", request.Email);
-                return Ok(new { message = "Test email sent successfully!" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send test email to {Email}", request.Email);
-                return StatusCode(500, new { message = "Failed to send test email." });
-            }
-        }
 
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
