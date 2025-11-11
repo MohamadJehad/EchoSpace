@@ -371,3 +371,5 @@ src/EchoSpace.UI/appsettings.Production.json
 
 # Terraform
 Terraform/
+src/EchoSpace.Web.Client/ssl/cert.pem
+src/EchoSpace.Web.Client/ssl/key.pem
