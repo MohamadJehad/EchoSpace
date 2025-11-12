@@ -63,7 +63,7 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax; // Allows OAuth redirects
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Works with HTTPS
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Force secure cookies
 });
 
 // Add HTTP context accessor for ABAC authorization handlers
@@ -76,7 +76,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngular",
         policy =>
         {
-            policy.WithOrigins("http://localhost:4200") // Angular dev server
+           policy.WithOrigins(
+                    "http://localhost:4200",
+                    "https://localhost:4200" // if using HTTPS for Angular dev server
+                )
                   .AllowAnyMethod()
                   .AllowAnyHeader()
                   .AllowCredentials();
@@ -463,10 +466,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// if (!app.Environment.IsDevelopment())
-//     app.UseHsts();
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
 
-
+// Reject HTTP requests middleware 
+ app.Use(async (context, next) =>
+ {
+     if (!context.Request.IsHttps)
+     {
+         context.Response.StatusCode = StatusCodes.Status400BadRequest;
+         await context.Response.WriteAsync("HTTPS is required.");
+         return;
+     }
+     await next();
+ });
 
 // IMPORTANT: Order matters - UseCors, UseSession, UseAuthentication, UseAuthorization, UseRateLimiter
 app.UseCors("AllowAngular");
