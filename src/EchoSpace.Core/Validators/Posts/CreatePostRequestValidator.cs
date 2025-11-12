@@ -45,10 +45,14 @@ namespace EchoSpace.Core.Validators.Posts
             try
             {
                 // 1) Check URLs (if any)
-                var urlMatches = Regex.Matches(content, @"https?://[^\s]+");
+               var urlMatches = Regex.Matches(content,@"https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+");
+                Console.WriteLine($"Found {urlMatches.Count} URLs in content.");
+
                 foreach (Match match in urlMatches)
                 {
                     // Call async method synchronously
+                    Console.WriteLine($"Found URL to check: {match.Value}");
+    
                     bool isSafe = _safeBrowsingService.IsUrlSafeAsync(match.Value)
                         .ConfigureAwait(false)
                         .GetAwaiter()

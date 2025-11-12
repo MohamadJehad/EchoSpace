@@ -492,7 +492,7 @@ export class HomeComponent implements OnInit {
       error: (error) => {
         console.error('Error creating post:', error);
         this.isCreatingPost = false;
-        this.toastService.error('Error', 'Failed to create post. Please try again.');
+        this.toastService.error('Error', 'Failed to create post. Post contains unsafe or toxic contents. Please fix post contents and try again.');
       }
     });
   }

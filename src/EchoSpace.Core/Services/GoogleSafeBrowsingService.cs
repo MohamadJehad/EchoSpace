@@ -29,11 +29,17 @@ namespace EchoSpace.Core.Services
                     threatEntries = new[] { new { url } }
                 }
             };
+            Console.WriteLine("Checking URL safety via SafeBrowsing API:");
+            Console.WriteLine($"URL to check: {url}");  
 
             var request = new RestRequest();
             request.AddJsonBody(body);
-
+            Console.WriteLine("SafeBrowsing API Request Body:");
+            Console.WriteLine(JsonConvert.SerializeObject(body, Formatting.Indented));
             var response = await client.PostAsync(request);
+            Console.WriteLine("SafeBrowsing API Response:");
+            Console.WriteLine(response.Content);
+            
             if (response.Content == null)
                 return true;
 
