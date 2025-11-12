@@ -13,7 +13,10 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
     <PackageReference Include="Newtonsoft.Json" Version="13.*" />
-    <PackageReference Include="RestSharp" Version="110.*" />
+    <PackageReference Include="RestSharp" Version="110.3.0" />
   </ItemGroup>
+<PropertyGroup>
+  <NoWarn>$(NoWarn);NU1603;NU1902</NoWarn>
+</PropertyGroup>
 
 </Project>
