@@ -4,7 +4,9 @@ using EchoSpace.Core.Validators.Auth;
 using EchoSpace.Core.Validators.Comments;
 using EchoSpace.Core.Validators.Posts;
 using EchoSpace.Core.Validators.Users;
-
+using FluentValidation;
+using EchoSpace.Core.DTOs.Posts;
+using EchoSpace.Core.Validators.Posts;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
@@ -407,6 +409,18 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 });
+
+// Load keys from configuration
+var safeBrowsingApiKey = builder.Configuration["GoogleApis:SafeBrowsingApiKey"];
+var perspectiveApiKey = builder.Configuration["GoogleApis:PerspectiveApiKey"];
+
+// Register Google API services
+builder.Services.AddScoped<IGoogleSafeBrowsingService>(sp =>
+    new GoogleSafeBrowsingService(safeBrowsingApiKey));
+
+builder.Services.AddScoped<IGooglePerspectiveService>(sp =>
+    new GooglePerspectiveService(perspectiveApiKey));
+builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValidator>();
 
 
 var app = builder.Build();
