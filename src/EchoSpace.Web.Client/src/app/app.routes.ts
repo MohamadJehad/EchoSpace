@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './components/login/login.component';
 import { RegisterComponent } from './components/register/register.component';
 import { UserListComponent } from './components/user-list/user-list.component';
+import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { AuthCallbackComponent } from './components/auth-callback/auth-callback.component';
 import { HomeComponent } from './components/home/home.component';
 import { SearchResultsComponent } from './components/search-results/search-results.component';
@@ -21,6 +22,11 @@ export const routes: Routes = [
   { 
     path: 'admin/users', 
     component: UserListComponent, 
+    canActivate: [authGuard, roleGuard(['Admin'])]
+  },
+  { 
+    path: 'admin/dashboard', 
+    component: DashboardComponent, 
     canActivate: [authGuard, roleGuard(['Admin'])]
   },
   { path: '', redirectTo: '/home', pathMatch: 'full' },

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -277,6 +278,16 @@ namespace EchoSpace.Infrastructure.Services
 
         private async Task<AuthResponse> GenerateTokensAsync(User user)
         {
+            // Invalidate all existing active sessions for this user to prevent multiple active sessions
+            var existingSessions = await _context.UserSessions
+                .Where(s => s.UserId == user.Id && s.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync();
+            
+            if (existingSessions.Any())
+            {
+                _context.UserSessions.RemoveRange(existingSessions);
+            }
+
             // Generate access token
             var accessToken = GenerateAccessToken(user);
 
