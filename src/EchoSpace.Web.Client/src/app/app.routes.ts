@@ -8,6 +8,7 @@ import { HomeComponent } from './components/home/home.component';
 import { SearchResultsComponent } from './components/search-results/search-results.component';
 import { ForgotPasswordComponent } from './components/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './components/reset-password/reset-password.component';
+import { OperationHomeComponent } from './components/operation-home/operation-home.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -28,6 +29,11 @@ export const routes: Routes = [
     path: 'admin/dashboard', 
     component: DashboardComponent, 
     canActivate: [authGuard, roleGuard(['Admin'])]
+  },
+  { 
+    path: 'operation', 
+    component: OperationHomeComponent, 
+    canActivate: [authGuard, roleGuard(['Operation'])]
   },
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: '**', redirectTo: '/home' }

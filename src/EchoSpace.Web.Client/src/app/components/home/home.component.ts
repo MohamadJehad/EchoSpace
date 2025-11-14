@@ -18,6 +18,7 @@ import { PostCommentsComponent } from '../post-comments/post-comments.component'
 import { UserService } from '../../services/user.service';
 import { ProfileCardComponent } from '../profile-card/profile-card.component';
 import { environment } from '../../../environments/environment';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-home',
@@ -133,6 +134,13 @@ export class HomeComponent implements OnInit {
           profilePhotoUrl: null
         };
         
+        // Redirect Operation users to their homepage
+        const normalizedRole = normalizeRole(this.currentUser.role);
+        if (normalizedRole === 'Operation') {
+          this.router.navigate(['/operation']);
+          return;
+        }
+        
         // Load user statistics once we have the user ID
         if (this.currentUser.id) {
           this.loadUserStatistics();
@@ -151,6 +159,14 @@ export class HomeComponent implements OnInit {
             id: parsedUser.id || '',
             profilePhotoUrl: null
           };
+          
+          // Redirect Operation users to their homepage
+          const normalizedRole = normalizeRole(this.currentUser.role);
+          if (normalizedRole === 'Operation') {
+            this.router.navigate(['/operation']);
+            return;
+          }
+          
           if (this.currentUser.id) {
             this.loadUserProfile();
           }

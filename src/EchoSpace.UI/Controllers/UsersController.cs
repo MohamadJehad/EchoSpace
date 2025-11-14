@@ -39,10 +39,10 @@ namespace EchoSpace.UI.Controllers
 
 
         /// <summary>
-        /// Get all users
+        /// Get all users (Operation or Admin only)
         /// </summary>
         [HttpGet]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "OperationOrAdmin")]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers(CancellationToken cancellationToken)
         {
             try
@@ -279,10 +279,10 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
-        /// Lock a user account (Admin only)
+        /// Lock a user account (Operation or Admin only)
         /// </summary>
         [HttpPost("{id}/lock")]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "OperationOrAdmin")]
         public async Task<ActionResult<User>> LockUser(Guid id)
         {
             try
@@ -304,10 +304,10 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
-        /// Unlock a user account (Admin only)
+        /// Unlock a user account (Operation or Admin only)
         /// </summary>
         [HttpPost("{id}/unlock")]
-        [Authorize(Policy = "AdminOnly")]
+        [Authorize(Policy = "OperationOrAdmin")]
         public async Task<ActionResult<User>> UnlockUser(Guid id)
         {
             try

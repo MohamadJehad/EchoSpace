@@ -34,6 +34,15 @@
             Users
           </a>
         </ng-container>
+        <ng-container *ngIf="isOperation">
+          <a 
+            routerLink="/operation" 
+            routerLinkActive="text-amber-600 font-semibold"
+            class="text-sm lg:text-base text-amber-700 hover:text-amber-600 transition-colors"
+          >
+            Operation Center
+          </a>
+        </ng-container>
       </div>
 
       <!-- Right side - User info and logout -->
@@ -91,6 +100,15 @@
           class="text-xs text-gray-700 hover:text-indigo-600 transition-colors"
         >
           Users
+        </a>
+      </ng-container>
+      <ng-container *ngIf="isOperation">
+        <a 
+          routerLink="/operation" 
+          routerLinkActive="text-amber-600 font-semibold"
+          class="text-xs text-amber-700 hover:text-amber-600 transition-colors"
+        >
+          Operation Center
         </a>
       </ng-container>
     </div>

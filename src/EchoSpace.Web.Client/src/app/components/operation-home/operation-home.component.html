@@ -1,0 +1,263 @@
+<div class="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
+  <!-- Navbar -->
+  <app-navbar></app-navbar>
+
+  <!-- Content -->
+  <div class="py-6 sm:py-8 lg:py-12 px-3 sm:px-4 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="mb-6 sm:mb-8">
+        <div class="text-center sm:text-left">
+          <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-amber-900 mb-2">
+            <span class="inline-block mr-3">⚙️</span>
+            Operation Center
+          </h1>
+          <p class="text-base sm:text-lg text-amber-700">Monitor and manage platform content and users</p>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="mb-6">
+        <div class="flex space-x-2 border-b-2 border-amber-200">
+          <button
+            (click)="switchTab('posts')"
+            [class]="activeTab === 'posts' 
+              ? 'px-6 py-3 font-semibold text-amber-900 border-b-4 border-amber-600 bg-amber-100 rounded-t-lg transition-all' 
+              : 'px-6 py-3 font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-t-lg transition-all'"
+          >
+            📝 Content Review
+          </button>
+          <button
+            (click)="switchTab('users')"
+            [class]="activeTab === 'users' 
+              ? 'px-6 py-3 font-semibold text-amber-900 border-b-4 border-amber-600 bg-amber-100 rounded-t-lg transition-all' 
+              : 'px-6 py-3 font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-t-lg transition-all'"
+          >
+            👥 User Management
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="mb-6">
+        <div class="relative">
+          <input
+            type="text"
+            [(ngModel)]="searchQuery"
+            (input)="onSearchChange()"
+            [placeholder]="activeTab === 'posts' ? 'Search posts by content or author...' : 'Search users by name or email...'"
+            class="w-full px-4 py-3 pl-12 bg-white border-2 border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-amber-900 placeholder-amber-400"
+          />
+          <svg class="absolute left-4 top-3.5 w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      @if (error) {
+        <div class="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg">
+          <p>{{ error }}</p>
+        </div>
+      }
+
+      <!-- Posts Tab -->
+      @if (activeTab === 'posts') {
+        <div>
+          @if (postsLoading) {
+            <div class="text-center py-12">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+              <p class="mt-4 text-amber-700">Loading posts...</p>
+            </div>
+          } @else if (filteredPosts.length === 0) {
+            <div class="text-center py-12 bg-white rounded-2xl shadow-lg">
+              <p class="text-amber-600 text-lg">No posts found</p>
+            </div>
+          } @else {
+            <div class="space-y-4">
+              @for (post of filteredPosts; track post.postId) {
+                <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-amber-500 hover:shadow-xl transition-shadow">
+                  <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-12 h-12 bg-amber-200 rounded-full flex items-center justify-center text-amber-800 font-bold">
+                        {{ (post.author?.name || post.authorName || 'U').charAt(0).toUpperCase() }}
+                      </div>
+                      <div>
+                        <h3 class="font-semibold text-amber-900">{{ post.author?.name || post.authorName || 'Unknown User' }}</h3>
+                        <p class="text-sm text-amber-600">{{ formatDate(post.createdAt) }}</p>
+                      </div>
+                    </div>
+                    <button
+                      (click)="deletePost(post.postId)"
+                      class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                  
+                  <div class="mb-4">
+                    <p class="text-amber-900 whitespace-pre-wrap">{{ post.content }}</p>
+                  </div>
+                  
+                  @if (post.imageUrl) {
+                    <div class="mb-4">
+                      <img [src]="post.imageUrl" alt="Post image" class="w-full max-h-96 object-cover rounded-lg border-2 border-amber-200">
+                    </div>
+                  }
+                  
+                  <div class="flex items-center space-x-4 text-sm text-amber-600">
+                    <span class="flex items-center space-x-1">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      <span>{{ post.likesCount || 0 }} likes</span>
+                    </span>
+                    <button
+                      (click)="toggleComments(post.postId)"
+                      class="flex items-center space-x-1 hover:text-amber-700 transition-colors cursor-pointer"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <span>{{ post.commentsCount || 0 }} comments</span>
+                    </button>
+                  </div>
+                  
+                  <!-- Comments Section -->
+                  @if (showComments[post.postId]) {
+                    <div class="mt-4 pt-4 border-t-2 border-amber-200">
+                      <app-post-comments
+                        [postId]="post.postId"
+                        [commentsCount]="post.commentsCount"
+                        [currentUserId]="currentUser.id"
+                        [currentUserInitials]="(currentUser.name || 'O').charAt(0).toUpperCase()"
+                        [currentUserName]="currentUser.name"
+                        [currentUserEmail]="currentUser.email"
+                        [currentUserProfilePhotoUrl]="currentUser.profilePhotoUrl"
+                        [isOpen]="showComments[post.postId]"
+                        [allowCreate]="false"
+                        (commentsCountChanged)="onCommentsCountChanged(post.postId, $event)"
+                        (toggleRequested)="toggleComments(post.postId)">
+                      </app-post-comments>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Users Tab -->
+      @if (activeTab === 'users') {
+        <div>
+          @if (usersLoading) {
+            <div class="text-center py-12">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+              <p class="mt-4 text-amber-700">Loading users...</p>
+            </div>
+          } @else if (filteredUsers.length === 0) {
+            <div class="text-center py-12 bg-white rounded-2xl shadow-lg">
+              <p class="text-amber-600 text-lg">No users found</p>
+            </div>
+          } @else {
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-amber-100">
+                    <tr>
+                      <th class="px-6 py-4 text-left text-xs font-semibold text-amber-900 uppercase tracking-wider">User</th>
+                      <th class="px-6 py-4 text-left text-xs font-semibold text-amber-900 uppercase tracking-wider">Email</th>
+                      <th class="px-6 py-4 text-left text-xs font-semibold text-amber-900 uppercase tracking-wider">Status</th>
+                      <th class="px-6 py-4 text-left text-xs font-semibold text-amber-900 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-amber-200">
+                    @for (user of filteredUsers; track user.id) {
+                      <tr class="hover:bg-amber-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="flex items-center">
+                            <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center text-amber-800 font-bold mr-3">
+                              {{ (user.name || 'U').charAt(0).toUpperCase() }}
+                            </div>
+                            <div>
+                              <div class="text-sm font-medium text-amber-900">{{ user.name }}</div>
+                              <div class="text-sm text-amber-600">Joined {{ formatDate(user.createdAt) }}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-amber-900">{{ user.email }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          @if (isAccountBlocked(user)) {
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                              Blocked
+                            </span>
+                          } @else {
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                              Active
+                            </span>
+                          }
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          @if (isAccountBlocked(user)) {
+                            <button
+                              (click)="unblockUser(user.id)"
+                              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors mr-2"
+                            >
+                              Unblock
+                            </button>
+                          } @else {
+                            <button
+                              (click)="blockUser(user.id)"
+                              class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                              Block
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- User Action Confirmation Modal -->
+  @if (showUserModal) {
+    <app-confirmation-modal
+      [isOpen]="showUserModal"
+      [title]="getUserModalConfig().title"
+      [message]="getUserModalConfig().message"
+      [confirmText]="getUserModalConfig().confirmText"
+      [confirmButtonClass]="getUserModalConfig().buttonClass"
+      [isLoading]="isProcessing"
+      (confirm)="onConfirmUserAction()"
+      (cancel)="onCancelUserModal()">
+    </app-confirmation-modal>
+  }
+
+  <!-- Post Deletion Confirmation Modal -->
+  @if (showPostModal) {
+    <app-confirmation-modal
+      [isOpen]="showPostModal"
+      [title]="getPostModalConfig().title"
+      [message]="getPostModalConfig().message"
+      [confirmText]="getPostModalConfig().confirmText"
+      [confirmButtonClass]="getPostModalConfig().buttonClass"
+      [isLoading]="isProcessing"
+      (confirm)="onConfirmPostAction()"
+      (cancel)="onCancelPostModal()">
+    </app-confirmation-modal>
+  }
+</div>
+
