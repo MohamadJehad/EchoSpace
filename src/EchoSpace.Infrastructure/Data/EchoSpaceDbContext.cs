@@ -23,6 +23,8 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<Like> Likes { get; set; }
         public DbSet<Follow> Follows { get; set; }
         public DbSet<Image> Images { get; set; }
+        public DbSet<Tag> Tags { get; set; }
+        public DbSet<PostTag> PostTags { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -91,6 +93,31 @@ namespace EchoSpace.Infrastructure.Data
                     .WithMany(u => u.Posts)
                     .HasForeignKey(p => p.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure Tag
+            modelBuilder.Entity<Tag>(entity =>
+            {
+                entity.HasIndex(t => t.Name).IsUnique();
+            });
+
+            // Configure PostTag (many-to-many junction table)
+            modelBuilder.Entity<PostTag>(entity =>
+            {
+                entity.HasKey(pt => pt.PostTagId);
+
+                entity.HasOne(pt => pt.Post)
+                    .WithMany(p => p.PostTags)
+                    .HasForeignKey(pt => pt.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(pt => pt.Tag)
+                    .WithMany(t => t.PostTags)
+                    .HasForeignKey(pt => pt.TagId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Prevent duplicate post-tag combinations
+                entity.HasIndex(pt => new { pt.PostId, pt.TagId }).IsUnique();
             });
 
             // Configure Comment
