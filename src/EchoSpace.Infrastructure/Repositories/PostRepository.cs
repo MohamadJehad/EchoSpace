@@ -19,6 +19,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .OrderByDescending(p => p.CreatedAt)
@@ -30,6 +32,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .FirstOrDefaultAsync(p => p.PostId == id);
@@ -40,6 +44,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .Where(p => p.UserId == userId)
@@ -52,6 +58,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .OrderByDescending(p => p.CreatedAt)
@@ -111,6 +119,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .Where(p => followedUserIds.Contains(p.UserId))

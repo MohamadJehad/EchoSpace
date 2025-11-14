@@ -141,7 +141,7 @@ export class PostCommentsComponent implements OnInit, OnChanges {
       error: (error) => {
         console.error('Error creating comment:', error);
         this.isCreatingComment = false;
-        this.toastService.error('Error', 'Failed to add comment. Please try again.');
+        this.toastService.error('Error', 'Failed to add comment.Comment contains toxic or unsafe contenets. Please edit it and try again.');
       }
     });
   }
@@ -220,7 +220,7 @@ export class PostCommentsComponent implements OnInit, OnChanges {
       },
       error: (error) => {
         console.error('Error updating comment:', error);
-        this.toastService.error('Error', 'Failed to update comment. Please try again.');
+        this.toastService.error('Error', 'Failed to update comment.Comment contains toxic or unsafe contenets. Please edit it and try again.');
       }
     });
   }

@@ -4,7 +4,8 @@ using EchoSpace.Core.Validators.Auth;
 using EchoSpace.Core.Validators.Comments;
 using EchoSpace.Core.Validators.Posts;
 using EchoSpace.Core.Validators.Users;
-
+using FluentValidation;
+using EchoSpace.Core.DTOs.Posts;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
@@ -23,10 +24,10 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using System.Threading.RateLimiting;
-using FluentValidation;
 using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
+using EchoSpace.Infrastructure.Services;
 using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -209,6 +210,10 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IPostService, PostService>();
 
+// Tag services
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<ITagService, TagService>();
+
 // Comment services
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<ICommentService, CommentService>();
@@ -228,6 +233,9 @@ builder.Services.AddScoped<IImageService, ImageService>();
 
 // Audit logging service
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+
+// Analytics service
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -408,6 +416,22 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// Load keys from configuration
+
+var safeBrowsingApiKey = builder.Configuration["GoogleApis:SafeBrowsingApiKey"];
+var perspectiveApiKey = builder.Configuration["GoogleApis:PerspectiveApiKey"];
+if (string.IsNullOrWhiteSpace(safeBrowsingApiKey))
+    throw new InvalidOperationException("API key must be set.");
+if (string.IsNullOrWhiteSpace(perspectiveApiKey))
+    throw new InvalidOperationException("API key must be set.");
+// Register Google API services
+builder.Services.AddScoped<IGoogleSafeBrowsingService>(sp =>
+    new GoogleSafeBrowsingService(safeBrowsingApiKey));
+
+builder.Services.AddScoped<IGooglePerspectiveService>(sp =>
+    new GooglePerspectiveService(perspectiveApiKey));
+builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValidator>();
+
 
 var app = builder.Build();
 
@@ -435,6 +459,18 @@ try
         if (canConnect)
         {
             logger.LogInformation("Database connection successful.");
+            
+            // Initialize default tags if they don't exist
+            try
+            {
+                var tagService = scope.ServiceProvider.GetRequiredService<ITagService>();
+                await tagService.InitializeDefaultTagsAsync();
+                logger.LogInformation("Default tags initialized successfully.");
+            }
+            catch (Exception tagEx)
+            {
+                logger.LogWarning(tagEx, "Failed to initialize default tags. This is not critical.");
+            }
         }
         else
         {
