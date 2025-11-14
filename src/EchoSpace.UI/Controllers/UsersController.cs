@@ -131,7 +131,8 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
-        /// Delete a user
+        /// Delete a user (Admin only)
+        /// Admins have full permission to delete any user (except themselves)
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Policy = "AdminOnly")]
@@ -139,11 +140,25 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
+                // Prevent self-deletion (safety measure)
+                if (id == currentUserId.Value)
+                {
+                    return BadRequest("You cannot delete your own account");
+                }
+
                 var deleted = await _userService.DeleteAsync(id);
                 if (!deleted)
                 {
                     return NotFound($"User with ID {id} not found");
                 }
+
+                _logger.LogInformation("User {UserId} deleted by admin {AdminId}", id, currentUserId.Value);
                 return NoContent();
             }
             catch (Exception ex)
@@ -155,7 +170,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Change a user's role (Admin only)
-        /// Allows Admin to assign Operation or Admin roles to users
+        /// Admins have full permission to change any user's role to any role (except their own)
         /// </summary>
         [HttpPut("{id}/role")]
         [Authorize(Policy = "AdminOnly")]
@@ -174,7 +189,7 @@ namespace EchoSpace.UI.Controllers
                     return Unauthorized("User ID not found in token");
                 }
 
-                // Prevent self-demotion (Admin cannot change their own role)
+                // Prevent self-demotion (safety measure - Admin cannot change their own role)
                 if (id == currentUserId.Value && request.Role != UserRole.Admin)
                 {
                     return BadRequest("You cannot change your own role from Admin");
@@ -323,6 +338,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Lock a user account (Admin only)
+        /// Admins have full permission to suspend/lock any user (except themselves)
         /// </summary>
         [HttpPost("{id}/lock")]
         [Authorize(Policy = "AdminOnly")]
@@ -330,13 +346,25 @@ namespace EchoSpace.UI.Controllers
         {
             try
             {
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
+                // Prevent self-locking (safety measure)
+                if (id == currentUserId.Value)
+                {
+                    return BadRequest("You cannot lock your own account");
+                }
+
                 var user = await _userService.LockUserAsync(id);
                 if (user == null)
                 {
                     return NotFound(new { message = $"User with ID {id} not found" });
                 }
 
-                _logger.LogInformation("User {UserId} locked by admin", id);
+                _logger.LogInformation("User {UserId} locked by admin {AdminId}", id, currentUserId.Value);
                 return Ok(user);
             }
             catch (Exception ex)
@@ -348,6 +376,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Unlock a user account (Admin only)
+        /// Admins have full permission to unlock any user
         /// </summary>
         [HttpPost("{id}/unlock")]
         [Authorize(Policy = "AdminOnly")]
@@ -361,7 +390,8 @@ namespace EchoSpace.UI.Controllers
                     return NotFound(new { message = $"User with ID {id} not found" });
                 }
 
-                _logger.LogInformation("User {UserId} unlocked by admin", id);
+                var currentUserId = GetCurrentUserId();
+                _logger.LogInformation("User {UserId} unlocked by admin {AdminId}", id, currentUserId ?? Guid.Empty);
                 return Ok(user);
             }
             catch (Exception ex)

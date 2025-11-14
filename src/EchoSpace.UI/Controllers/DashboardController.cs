@@ -7,7 +7,7 @@ namespace EchoSpace.UI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "OperationOrAdmin")]
     public class DashboardController : ControllerBase
     {
         private readonly IAnalyticsService _analyticsService;
@@ -168,9 +168,10 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
-        /// Terminate a specific session
+        /// Terminate a specific session (Admin only)
         /// </summary>
         [HttpDelete("sessions/{sessionId}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> TerminateSession(Guid sessionId)
         {
             try
@@ -191,9 +192,10 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
-        /// Terminate all sessions for a user
+        /// Terminate all sessions for a user (Admin only)
         /// </summary>
         [HttpDelete("sessions/user/{userId}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult> TerminateUserSessions(Guid userId)
         {
             try

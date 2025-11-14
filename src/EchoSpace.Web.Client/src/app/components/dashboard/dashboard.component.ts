@@ -48,11 +48,43 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   
   // Date range
   selectedDays = 30;
+  
+  // User role
+  currentUserRole: string = 'User';
+  isAdmin: boolean = false;
 
   constructor(private dashboardService: DashboardService) { }
-
+  
   ngOnInit(): void {
+    this.loadUserRole();
     this.loadDashboard();
+  }
+  
+  loadUserRole(): void {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        this.currentUserRole = user?.role || 'User';
+        this.isAdmin = this.checkRole(this.currentUserRole);
+      } catch (e) {
+        console.error('Error parsing user from localStorage', e);
+      }
+    }
+  }
+  
+  checkRole(role: any): boolean {
+    if (!role) return false;
+    // Check for string "Admin"
+    if (role === 'Admin' || role === 'admin') return true;
+    // Check for number 2 (Admin enum value)
+    if (role === 2 || role === '2') return true;
+    return false;
+  }
+  
+  get canEdit(): boolean {
+    // Only Admin can edit (terminate sessions, etc.)
+    return this.isAdmin;
   }
 
   ngAfterViewInit(): void {

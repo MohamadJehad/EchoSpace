@@ -14,6 +14,7 @@ import { Subscription } from 'rxjs';
 export class PostDropdownComponent implements OnInit, OnDestroy {
   @Input() post!: Post;
   @Input() currentUserId!: string;
+  @Input() currentUserRole: string | number = 'User';
   @Input() isOpen = false;
   
   @Output() editPost = new EventEmitter<Post>();
@@ -38,8 +39,36 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
     }
   }
 
-  get canEditOrDelete(): boolean {
+  private checkRole(role: any): boolean {
+    if (!role) return false;
+    // Check for Admin
+    if (role === 'Admin' || role === 'admin' || role === 2 || role === '2') return true;
+    // Check for Operation
+    if (role === 'Operation' || role === 'operation' || role === 1 || role === '1') return true;
+    return false;
+  }
+
+  get isAdminOrOperation(): boolean {
+    return this.checkRole(this.currentUserRole);
+  }
+
+  get isOwner(): boolean {
     return this.post.userId === this.currentUserId;
+  }
+
+  get canEdit(): boolean {
+    // Only owners can edit their own posts
+    return this.isOwner;
+  }
+
+  get canDelete(): boolean {
+    // Owners can delete their own posts, Admin/Operation can delete any post
+    return this.isOwner || this.isAdminOrOperation;
+  }
+
+  get canEditOrDelete(): boolean {
+    // Show dropdown if user can edit, delete, or follow
+    return this.canEdit || this.canDelete;
   }
 
   get canFollow(): boolean {

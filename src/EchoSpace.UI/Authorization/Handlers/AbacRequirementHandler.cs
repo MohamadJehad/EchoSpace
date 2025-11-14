@@ -49,6 +49,33 @@ namespace EchoSpace.UI.Authorization.Handlers
             // Build ABAC context from current request
             var abacContext = await BuildAbacContext(context, requirement, httpContext);
 
+            // Special handling for OperationOrAdminRole policies (check role directly)
+            if (requirement.Policy.PolicyName.Contains("OperationOrAdminRole") || requirement.Policy.PolicyName.Contains("OperationOrAdmin"))
+            {
+                // Check if user is Admin or Operation
+                bool isAdminOrOperation = abacContext.Subject.Role == "Admin" || abacContext.Subject.Role == "Operation";
+                
+                if (isAdminOrOperation)
+                {
+                    context.Succeed(requirement);
+                    _logger.LogInformation(
+                        "ABAC policy '{PolicyName}' evaluated successfully (Role={Role}) for user {UserId}",
+                        requirement.Policy.PolicyName,
+                        abacContext.Subject.Role,
+                        abacContext.Subject.UserId);
+                    return;
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "ABAC policy '{PolicyName}' evaluation failed - user {UserId} has role {Role}, expected Admin or Operation",
+                        requirement.Policy.PolicyName,
+                        abacContext.Subject.UserId,
+                        abacContext.Subject.Role);
+                    return;
+                }
+            }
+
             // Special handling for AdminOrOwner policies (OR logic)
             if (requirement.Policy.PolicyName.Contains("AdminOrOwner"))
             {

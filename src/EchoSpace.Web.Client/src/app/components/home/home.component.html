@@ -255,6 +255,7 @@
                 <app-post-dropdown
                   [post]="post"
                   [currentUserId]="currentUser.id"
+                  [currentUserRole]="currentUser.role"
                   [isOpen]="isDropdownOpen(post.postId)"
                   (editPost)="onEditPost($event)"
                   (deletePost)="onDeletePost($event)"

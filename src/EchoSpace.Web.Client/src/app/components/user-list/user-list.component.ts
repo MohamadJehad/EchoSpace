@@ -23,11 +23,32 @@ export class UserListComponent implements OnInit {
   isProcessing = false;
   changingRoleUserId: string | null = null;
   newRole: 'User' | 'Operation' | 'Admin' = 'User';
+  currentUser: User | null = null;
 
   constructor(private userService: UserService) { }
 
   ngOnInit(): void {
+    this.loadCurrentUser();
     this.loadUsers();
+  }
+
+  loadCurrentUser(): void {
+    this.userService.getCurrentUser().subscribe({
+      next: (user) => {
+        this.currentUser = user;
+      },
+      error: (err) => {
+        // Fallback to localStorage if API call fails
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          try {
+            this.currentUser = JSON.parse(userStr) as User;
+          } catch {
+            console.error('Failed to parse user from localStorage');
+          }
+        }
+      }
+    });
   }
 
   loadUsers(): void {
@@ -77,6 +98,17 @@ export class UserListComponent implements OnInit {
 
   confirmRoleChange(): void {
     if (!this.changingRoleUserId) return;
+
+    // Find the user being changed
+    const targetUser = this.users.find(u => u.id === this.changingRoleUserId);
+    if (!targetUser) return;
+
+    // Validate permissions before making the request (only self-protection)
+    if (!this.canChangeToRole(targetUser, this.newRole)) {
+      this.error = 'You cannot change your own role.';
+      this.isProcessing = false;
+      return;
+    }
 
     this.isProcessing = true;
     this.userService.changeUserRole(this.changingRoleUserId, this.newRole).subscribe({
@@ -230,6 +262,53 @@ export class UserListComponent implements OnInit {
       return `Locked until ${lockoutEnd.toLocaleString()}`;
     }
     return 'Active';
+  }
+
+  // Permission checks - Admin has full permissions per permission matrix
+  canDeleteUser(user: User): boolean {
+    if (!this.currentUser) return false;
+    // Cannot delete yourself (safety measure)
+    if (user.id === this.currentUser.id) {
+      return false;
+    }
+    // Admin can delete any other user (including other admins)
+    return true;
+  }
+
+  canChangeRole(user: User): boolean {
+    if (!this.currentUser) return false;
+    // Cannot change your own role (safety measure)
+    if (user.id === this.currentUser.id) {
+      return false;
+    }
+    // Admin can change any other user's role (including to Admin)
+    return true;
+  }
+
+  canChangeToRole(user: User, targetRole: 'User' | 'Operation' | 'Admin'): boolean {
+    if (!this.currentUser) return false;
+    // Cannot change your own role (safety measure)
+    if (user.id === this.currentUser.id) {
+      return false;
+    }
+    // Admin can assign any role to any other user (including Admin)
+    return true;
+  }
+
+  canLockUser(user: User): boolean {
+    if (!this.currentUser) return false;
+    // Cannot lock yourself (safety measure)
+    if (user.id === this.currentUser.id) {
+      return false;
+    }
+    // Admin can lock any other user (including other admins)
+    return true;
+  }
+
+  canUnlockUser(user: User): boolean {
+    if (!this.currentUser) return false;
+    // Admin can unlock any user
+    return true;
   }
 }
 

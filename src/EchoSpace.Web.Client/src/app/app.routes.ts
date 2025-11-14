@@ -27,7 +27,7 @@ export const routes: Routes = [
   { 
     path: 'admin/dashboard', 
     component: DashboardComponent, 
-    canActivate: [authGuard, roleGuard(['Admin'])]
+    canActivate: [authGuard, roleGuard(['Admin', 'Operation'])]
   },
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: '**', redirectTo: '/home' }
