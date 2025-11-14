@@ -6,7 +6,7 @@ using System.Security.Claims;
 
 namespace EchoSpace.Infrastructure.Services.Logging;
 
-public class AuditLogService : IAuditLogService
+public class AuditLogService : EchoSpace.Core.Interfaces.Services.IAuditLogService
 {
     private readonly ILogger<AuditLogService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;

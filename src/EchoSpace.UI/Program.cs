@@ -237,6 +237,15 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 // Analytics service
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
+//AuditLog repository
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<IAuditLogDBService, AuditLogDBService>();
+builder.Services.AddScoped<AuditActionFilter>();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<AuditActionFilter>();
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -436,6 +445,7 @@ builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValid
 var app = builder.Build();
 
 app.UseSecurityHeaders();
+app.UseMiddleware<RequestContextMiddleware>();
 
 // Test database connection on startup
 try
