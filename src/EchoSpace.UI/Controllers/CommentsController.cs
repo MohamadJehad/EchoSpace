@@ -142,7 +142,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Update an existing comment
-        /// ABAC: Requires user to own the comment OR be Admin/Moderator
+        /// ABAC: Requires user to own the comment OR be Admin/Operation
         /// </summary>
         [HttpPut("{id}")]
         [RequireAdminOrOwner("Comment")]
@@ -171,7 +171,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Delete a comment
-        /// ABAC: Requires user to own the comment OR be Admin/Moderator
+        /// ABAC: Requires user to own the comment OR be Admin/Operation
         /// </summary>
         [HttpDelete("{id}")]
         [RequireAdminOrOwner("Comment")]

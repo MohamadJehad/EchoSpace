@@ -52,18 +52,18 @@ namespace EchoSpace.UI.Authorization.Handlers
             // Special handling for AdminOrOwner policies (OR logic)
             if (requirement.Policy.PolicyName.Contains("AdminOrOwner"))
             {
-                // Check if user is Admin/Moderator OR owner
-                bool isAdminOrModerator = abacContext.Subject.Role == "Admin" || abacContext.Subject.Role == "Moderator";
+                // Check if user is Admin/Operation OR owner
+                bool isAdminOrOperation = abacContext.Subject.Role == "Admin" || abacContext.Subject.Role == "Operation";
                 bool isOwner = abacContext.Resource.OwnerId.HasValue && 
                                abacContext.Subject.UserId == abacContext.Resource.OwnerId.Value;
 
-                if (isAdminOrModerator || isOwner)
+                if (isAdminOrOperation || isOwner)
                 {
                     context.Succeed(requirement);
                     _logger.LogInformation(
                         "ABAC policy '{PolicyName}' evaluated successfully (Admin={IsAdmin}, Owner={IsOwner}) for user {UserId} on {ResourceType}",
                         requirement.Policy.PolicyName,
-                        isAdminOrModerator,
+                        isAdminOrOperation,
                         isOwner,
                         abacContext.Subject.UserId,
                         requirement.ResourceType);

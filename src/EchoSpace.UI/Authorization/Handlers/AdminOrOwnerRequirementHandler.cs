@@ -31,15 +31,15 @@ namespace EchoSpace.UI.Authorization.Handlers
             AuthorizationHandlerContext context,
             AdminOrOwnerRequirement requirement)
         {
-            // First, check if user is Admin or Moderator
+            // First, check if user is Admin or Operation
             var userRoleClaim = context.User.FindFirst(ClaimTypes.Role);
             if (userRoleClaim != null)
             {
                 var role = userRoleClaim.Value;
-                if (role == "Admin" || role == "Moderator")
+                if (role == "Admin" || role == "Operation")
                 {
                     context.Succeed(requirement);
-                    _logger.LogInformation("User has admin/moderator role: {Role}", role);
+                    _logger.LogInformation("User has admin/operation role: {Role}", role);
                     return;
                 }
             }

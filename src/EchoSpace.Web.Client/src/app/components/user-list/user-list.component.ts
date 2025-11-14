@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { UserService, User } from '../../services/user.service';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
@@ -8,7 +9,7 @@ import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-m
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarComponent, ConfirmationModalComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarComponent, ConfirmationModalComponent],
   templateUrl: './user-list.component.html',
   styleUrls: ['./user-list.component.css']
 })
@@ -18,8 +19,10 @@ export class UserListComponent implements OnInit {
   error: string | null = null;
   showModal = false;
   pendingUserId: string | null = null;
-  pendingAction: 'delete' | 'lock' | 'unlock' | null = null;
+  pendingAction: 'delete' | 'lock' | 'unlock' | 'changeRole' | null = null;
   isProcessing = false;
+  changingRoleUserId: string | null = null;
+  newRole: 'User' | 'Operation' | 'Admin' = 'User';
 
   constructor(private userService: UserService) { }
 
@@ -60,6 +63,55 @@ export class UserListComponent implements OnInit {
     this.pendingUserId = id;
     this.pendingAction = 'unlock';
     this.showModal = true;
+  }
+
+  changeUserRole(user: User): void {
+    this.changingRoleUserId = user.id;
+    this.newRole = (user.role as 'User' | 'Operation' | 'Admin') || 'User';
+  }
+
+  cancelRoleChange(): void {
+    this.changingRoleUserId = null;
+    this.newRole = 'User';
+  }
+
+  confirmRoleChange(): void {
+    if (!this.changingRoleUserId) return;
+
+    this.isProcessing = true;
+    this.userService.changeUserRole(this.changingRoleUserId, this.newRole).subscribe({
+      next: (updatedUser) => {
+        this.error = null;
+        const index = this.users.findIndex(u => u.id === updatedUser.id);
+        if (index !== -1) {
+          this.users[index] = { ...updatedUser };
+        }
+        this.isProcessing = false;
+        this.changingRoleUserId = null;
+        this.newRole = 'User';
+      },
+      error: (err) => {
+        this.isProcessing = false;
+        console.error('Failed to change user role', err);
+        this.error = `Failed to change role: ${err.error?.message || err.message || 'Unknown error'}`;
+      }
+    });
+  }
+
+  getRoleBadgeClass(role?: string): string {
+    switch (role) {
+      case 'Admin':
+        return 'bg-purple-100 text-purple-800';
+      case 'Operation':
+        return 'bg-blue-100 text-blue-800';
+      case 'User':
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  getRoleDisplayName(role?: string): string {
+    return role || 'User';
   }
 
   onConfirm(): void {

@@ -60,14 +60,14 @@ namespace EchoSpace.UI.Authorization
         }
 
         /// <summary>
-        /// Create ABAC policy: User must have Admin or Moderator role
+        /// Create ABAC policy: User must have Admin or Operation role
         /// </summary>
-        public static AbacPolicy CreateModeratorOrAdminRolePolicy()
+        public static AbacPolicy CreateOperationOrAdminRolePolicy()
         {
             return new AbacPolicy
             {
-                PolicyName = "ModeratorOrAdminRole",
-                Description = "User must have Admin or Moderator role",
+                PolicyName = "OperationOrAdminRole",
+                Description = "User must have Admin or Operation role",
                 Rules = new List<AbacPolicyRule>
                 {
                     new AbacPolicyRule
@@ -82,7 +82,7 @@ namespace EchoSpace.UI.Authorization
                         AttributeCategory = "Subject",
                         AttributeName = "Role",
                         Operator = "In",
-                        ExpectedValue = new[] { "Admin", "Moderator" }
+                        ExpectedValue = new[] { "Admin", "Operation" }
                     }
                 }
             };
@@ -118,7 +118,7 @@ namespace EchoSpace.UI.Authorization
         }
 
         /// <summary>
-        /// Create ABAC policy: User must be Admin/Moderator OR own the resource
+        /// Create ABAC policy: User must be Admin/Operation OR own the resource
         /// This requires custom evaluation in the handler
         /// </summary>
         public static AbacPolicy CreateAdminOrOwnerPolicy(string resourceType)
@@ -126,17 +126,17 @@ namespace EchoSpace.UI.Authorization
             return new AbacPolicy
             {
                 PolicyName = $"AdminOrOwnerOf{resourceType}",
-                Description = $"User must be Admin/Moderator OR own the {resourceType} resource",
+                Description = $"User must be Admin/Operation OR own the {resourceType} resource",
                 Rules = new List<AbacPolicyRule>
                 {
                     // This policy is evaluated with OR logic in the handler
-                    // Rule 1: Admin role
+                    // Rule 1: Admin or Operation role
                     new AbacPolicyRule
                     {
                         AttributeCategory = "Subject",
                         AttributeName = "Role",
                         Operator = "In",
-                        ExpectedValue = new[] { "Admin", "Moderator" }
+                        ExpectedValue = new[] { "Admin", "Operation" }
                     }
                     // Rule 2: Owner check is handled separately in the handler
                 }

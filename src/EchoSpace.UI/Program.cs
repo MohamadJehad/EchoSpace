@@ -27,7 +27,6 @@ using System.Threading.RateLimiting;
 using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
-using EchoSpace.Infrastructure.Services;
 using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -50,6 +49,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
 // Add HttpClient for Google OAuth API calls
@@ -150,9 +150,9 @@ builder.Services.AddAuthorization(options =>
     var adminPolicy = AbacPolicyBuilder.CreateAdminRolePolicy();
     options.AddAbacPolicy(adminPolicy, "General", "Admin");
 
-    // ABAC: Moderator or Admin Role Policy
-    var moderatorOrAdminPolicy = AbacPolicyBuilder.CreateModeratorOrAdminRolePolicy();
-    options.AddAbacPolicy(moderatorOrAdminPolicy, "General", "Moderate");
+    // ABAC: Operation or Admin Role Policy
+    var operationOrAdminPolicy = AbacPolicyBuilder.CreateOperationOrAdminRolePolicy();
+    options.AddAbacPolicy(operationOrAdminPolicy, "General", "Moderate");
 
     // ABAC: Owner-based policies
     var ownerOfPostPolicy = AbacPolicyBuilder.CreateOwnerPolicy("Post");
@@ -172,8 +172,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOnly", policy => policy.Requirements.Add(
         new EchoSpace.Core.Authorization.Requirements.AbacRequirement(adminPolicy, "General", "Admin")));
     
-    options.AddPolicy("ModeratorOrAdmin", policy => policy.Requirements.Add(
-        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(moderatorOrAdminPolicy, "General", "Moderate")));
+    options.AddPolicy("OperationOrAdmin", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(operationOrAdminPolicy, "General", "Moderate")));
     
     options.AddPolicy("AuthenticatedUser", policy => policy.Requirements.Add(
         new EchoSpace.Core.Authorization.Requirements.AbacRequirement(authenticatedUserPolicy, "General")));

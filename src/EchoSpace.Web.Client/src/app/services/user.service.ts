@@ -13,6 +13,7 @@ export interface User {
   lockoutEnabled?: boolean;
   lockoutEnd?: string | null;
   accessFailedCount?: number;
+  role?: string; // User, Operation, Admin
 }
 
 export interface CreateUserRequest {
@@ -23,6 +24,10 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   email?: string;
+}
+
+export interface ChangeUserRoleRequest {
+  role: 'User' | 'Operation' | 'Admin';
 }
 
 @Injectable({
@@ -84,6 +89,10 @@ export class UserService {
 
   unlockUser(id: string): Observable<User> {
     return this.http.post<User>(`${this.apiUrl}/${id}/unlock`, {}, { headers: this.getHeaders() });
+  }
+
+  changeUserRole(id: string, role: 'User' | 'Operation' | 'Admin'): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/${id}/role`, { role }, { headers: this.getHeaders() });
   }
 }
 

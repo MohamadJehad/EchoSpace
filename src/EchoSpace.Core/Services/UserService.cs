@@ -1,6 +1,7 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Core.Enums;
 
 namespace EchoSpace.Core.Services
 {
@@ -97,6 +98,20 @@ namespace EchoSpace.Core.Services
             user.LockoutEnabled = false;
             user.LockoutEnd = null;
             user.AccessFailedCount = 0;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            return await _userRepository.UpdateAsync(user);
+        }
+
+        public async Task<User?> ChangeUserRoleAsync(Guid userId, UserRole newRole)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.Role = newRole;
             user.UpdatedAt = DateTime.UtcNow;
 
             return await _userRepository.UpdateAsync(user);

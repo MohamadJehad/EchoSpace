@@ -213,7 +213,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Update an existing post
-        /// ABAC: Requires user to own the post OR be Admin/Moderator
+        /// ABAC: Requires user to own the post OR be Admin/Operation
         /// </summary>
         [HttpPut("{id}")]
         [RequireAdminOrOwner("Post")]
@@ -242,7 +242,7 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Delete a post
-        /// ABAC: Requires user to own the post OR be Admin/Moderator
+        /// ABAC: Requires user to own the post OR be Admin/Operation
         /// </summary>
         [HttpDelete("{id}")]
         [RequireAdminOrOwner("Post")]

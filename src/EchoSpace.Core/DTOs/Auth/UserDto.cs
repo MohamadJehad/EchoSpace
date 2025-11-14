@@ -29,7 +29,7 @@ namespace EchoSpace.Core.DTOs.Auth
         public string UserName { get; set; } = string.Empty;
 
         /// <summary>
-        /// The user's role (User, Admin, Moderator).
+        /// The user's role (User, Operation, Admin).
         /// </summary>
         public string Role { get; set; } = UserRole.User.ToString();
     }

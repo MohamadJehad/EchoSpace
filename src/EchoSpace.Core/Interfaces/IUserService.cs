@@ -1,5 +1,6 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
+using EchoSpace.Core.Enums;
 
 namespace EchoSpace.Core.Interfaces
 {
@@ -13,5 +14,6 @@ namespace EchoSpace.Core.Interfaces
         Task<User?> UpdateProfilePhotoAsync(Guid userId, Guid? profilePhotoId);
         Task<User?> LockUserAsync(Guid userId);
         Task<User?> UnlockUserAsync(Guid userId);
+        Task<User?> ChangeUserRoleAsync(Guid userId, UserRole newRole);
     }
 }

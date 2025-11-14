@@ -154,6 +154,49 @@ namespace EchoSpace.UI.Controllers
         }
 
         /// <summary>
+        /// Change a user's role (Admin only)
+        /// Allows Admin to assign Operation or Admin roles to users
+        /// </summary>
+        [HttpPut("{id}/role")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<User>> ChangeUserRole(Guid id, [FromBody] ChangeUserRoleRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
+                // Prevent self-demotion (Admin cannot change their own role)
+                if (id == currentUserId.Value && request.Role != UserRole.Admin)
+                {
+                    return BadRequest("You cannot change your own role from Admin");
+                }
+
+                var updatedUser = await _userService.ChangeUserRoleAsync(id, request.Role);
+                if (updatedUser == null)
+                {
+                    return NotFound($"User with ID {id} not found");
+                }
+
+                _logger.LogInformation("User {UserId} role changed to {Role} by admin {AdminId}", id, request.Role, currentUserId.Value);
+                return Ok(updatedUser);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while changing role for user {UserId}", id);
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
+
+        /// <summary>
         /// Upload profile photo for current user
         /// </summary>
         [HttpPost("me/profile-photo")]
