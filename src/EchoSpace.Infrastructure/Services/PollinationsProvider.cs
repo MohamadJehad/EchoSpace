@@ -37,8 +37,8 @@ namespace EchoSpace.Infra.Services
             response.EnsureSuccessStatusCode(); // throws if not 2xx
             byte[] imageBytes = await response.Content.ReadAsByteArrayAsync();
             // If Pollinations redirects to the final image, capture the final URI
-            var finalUri = resp.RequestMessage?.RequestUri?.ToString() ?? url;
-            return new ImageResultDto(finalUri);
+            // var finalUri = response.RequestMessage?.RequestUri?.ToString() ?? url;
+            // return new ImageResultDto(finalUri);
         }
     }
 }
