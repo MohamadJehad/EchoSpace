@@ -210,6 +210,10 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IPostService, PostService>();
 
+// Tag services
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<ITagService, TagService>();
+
 // Comment services
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<ICommentService, CommentService>();
@@ -455,6 +459,18 @@ try
         if (canConnect)
         {
             logger.LogInformation("Database connection successful.");
+            
+            // Initialize default tags if they don't exist
+            try
+            {
+                var tagService = scope.ServiceProvider.GetRequiredService<ITagService>();
+                await tagService.InitializeDefaultTagsAsync();
+                logger.LogInformation("Default tags initialized successfully.");
+            }
+            catch (Exception tagEx)
+            {
+                logger.LogWarning(tagEx, "Failed to initialize default tags. This is not critical.");
+            }
         }
         else
         {
