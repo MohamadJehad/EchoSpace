@@ -4,7 +4,8 @@ namespace EchoSpace.Core.Enums
     {
         User = 0,
         Admin = 1,
-        Moderator = 2
+        Moderator = 2,
+        Operation = 3
     }
 }
 

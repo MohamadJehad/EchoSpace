@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-auth-callback',
@@ -40,9 +41,11 @@ export class AuthCallbackComponent implements OnInit {
           this.authService.setSessionFromCallback(authResponse);
           
           // Redirect based on user role
-          const userRole = user.role || 'User';
+          const userRole = normalizeRole(user.role);
           if (userRole === 'Admin') {
             this.router.navigate(['/admin/users']);
+          } else if (userRole === 'Operation') {
+            this.router.navigate(['/operation']);
           } else {
             this.router.navigate(['/home']);
           }

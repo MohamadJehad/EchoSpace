@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { PostsService } from '../../services/posts.service';
 import { FollowsService } from '../../services/follows.service';
 import { LikesService } from '../../services/likes.service';
+import { TagsService } from '../../services/tags.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
@@ -17,6 +18,7 @@ import { PostCommentsComponent } from '../post-comments/post-comments.component'
 import { UserService } from '../../services/user.service';
 import { ProfileCardComponent } from '../profile-card/profile-card.component';
 import { environment } from '../../../environments/environment';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-home',
@@ -33,8 +35,14 @@ export class HomeComponent implements OnInit {
   // Create post form
   newPost = {
     content: '',
-    imageUrl: ''
+    imageUrl: '',
+    tagIds: [] as string[]
   };
+  
+  // Tags
+  tags: any[] = [];
+  isLoadingTags = false;
+  showTagSelector = false;
 
   // Photo upload
   selectedFile: File | null = null;
@@ -88,7 +96,8 @@ export class HomeComponent implements OnInit {
     private followsService: FollowsService,
     private likesService: LikesService,
     private toastService: ToastService,
-    private userService: UserService
+    private userService: UserService,
+    private tagsService: TagsService
   ) {}
   
 
@@ -104,6 +113,9 @@ export class HomeComponent implements OnInit {
   ngOnInit(): void {
     // Load current user data
     this.loadUserData();
+    
+    // Load tags
+    this.loadTags();
     
     // Load posts
     this.loadPosts();
@@ -121,6 +133,13 @@ export class HomeComponent implements OnInit {
           id: user.id || '',
           profilePhotoUrl: null
         };
+        
+        // Redirect Operation users to their homepage
+        const normalizedRole = normalizeRole(this.currentUser.role);
+        if (normalizedRole === 'Operation') {
+          this.router.navigate(['/operation']);
+          return;
+        }
         
         // Load user statistics once we have the user ID
         if (this.currentUser.id) {
@@ -140,6 +159,14 @@ export class HomeComponent implements OnInit {
             id: parsedUser.id || '',
             profilePhotoUrl: null
           };
+          
+          // Redirect Operation users to their homepage
+          const normalizedRole = normalizeRole(this.currentUser.role);
+          if (normalizedRole === 'Operation') {
+            this.router.navigate(['/operation']);
+            return;
+          }
+          
           if (this.currentUser.id) {
             this.loadUserProfile();
           }
@@ -469,7 +496,8 @@ export class HomeComponent implements OnInit {
     const createPostRequest: CreatePostRequest = {
       userId: this.currentUser.id,
       content: this.newPost.content.trim(),
-      imageUrl: ""
+      imageUrl: "",
+      tagIds: this.newPost.tagIds.length > 0 ? this.newPost.tagIds : undefined
     };
 
     this.postsService.createPost(createPostRequest).subscribe({
@@ -492,7 +520,7 @@ export class HomeComponent implements OnInit {
       error: (error) => {
         console.error('Error creating post:', error);
         this.isCreatingPost = false;
-        this.toastService.error('Error', 'Failed to create post. Please try again.');
+        this.toastService.error('Error', 'Failed to create post. Post contains unsafe or toxic contents. Please fix post contents and try again.');
       }
     });
   }
@@ -505,10 +533,38 @@ export class HomeComponent implements OnInit {
   clearForm(): void {
     this.newPost = {
       content: '',
-      imageUrl: ''
+      imageUrl: '',
+      tagIds: []
     };
     this.selectedFile = null;
     this.imagePreview = null;
+  }
+  
+  toggleTagSelection(tagId: string): void {
+    const index = this.newPost.tagIds.indexOf(tagId);
+    if (index > -1) {
+      this.newPost.tagIds.splice(index, 1);
+    } else {
+      this.newPost.tagIds.push(tagId);
+    }
+  }
+  
+  isTagSelected(tagId: string): boolean {
+    return this.newPost.tagIds.includes(tagId);
+  }
+  
+  loadTags(): void {
+    this.isLoadingTags = true;
+    this.tagsService.getAllTags().subscribe({
+      next: (tags) => {
+        this.tags = tags;
+        this.isLoadingTags = false;
+      },
+      error: (error) => {
+        console.error('Error loading tags:', error);
+        this.isLoadingTags = false;
+      }
+    });
   }
 
   onPhotoClick(): void {
@@ -613,7 +669,7 @@ export class HomeComponent implements OnInit {
       error: (error) => {
         console.error('Error updating post:', error);
         this.isSavingPost = false;
-        this.toastService.error('Error', 'Failed to update post. Please try again.');
+        this.toastService.error('Error', 'Failed to update post. Contents of the post are not safe. Please fix contents and try again.');
       }
     });
   }

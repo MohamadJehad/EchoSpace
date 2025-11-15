@@ -8,11 +8,16 @@ namespace EchoSpace.Core.Services
     {
         private readonly IPostRepository _postRepository;
         private readonly ILikeRepository _likeRepository;
+        private readonly ITagRepository _tagRepository;
 
-        public PostService(IPostRepository postRepository, ILikeRepository likeRepository)
+        public PostService(
+            IPostRepository postRepository, 
+            ILikeRepository likeRepository,
+            ITagRepository tagRepository)
         {
             _postRepository = postRepository;
             _likeRepository = likeRepository;
+            _tagRepository = tagRepository;
         }
 
         public async Task<IEnumerable<PostDto>> GetAllAsync()
@@ -74,8 +79,30 @@ namespace EchoSpace.Core.Services
                 CreatedAt = DateTime.UtcNow
             };
 
+            // Add tags if provided
+            if (request.TagIds != null && request.TagIds.Any())
+            {
+                foreach (var tagId in request.TagIds)
+                {
+                    var tag = await _tagRepository.GetByIdAsync(tagId);
+                    if (tag != null)
+                    {
+                        post.PostTags.Add(new PostTag
+                        {
+                            PostTagId = Guid.NewGuid(),
+                            PostId = post.PostId,
+                            TagId = tagId,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+
             var createdPost = await _postRepository.AddAsync(post);
-            return MapToDto(createdPost, request.UserId);
+            
+            // Reload with tags included
+            var postWithTags = await _postRepository.GetByIdAsync(createdPost.PostId);
+            return MapToDto(postWithTags ?? createdPost, request.UserId);
         }
 
         public async Task<PostDto?> UpdateAsync(Guid id, UpdatePostRequest request)
@@ -134,7 +161,17 @@ namespace EchoSpace.Core.Services
                 // Author information from User navigation property
                 AuthorName = post.User?.Name ?? string.Empty,
                 AuthorEmail = post.User?.Email ?? string.Empty,
-                AuthorUserName = post.User?.UserName ?? string.Empty
+                AuthorUserName = post.User?.UserName ?? string.Empty,
+                
+                // Tag information from PostTags navigation property
+                Tags = post.PostTags?
+                    .Select(pt => new TagInfoDto
+                    {
+                        TagId = pt.Tag.TagId,
+                        Name = pt.Tag.Name,
+                        Color = pt.Tag.Color
+                    })
+                    .ToList() ?? new List<TagInfoDto>()
             };
         }
     }

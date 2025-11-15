@@ -21,12 +21,20 @@ export interface Post {
   authorEmail?: string;
   authorUserName?: string;
   authorProfilePhotoId?: string;
+  
+  // Tag information
+  tags?: Array<{
+    tagId: string;
+    name: string;
+    color?: string;
+  }>;
 }
 
 export interface CreatePostRequest {
   userId: string;
   content: string;
   imageUrl?: string;
+  tagIds?: string[];
 }
 
 export interface UpdatePostRequest {

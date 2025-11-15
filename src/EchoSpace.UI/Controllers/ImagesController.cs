@@ -4,6 +4,7 @@ using EchoSpace.Core.DTOs.Images;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Enums;
 using System.Security.Claims;
+using EchoSpace.Core.Entities;
 
 namespace EchoSpace.UI.Controllers
 {
@@ -13,11 +14,19 @@ namespace EchoSpace.UI.Controllers
     public class ImagesController : ControllerBase
     {
         private readonly IImageService _imageService;
+        private readonly IBlobStorageService _blobStorageService;
+        private readonly IImageRepository _imageRepository;
         private readonly ILogger<ImagesController> _logger;
 
-        public ImagesController(IImageService imageService, ILogger<ImagesController> logger)
+        public ImagesController(
+            IImageService imageService, 
+            IBlobStorageService blobStorageService,
+            IImageRepository imageRepository,
+            ILogger<ImagesController> logger)
         {
             _imageService = imageService;
+            _blobStorageService = blobStorageService;
+            _imageRepository = imageRepository;
             _logger = logger;
         }
 
@@ -201,6 +210,56 @@ namespace EchoSpace.UI.Controllers
             {
                 _logger.LogError(ex, "Error generating URL for image {ImageId}", imageId);
                 return StatusCode(500, new { message = "An error occurred while generating image URL" });
+            }
+        }
+
+        /// <summary>
+        /// Serve image directly with proper content-type and security headers
+        /// This endpoint proxies the image from blob storage with security headers to prevent MIME sniffing and XSS
+        /// </summary>
+        [HttpGet("{imageId}/serve")]
+        [AllowAnonymous] // Allow anonymous access for public images (or use [Authorize] if you want authentication)
+        public async Task<IActionResult> ServeImage(Guid imageId)
+        {
+            try
+            {
+                // Get image metadata from repository to access ContentType
+                var image = await _imageRepository.GetByIdAsync(imageId);
+                if (image == null)
+                {
+                    return NotFound(new { message = "Image not found" });
+                }
+
+                // Download image from blob storage
+                var imageBytes = await _blobStorageService.DownloadBlobAsync(image.ContainerName, image.BlobName);
+                
+                if (imageBytes == null || imageBytes.Length == 0)
+                {
+                    return NotFound(new { message = "Image file not found in storage" });
+                }
+
+                // Determine content type from stored metadata, with fallback
+                var contentType = !string.IsNullOrEmpty(image.ContentType) 
+                    ? image.ContentType 
+                    : "image/jpeg"; // Safe default fallback
+
+                // Set security headers explicitly
+                Response.Headers["X-Content-Type-Options"] = "nosniff"; // Prevent MIME type sniffing
+                Response.Headers["Content-Type"] = contentType; // Explicitly tell browser this is an image
+                Response.Headers["X-Frame-Options"] = "DENY"; // Prevent clickjacking
+                Response.Headers["Cache-Control"] = "public, max-age=31536000"; // Cache for 1 year
+                
+                // Additional XSS protection
+                Response.Headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self' data:;";
+
+                _logger.LogInformation("Serving image {ImageId} with Content-Type: {ContentType}", imageId, contentType);
+                
+                return File(imageBytes, contentType);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error serving image {ImageId}", imageId);
+                return StatusCode(500, new { message = "An error occurred while serving the image" });
             }
         }
 

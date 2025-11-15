@@ -13,6 +13,7 @@ export interface User {
   lockoutEnabled?: boolean;
   lockoutEnd?: string | null;
   accessFailedCount?: number;
+  role?: number | string; // Can be number (enum) or string
 }
 
 export interface CreateUserRequest {
@@ -23,6 +24,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   email?: string;
+  role?: number; // UserRole enum value (0=User, 1=Admin, 2=Moderator, 3=Operation)
 }
 
 @Injectable({

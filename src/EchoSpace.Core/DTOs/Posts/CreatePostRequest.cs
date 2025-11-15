@@ -13,5 +13,7 @@ namespace EchoSpace.Core.DTOs.Posts
 
         [MaxLength(500)]
         public string? ImageUrl { get; set; }
+
+        public List<Guid>? TagIds { get; set; }
     }
 }

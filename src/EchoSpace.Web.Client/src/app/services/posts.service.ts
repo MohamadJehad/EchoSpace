@@ -22,7 +22,7 @@ export class PostsService {
 
   // Get all posts
   getAllPosts(): Observable<Post[]> {
-    return this.http.get<Post[]>(this.apiUrl);
+    return this.http.get<Post[]>(this.apiUrl, { headers: this.getHeaders() });
   }
 
   // Get post by ID

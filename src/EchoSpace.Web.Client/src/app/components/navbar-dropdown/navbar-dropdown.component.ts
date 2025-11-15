@@ -1,12 +1,13 @@
 import { Component, OnInit, HostListener, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { normalizeRole } from '../../utils/role.util';
 
 interface UserData {
   name: string;
   email: string;
   initials: string;
-  role?: string;
+  role?: any; // Can be string or number
   profilePhotoUrl?: string | null;
 }
 
@@ -26,7 +27,11 @@ export class NavbarDropdownComponent implements OnInit {
   };
 
   get isAdmin(): boolean {
-    return this.currentUser.role === 'Admin';
+    return normalizeRole(this.currentUser.role) === 'Admin';
+  }
+
+  get isOperation(): boolean {
+    return normalizeRole(this.currentUser.role) === 'Operation';
   }
   
   @Output() logout = new EventEmitter<void>();
