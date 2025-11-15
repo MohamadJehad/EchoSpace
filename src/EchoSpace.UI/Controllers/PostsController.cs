@@ -15,12 +15,16 @@ namespace EchoSpace.UI.Controllers
         private readonly IPostService _postService;
         private readonly ILikeService _likeService;
         private readonly IAuditLogDBService _auditLogDBService;
-        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService, IAuditLogDBService auditLogDBService)
+        private readonly IPostReportService _postReportService;
+        private readonly IFollowRepository _followRepository;
+        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService, IAuditLogDBService auditLogDBService, IPostReportService postReportService, IFollowRepository followRepository)
         {
             _logger = logger;
             _postService = postService;
             _likeService = likeService;
             _auditLogDBService = auditLogDBService;
+            _postReportService = postReportService;
+            _followRepository = followRepository;
         }   
 
 
@@ -139,13 +143,21 @@ namespace EchoSpace.UI.Controllers
                 var currentUserId = GetCurrentUserId();
                 var posts = await _postService.GetRecentAsync(count, currentUserId);
                 
-                // Populate like status for current user
+                // Populate like status and follow status for current user
                 if (currentUserId.HasValue)
                 {
+                    // Get unique author IDs
+                    var authorIds = posts.Select(p => p.UserId).Distinct().ToList();
+                    
+                    // Batch get follow statuses
+                    var followStatuses = await _followRepository.GetFollowStatusesAsync(currentUserId.Value, authorIds);
+                    
                     foreach (var post in posts)
                     {
                         post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, currentUserId.Value);
                         post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                        // Set follow status (false if not following or if it's own post)
+                        post.IsFollowingAuthor = post.UserId != currentUserId.Value && followStatuses.GetValueOrDefault(post.UserId, false);
                     }
                 }
                 
@@ -175,11 +187,19 @@ namespace EchoSpace.UI.Controllers
                 _logger.LogInformation("Getting posts from following for user {UserId}", userId);
                 var posts = await _postService.GetPostsFromFollowingAsync(userId);
                 
-                // Populate like status for current user
+                // Get unique author IDs
+                var authorIds = posts.Select(p => p.UserId).Distinct().ToList();
+                
+                // Batch get follow statuses
+                var followStatuses = await _followRepository.GetFollowStatusesAsync(userId, authorIds);
+                
+                // Populate like status and follow status for current user
                 foreach (var post in posts)
                 {
                     post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, userId);
                     post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                    // Set follow status (false if not following or if it's own post)
+                    post.IsFollowingAuthor = post.UserId != userId && followStatuses.GetValueOrDefault(post.UserId, false);
                 }
                 
                 return Ok(posts);
@@ -379,6 +399,82 @@ namespace EchoSpace.UI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while checking if post {PostId} exists", id);
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
+
+        /// <summary>
+        /// Report a post
+        /// Users cannot report their own posts
+        /// </summary>
+        [HttpPost("{id}/report")]
+        public async Task<ActionResult> ReportPost(Guid id, [FromBody] ReportPostRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (!currentUserId.HasValue)
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
+                var reported = await _postReportService.ReportPostAsync(id, currentUserId.Value, request.Reason);
+                if (!reported)
+                {
+                    return BadRequest("Post has already been reported by this user or you cannot report your own post");
+                }
+
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                {
+                    ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                }
+
+                await _auditLogDBService.LogAsync(
+                    actionType: "PostReported",
+                    userId: currentUserId,
+                    resourceId: id.ToString(),
+                    details: new { Reason = request.Reason },
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
+
+                return Ok(new { message = "Post reported successfully" });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Post not found for report: {PostId}", id);
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Invalid report attempt: {PostId}", id);
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while reporting post {PostId}", id);
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
+
+        /// <summary>
+        /// Get all reported posts (Operation role only)
+        /// Returns posts with their report counts
+        /// </summary>
+        [HttpGet("reported")]
+        [Authorize(Policy = "OperationOrAdmin")]
+        public async Task<ActionResult<IEnumerable<ReportedPostDto>>> GetReportedPosts(CancellationToken cancellationToken)
+        {
+            try
+            {
+                _logger.LogInformation("Getting reported posts");
+                var reportedPosts = await _postReportService.GetReportedPostsAsync();
+                return Ok(reportedPosts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting reported posts");
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }

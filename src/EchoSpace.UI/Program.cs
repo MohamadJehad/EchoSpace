@@ -272,6 +272,10 @@ builder.Services.AddScoped<IFollowService, FollowService>();
 builder.Services.AddScoped<ILikeRepository, LikeRepository>();
 builder.Services.AddScoped<ILikeService, LikeService>();
 
+// Post Report services
+builder.Services.AddScoped<IPostReportRepository, PostReportRepository>();
+builder.Services.AddScoped<IPostReportService, PostReportService>();
+
 // Image services
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
@@ -412,7 +416,7 @@ builder.Services.AddRateLimiter(options =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         await context.HttpContext.Response.WriteAsync(
-            "Rate limit exceeded. Please try again later.", cancellationToken: token);
+            "Please try again later.", cancellationToken: token);
     };
 
     // Use IP address for login/register
@@ -422,7 +426,7 @@ builder.Services.AddRateLimiter(options =>
         return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ =>
             new FixedWindowRateLimiterOptions
             {
-                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:PermitLimit", 5),
+                PermitLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:PermitLimit", 3),
                 Window = TimeSpan.Parse(builder.Configuration.GetValue<string>("RateLimiting:LoginAndRegisterPolicy:Window") ?? "00:01:00"),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:LoginAndRegisterPolicy:QueueLimit", 0),

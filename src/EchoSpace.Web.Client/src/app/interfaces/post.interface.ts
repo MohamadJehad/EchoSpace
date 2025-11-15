@@ -14,6 +14,7 @@ export interface Post {
   likesCount: number; 
   commentsCount: number; 
   isLikedByCurrentUser: boolean; 
+  isFollowingAuthor?: boolean;
   timeAgo?: string;
   
   // Backend author fields
@@ -40,4 +41,33 @@ export interface CreatePostRequest {
 export interface UpdatePostRequest {
   content: string;
   imageUrl?: string;
+}
+
+export interface ReportPostRequest {
+  reason?: string;
+}
+
+export interface ReportedPost {
+  postId: string;
+  userId: string;
+  content: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt?: string;
+  reportCount: number;
+  likesCount: number;
+  commentsCount: number;
+  authorName: string;
+  authorEmail: string;
+  authorUserName: string;
+  reports: ReportInfo[];
+}
+
+export interface ReportInfo {
+  reportId: string;
+  userId: string;
+  reason?: string;
+  createdAt: string;
+  reporterName: string;
+  reporterEmail: string;
 }

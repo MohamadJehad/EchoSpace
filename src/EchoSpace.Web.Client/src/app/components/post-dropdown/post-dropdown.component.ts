@@ -2,12 +2,15 @@ import { Component, Input, Output, EventEmitter, HostListener, OnInit, OnDestroy
 import { CommonModule } from '@angular/common';
 import { Post } from '../../interfaces';
 import { FollowsService } from '../../services/follows.service';
+import { PostsService } from '../../services/posts.service';
+import { ToastService } from '../../services/toast.service';
+import { ReportModalComponent } from '../report-modal/report-modal.component';
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-post-dropdown',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ReportModalComponent],
   templateUrl: './post-dropdown.component.html',
   styleUrl: './post-dropdown.component.css'
 })
@@ -24,12 +27,23 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
   isFollowing = false;
   isLoadingFollowStatus = false;
   isLoadingFollowAction = false;
+  isReporting = false;
+  showReportModal = false;
   private followStatusSubscription?: Subscription;
 
-  constructor(private followsService: FollowsService) {}
+  constructor(
+    private followsService: FollowsService,
+    private postsService: PostsService,
+    private toastService: ToastService
+  ) {}
 
   ngOnInit(): void {
-    this.checkFollowStatus();
+    // Use the follow status from the post if available (from backend), otherwise check via API
+    if (this.post.isFollowingAuthor !== undefined) {
+      this.isFollowing = this.post.isFollowingAuthor;
+    } else {
+      this.checkFollowStatus();
+    }
   }
 
   ngOnDestroy(): void {
@@ -45,6 +59,17 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
   get canFollow(): boolean {
     const authorId = this.post.author?.userId || this.post.userId;
     return authorId !== this.currentUserId && authorId !== '';
+  }
+
+  get canReport(): boolean {
+    // Users cannot report their own posts
+    // Show report button for any post that is not owned by the current user
+    if (!this.currentUserId || !this.post) {
+      return false;
+    }
+    const authorId = this.post.author?.userId || this.post.userId;
+    const isOwnPost = authorId === this.currentUserId;
+    return !isOwnPost && !!authorId;
   }
 
   checkFollowStatus(): void {
@@ -104,6 +129,8 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
     action.subscribe({
       next: () => {
         this.isFollowing = !this.isFollowing;
+        // Update the post object to keep it in sync
+        this.post.isFollowingAuthor = this.isFollowing;
         this.isLoadingFollowAction = false;
         this.toggleDropdown.emit();
         this.followStatusChanged.emit();
@@ -114,6 +141,36 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
         alert('Failed to ' + (this.isFollowing ? 'unfollow' : 'follow') + ' user. Please try again.');
       }
     });
+  }
+
+  onReport(): void {
+    if (!this.canReport || this.isReporting) {
+      return;
+    }
+    this.showReportModal = true;
+    this.toggleDropdown.emit();
+  }
+
+  onReportConfirm(reason?: string): void {
+    this.showReportModal = false;
+    this.isReporting = true;
+
+    this.postsService.reportPost(this.post.postId, reason).subscribe({
+      next: () => {
+        this.toastService.success('Post Reported', 'The post has been reported successfully.');
+        this.isReporting = false;
+      },
+      error: (error) => {
+        console.error('Error reporting post:', error);
+        const errorMessage = error.error?.message || 'Failed to report post. Please try again.';
+        this.toastService.error('Report Failed', errorMessage);
+        this.isReporting = false;
+      }
+    });
+  }
+
+  onReportCancel(): void {
+    this.showReportModal = false;
   }
 
   @HostListener('document:click', ['$event'])

@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { UserService, User } from '../../services/user.service';
 import { PostsService } from '../../services/posts.service';
-import { Post } from '../../interfaces/post.interface';
+import { Post, ReportedPost } from '../../interfaces/post.interface';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
@@ -21,9 +21,11 @@ import { Router } from '@angular/router';
 export class OperationHomeComponent implements OnInit {
   users: User[] = [];
   posts: Post[] = [];
+  reportedPosts: ReportedPost[] = [];
   loading = false;
   usersLoading = false;
   postsLoading = false;
+  reportedPostsLoading = false;
   error: string | null = null;
   
   // Modal states
@@ -35,7 +37,7 @@ export class OperationHomeComponent implements OnInit {
   isProcessing = false;
 
   // Active tab
-  activeTab: 'posts' | 'users' = 'posts';
+  activeTab: 'posts' | 'reported' | 'users' = 'reported';
 
   // Search/filter
   searchQuery = '';
@@ -44,6 +46,9 @@ export class OperationHomeComponent implements OnInit {
 
   // Comments
   showComments: { [postId: string]: boolean } = {};
+  
+  // Report details
+  showReportDetails: { [postId: string]: boolean } = {};
 
   currentUser = {
     name: '',
@@ -62,6 +67,7 @@ export class OperationHomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCurrentUser();
+    this.loadReportedPosts();
     this.loadPosts();
     this.loadUsers();
   }
@@ -78,6 +84,31 @@ export class OperationHomeComponent implements OnInit {
         profilePhotoUrl: user.profilePhotoUrl || null
       };
     }
+  }
+
+  loadReportedPosts(): void {
+    this.reportedPostsLoading = true;
+    this.error = null;
+    
+    this.postsService.getReportedPosts().subscribe({
+      next: (data) => {
+        console.log('Reported posts data:', data);
+        this.reportedPosts = data;
+        // Ensure reports array exists for each post
+        this.reportedPosts.forEach(post => {
+          if (!post.reports) {
+            post.reports = [];
+          }
+          console.log(`Post ${post.postId} has ${post.reports.length} reports:`, post.reports);
+        });
+        this.reportedPostsLoading = false;
+      },
+      error: (err) => {
+        this.error = 'Failed to load reported posts';
+        this.reportedPostsLoading = false;
+        console.error('Error loading reported posts:', err);
+      }
+    });
   }
 
   loadPosts(): void {
@@ -217,8 +248,11 @@ export class OperationHomeComponent implements OnInit {
     this.postsService.deletePost(postId, this.currentUser.id).subscribe({
       next: () => {
         this.error = null;
+        // Remove from regular posts
         this.posts = this.posts.filter(p => p.postId !== postId);
         this.filteredPosts = this.filteredPosts.filter(p => p.postId !== postId);
+        // Remove from reported posts
+        this.reportedPosts = this.reportedPosts.filter(p => p.postId !== postId);
         this.isProcessing = false;
         this.showPostModal = false;
         this.pendingPostId = null;
@@ -306,11 +340,13 @@ export class OperationHomeComponent implements OnInit {
     return 'Active';
   }
 
-  switchTab(tab: 'posts' | 'users'): void {
+  switchTab(tab: 'posts' | 'reported' | 'users'): void {
     this.activeTab = tab;
     this.searchQuery = '';
     if (tab === 'posts') {
       this.filteredPosts = this.posts;
+    } else if (tab === 'reported') {
+      this.loadReportedPosts();
     } else {
       this.filteredUsers = this.users;
     }
@@ -337,6 +373,16 @@ export class OperationHomeComponent implements OnInit {
     if (filteredPost) {
       filteredPost.commentsCount = newCount;
     }
+  }
+
+  toggleReportDetails(postId: string): void {
+    this.showReportDetails[postId] = !this.showReportDetails[postId];
+    const post = this.reportedPosts.find(p => p.postId === postId);
+    console.log(`Toggling report details for post ${postId}:`, {
+      isOpen: this.showReportDetails[postId],
+      hasReports: post?.reports ? post.reports.length : 0,
+      reports: post?.reports
+    });
   }
 }
 

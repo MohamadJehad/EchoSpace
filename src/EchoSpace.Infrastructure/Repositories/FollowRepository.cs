@@ -104,6 +104,29 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Follows
                 .CountAsync(f => f.FollowerId == userId);
         }
+
+        public async Task<Dictionary<Guid, bool>> GetFollowStatusesAsync(Guid followerId, IEnumerable<Guid> followedIds)
+        {
+            var followedIdsList = followedIds.ToList();
+            if (!followedIdsList.Any())
+            {
+                return new Dictionary<Guid, bool>();
+            }
+
+            var followStatuses = await _dbContext.Follows
+                .AsNoTracking()
+                .Where(f => f.FollowerId == followerId && followedIdsList.Contains(f.FollowedId))
+                .Select(f => f.FollowedId)
+                .ToListAsync();
+
+            var result = new Dictionary<Guid, bool>();
+            foreach (var followedId in followedIdsList)
+            {
+                result[followedId] = followStatuses.Contains(followedId);
+            }
+
+            return result;
+        }
     }
 }
 
