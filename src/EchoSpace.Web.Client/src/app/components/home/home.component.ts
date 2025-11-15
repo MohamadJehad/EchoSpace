@@ -259,11 +259,13 @@ export class HomeComponent implements OnInit {
         
         // Update all posts by current user
         this.posts.forEach(post => {
-          if (post.author.userId === this.currentUser.id) {
-            post.author.profilePhotoUrl = data.url;
+          if (post.author?.userId === this.currentUser.id) {
+            if (post.author) {
+              post.author.profilePhotoUrl = data.url;
+            }
           }
         });
-        console.log('loadProfilePhotoUrl: Updated', this.posts.filter(p => p.author.userId === this.currentUser.id).length, 'posts with new profile photo');
+        console.log('loadProfilePhotoUrl: Updated', this.posts.filter(p => p.author?.userId === this.currentUser.id).length, 'posts with new profile photo');
       } else {
         console.warn('loadProfilePhotoUrl: Response did not contain a valid URL:', data);
       }
@@ -286,11 +288,13 @@ export class HomeComponent implements OnInit {
     
     // Update all posts by current user to show new profile photo
     this.posts.forEach(post => {
-      if (post.author.userId === this.currentUser.id) {
-        post.author.profilePhotoUrl = imageUrl;
+      if (post.author?.userId === this.currentUser.id) {
+        if (post.author) {
+          post.author.profilePhotoUrl = imageUrl;
+        }
       }
     });
-    console.log('onProfilePhotoUpdated: Updated posts count:', this.posts.filter(p => p.author.userId === this.currentUser.id).length);
+    console.log('onProfilePhotoUpdated: Updated posts count:', this.posts.filter(p => p.author?.userId === this.currentUser.id).length);
   }
 
   getInitials(name: string): string {
@@ -388,7 +392,7 @@ export class HomeComponent implements OnInit {
 
   private loadProfilePhotosForPosts(posts: Post[]): void {
     // Get unique user IDs from posts
-    const userIds = [...new Set(posts.map(post => post.author.userId).filter(id => id && id !== this.currentUser.id))];
+    const userIds = [...new Set(posts.map(post => post.author?.userId).filter(id => id && id !== this.currentUser.id))];
     
     // Load profile photos for each unique user
     userIds.forEach(userId => {
@@ -425,8 +429,10 @@ export class HomeComponent implements OnInit {
       
       // Update all posts with this author's profile photo
       this.posts.forEach(post => {
-        if (post.author.userId === userId) {
-          post.author.profilePhotoUrl = data.url;
+        if (post.author?.userId === userId) {
+          if (post.author) {
+            post.author.profilePhotoUrl = data.url;
+          }
         }
       });
     })

@@ -13,8 +13,8 @@ import { normalizeRole } from '../../utils/role.util';
 })
 export class NavbarComponent implements OnInit {
   currentUser: any = null;
-  isAdmin = false;
-  isOperation = false;
+  isAdmin: boolean = false;
+  isOperation: boolean = false;
 
   constructor(
     private authService: AuthService,

@@ -1,7 +1,7 @@
 export interface Post {
   postId: string; 
   userId: string; 
-  author: {
+  author?: {
     name: string;
     initials: string;
     userId?: string;
