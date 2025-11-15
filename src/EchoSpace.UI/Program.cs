@@ -27,7 +27,6 @@ using System.Threading.RateLimiting;
 using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
-using EchoSpace.Infrastructure.Services;
 using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -136,6 +135,30 @@ var authBuilder = builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+    };
+    
+    // Add event handler to check if user is locked on each request
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<EchoSpaceDbContext>();
+                var user = await dbContext.Users.FindAsync(userId);
+                
+                if (user != null)
+                {
+                    // Check if account is locked
+                    if (user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+                    {
+                        context.Fail("Account is locked. Please contact support.");
+                        return;
+                    }
+                }
+            }
+        }
     };
 });
 
