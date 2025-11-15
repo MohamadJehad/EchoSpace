@@ -28,6 +28,7 @@ using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
 using EchoSpace.Infrastructure.Services.Logging;
+using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -484,6 +485,12 @@ builder.Services.AddScoped<IGoogleSafeBrowsingService>(sp =>
 builder.Services.AddScoped<IGooglePerspectiveService>(sp =>
     new GooglePerspectiveService(perspectiveApiKey));
 builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValidator>();
+builder.Services.AddAzureClients(clientBuilder =>
+{
+    clientBuilder.AddBlobServiceClient(builder.Configuration["StorageConnection:blobServiceUri"]!).WithName("StorageConnection");
+    clientBuilder.AddQueueServiceClient(builder.Configuration["StorageConnection:queueServiceUri"]!).WithName("StorageConnection");
+    clientBuilder.AddTableServiceClient(builder.Configuration["StorageConnection:tableServiceUri"]!).WithName("StorageConnection");
+});
 
 
 var app = builder.Build();
