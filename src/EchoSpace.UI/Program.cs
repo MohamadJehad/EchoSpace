@@ -354,6 +354,16 @@ builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
 builder.Services.AddScoped<IAiService, GeminiAiService>();
 
+//=============================================================
+// AI Image Generation Settings
+//=============================================================
+builder.Services.Configure<PollinationsOptions>(options =>
+{
+    options.BaseUrl = builder.Configuration["Pollinations:BaseUrl"] ?? "https://image.pollinations.ai";
+});
+builder.Services.AddHttpClient<PollinationsProvider>();
+builder.Services.AddScoped<IAiImageGenerationService, PollinationsProvider>();
+
 
 //=============================================================
 // Security settings

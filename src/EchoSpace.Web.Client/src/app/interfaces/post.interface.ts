@@ -41,6 +41,7 @@ export interface CreatePostRequest {
   content: string;
   imageUrl?: string;
   tagIds?: string[];
+  generateImage?: boolean;
 }
 
 export interface UpdatePostRequest {

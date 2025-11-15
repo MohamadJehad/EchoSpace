@@ -36,7 +36,8 @@ export class HomeComponent implements OnInit {
   newPost = {
     content: '',
     imageUrl: '',
-    tagIds: [] as string[]
+    tagIds: [] as string[],
+    generateImage: false
   };
   
   // Tags
@@ -599,7 +600,8 @@ export class HomeComponent implements OnInit {
       userId: this.currentUser.id,
       content: this.newPost.content.trim(),
       imageUrl: "",
-      tagIds: this.newPost.tagIds.length > 0 ? this.newPost.tagIds : undefined
+      tagIds: this.newPost.tagIds.length > 0 ? this.newPost.tagIds : undefined,
+      generateImage: this.newPost.generateImage
     };
 
     this.postsService.createPost(createPostRequest).subscribe({
@@ -636,7 +638,8 @@ export class HomeComponent implements OnInit {
     this.newPost = {
       content: '',
       imageUrl: '',
-      tagIds: []
+      tagIds: [],
+      generateImage: false
     };
     this.selectedFile = null;
     this.imagePreview = null;

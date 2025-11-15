@@ -15,5 +15,10 @@ namespace EchoSpace.Core.DTOs.Posts
         public string? ImageUrl { get; set; }
 
         public List<Guid>? TagIds { get; set; }
+
+        /// <summary>
+        /// If true, AI will generate an image based on the post content
+        /// </summary>
+        public bool GenerateImage { get; set; } = false;
     }
 }
