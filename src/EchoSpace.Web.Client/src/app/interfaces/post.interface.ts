@@ -22,6 +22,10 @@ export interface Post {
   isTranslated?: boolean;
   translationLanguage?: string;
   
+  // Summarization
+  summarizedContent?: string;
+  isSummarized?: boolean;
+  
   // Backend author fields
   authorName?: string;
   authorEmail?: string;

@@ -73,6 +73,9 @@ export class HomeComponent implements OnInit {
   translationLanguage: string = 'en'; // Default to English
   showLanguageSelector: { [postId: string]: boolean } = {};
   
+  // Summarization state
+  summarizingPosts: { [postId: string]: boolean } = {};
+  
   // Available languages for translation
   availableLanguages = [
     { code: 'en', name: 'English' },
@@ -520,6 +523,11 @@ export class HomeComponent implements OnInit {
       post.translatedContent = undefined;
       post.translationLanguage = undefined;
       this.showLanguageSelector[postId] = false;
+      // Also clear summarization state if it was set
+      if (post.isSummarized) {
+        post.isSummarized = false;
+        post.summarizedContent = undefined;
+      }
       return;
     }
 
@@ -547,6 +555,46 @@ export class HomeComponent implements OnInit {
   getLanguageName(code: string): string {
     const lang = this.availableLanguages.find(l => l.code === code);
     return lang ? lang.name : code.toUpperCase();
+  }
+
+  summarizePost(postId: string): void {
+    if (this.summarizingPosts[postId]) {
+      return; // Already summarizing
+    }
+
+    const post = this.posts.find(p => p.postId === postId);
+    if (!post) {
+      return;
+    }
+
+    // If already summarized, show original
+    if (post.isSummarized && post.summarizedContent) {
+      post.isSummarized = false;
+      post.summarizedContent = undefined;
+      // Also clear translation state if it was set
+      if (post.isTranslated) {
+        post.isTranslated = false;
+        post.translatedContent = undefined;
+        post.translationLanguage = undefined;
+      }
+      return;
+    }
+
+    this.summarizingPosts[postId] = true;
+
+    this.postsService.summarizePost(postId).subscribe({
+      next: (response) => {
+        post.summarizedContent = response.summary;
+        post.isSummarized = true;
+        this.summarizingPosts[postId] = false;
+        this.toastService.success('Summarized', 'Post has been summarized successfully.');
+      },
+      error: (error) => {
+        console.error('Error summarizing post:', error);
+        this.summarizingPosts[postId] = false;
+        this.toastService.error('Summarization Failed', 'Failed to summarize post. Please try again.');
+      }
+    });
   }
 
   likePost(postId: string): void {

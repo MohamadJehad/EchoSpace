@@ -90,4 +90,13 @@ export class PostsService {
       { headers: this.getHeaders() }
     );
   }
+
+  // Summarize a post
+  summarizePost(postId: string): Observable<{ postId: string; summary: string }> {
+    return this.http.post<{ postId: string; summary: string }>(
+      `${this.apiUrl}/summarize`,
+      { postId },
+      { headers: this.getHeaders() }
+    );
+  }
 }
