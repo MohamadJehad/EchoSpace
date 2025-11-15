@@ -99,6 +99,25 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }
+
+        /// <summary>
+        /// Get trending tags (tags with most posts)
+        /// </summary>
+        [HttpGet("trending")]
+        public async Task<ActionResult<IEnumerable<TrendingTagDto>>> GetTrendingTags([FromQuery] int count = 10, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                _logger.LogInformation("Getting trending tags (count: {Count})", count);
+                var trendingTags = await _tagService.GetTrendingAsync(count);
+                return Ok(trendingTags);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting trending tags");
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
     }
 }
 

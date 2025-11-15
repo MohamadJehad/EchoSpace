@@ -99,4 +99,9 @@ export class PostsService {
       { headers: this.getHeaders() }
     );
   }
+
+  // Get posts by tag ID
+  getPostsByTag(tagId: string): Observable<Post[]> {
+    return this.http.get<Post[]>(`${this.apiUrl}/tag/${tagId}`, { headers: this.getHeaders() });
+  }
 }

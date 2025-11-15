@@ -114,6 +114,20 @@ namespace EchoSpace.Core.Services
             }
         }
 
+        public async Task<IEnumerable<TrendingTagDto>> GetTrendingAsync(int count = 10)
+        {
+            var trendingTags = await _tagRepository.GetTrendingAsync(count);
+            return trendingTags.Select(x => new TrendingTagDto
+            {
+                TagId = x.Tag.TagId,
+                Name = x.Tag.Name,
+                Description = x.Tag.Description,
+                Color = x.Tag.Color,
+                PostsCount = x.PostsCount,
+                CreatedAt = x.Tag.CreatedAt
+            });
+        }
+
         private TagDto MapToDto(Tag tag)
         {
             return new TagDto

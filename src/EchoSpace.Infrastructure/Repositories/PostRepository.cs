@@ -128,5 +128,19 @@ namespace EchoSpace.Infrastructure.Repositories
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<Post>> GetByTagIdAsync(Guid tagId)
+        {
+            return await _dbContext.Posts
+                .AsNoTracking()
+                .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Where(p => p.PostTags.Any(pt => pt.TagId == tagId))
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+        }
     }
 }

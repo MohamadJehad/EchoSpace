@@ -9,6 +9,7 @@ import { SearchResultsComponent } from './components/search-results/search-resul
 import { ForgotPasswordComponent } from './components/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './components/reset-password/reset-password.component';
 import { OperationHomeComponent } from './components/operation-home/operation-home.component';
+import { PostsByTagComponent } from './components/posts-by-tag/posts-by-tag.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -20,6 +21,7 @@ export const routes: Routes = [
   { path: 'auth-callback', component: AuthCallbackComponent },
   { path: 'home', component: HomeComponent, canActivate: [authGuard] },
   { path: 'search', component: SearchResultsComponent, canActivate: [authGuard] },
+  { path: 'tag/:tagId', component: PostsByTagComponent, canActivate: [authGuard] },
   { 
     path: 'admin/users', 
     component: UserListComponent, 

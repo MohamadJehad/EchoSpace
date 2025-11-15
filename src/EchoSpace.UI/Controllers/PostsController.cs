@@ -478,5 +478,36 @@ namespace EchoSpace.UI.Controllers
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }
+
+        /// <summary>
+        /// Get posts by tag ID
+        /// </summary>
+        [HttpGet("tag/{tagId}")]
+        public async Task<ActionResult<IEnumerable<PostDto>>> GetPostsByTag(Guid tagId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                _logger.LogInformation("Getting posts for tag {TagId}", tagId);
+                var currentUserId = GetCurrentUserId();
+                var posts = await _postService.GetByTagIdAsync(tagId, currentUserId);
+                
+                // Populate like status for current user
+                if (currentUserId.HasValue)
+                {
+                    foreach (var post in posts)
+                    {
+                        post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, currentUserId.Value);
+                        post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                    }
+                }
+                
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while getting posts for tag {TagId}", tagId);
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
     }
 }

@@ -39,6 +39,12 @@ namespace EchoSpace.Core.Services
         public async Task<IEnumerable<PostDto>> GetAllAsync()
         {
             var posts = await _postRepository.GetAllAsync();
+            // Use async mapping to ensure AI-generated images get fresh SAS tokens
+            if (_imageRepository != null && _blobStorageService != null)
+            {
+                var postDtoTasks = posts.Select(p => MapToDtoAsync(p, null));
+                return await Task.WhenAll(postDtoTasks);
+            }
             return posts.Select(p => MapToDto(p, null));
         }
 
@@ -46,6 +52,12 @@ namespace EchoSpace.Core.Services
         public async Task<IEnumerable<PostDto>> GetAllAsync(Guid? currentUserId)
         {
             var posts = await _postRepository.GetAllAsync();
+            // Use async mapping to ensure AI-generated images get fresh SAS tokens
+            if (_imageRepository != null && _blobStorageService != null)
+            {
+                var postDtoTasks = posts.Select(p => MapToDtoAsync(p, currentUserId));
+                return await Task.WhenAll(postDtoTasks);
+            }
             return posts.Select(p => MapToDto(p, currentUserId));
         }
 
@@ -242,6 +254,18 @@ namespace EchoSpace.Core.Services
         {
             var posts = await _postRepository.GetByFollowingUsersAsync(userId);
             return posts.Select(p => MapToDto(p, userId));
+        }
+
+        public async Task<IEnumerable<PostDto>> GetByTagIdAsync(Guid tagId)
+        {
+            var posts = await _postRepository.GetByTagIdAsync(tagId);
+            return posts.Select(p => MapToDto(p, null));
+        }
+
+        public async Task<IEnumerable<PostDto>> GetByTagIdAsync(Guid tagId, Guid? currentUserId)
+        {
+            var posts = await _postRepository.GetByTagIdAsync(tagId);
+            return posts.Select(p => MapToDto(p, currentUserId));
         }
 
         private async Task<PostDto> MapToDtoAsync(Post post, Guid? currentUserId)

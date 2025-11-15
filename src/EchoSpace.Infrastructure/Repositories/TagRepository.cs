@@ -76,6 +76,22 @@ namespace EchoSpace.Infrastructure.Repositories
         {
             return await _dbContext.Tags.AnyAsync(t => t.TagId == id);
         }
+
+        public async Task<IEnumerable<(Tag Tag, int PostsCount)>> GetTrendingAsync(int count = 10)
+        {
+            return await _dbContext.Tags
+                .AsNoTracking()
+                .Select(t => new
+                {
+                    Tag = t,
+                    PostsCount = t.PostTags.Count
+                })
+                .OrderByDescending(x => x.PostsCount)
+                .ThenBy(x => x.Tag.Name)
+                .Take(count)
+                .Select(x => new ValueTuple<Tag, int>(x.Tag, x.PostsCount))
+                .ToListAsync();
+        }
     }
 }
 

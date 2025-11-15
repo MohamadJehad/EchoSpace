@@ -1,5 +1,7 @@
 using EchoSpace.Core.DTOs.Posts;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Core.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace EchoSpace.Core.Services
 {
@@ -7,11 +9,22 @@ namespace EchoSpace.Core.Services
     {
         private readonly IPostReportRepository _postReportRepository;
         private readonly IPostRepository _postRepository;
+        private readonly IBlobStorageService? _blobStorageService;
+        private readonly IImageRepository? _imageRepository;
+        private readonly ILogger<PostReportService>? _logger;
 
-        public PostReportService(IPostReportRepository postReportRepository, IPostRepository postRepository)
+        public PostReportService(
+            IPostReportRepository postReportRepository, 
+            IPostRepository postRepository,
+            IBlobStorageService? blobStorageService = null,
+            IImageRepository? imageRepository = null,
+            ILogger<PostReportService>? logger = null)
         {
             _postReportRepository = postReportRepository;
             _postRepository = postRepository;
+            _blobStorageService = blobStorageService;
+            _imageRepository = imageRepository;
+            _logger = logger;
         }
 
         public async Task<bool> ReportPostAsync(Guid postId, Guid userId, string? reason)
@@ -52,30 +65,60 @@ namespace EchoSpace.Core.Services
         {
             var reportedPosts = await _postReportRepository.GetReportedPostsAsync();
             
-            return reportedPosts.Select(p => new ReportedPostDto
+            var result = new List<ReportedPostDto>();
+            
+            foreach (var p in reportedPosts)
             {
-                PostId = p.PostId,
-                UserId = p.UserId,
-                Content = p.Content,
-                ImageUrl = p.ImageUrl,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt,
-                ReportCount = p.Reports?.Count ?? 0,
-                AuthorName = p.User?.Name ?? string.Empty,
-                AuthorEmail = p.User?.Email ?? string.Empty,
-                AuthorUserName = p.User?.UserName ?? string.Empty,
-                LikesCount = p.Likes?.Count ?? 0,
-                CommentsCount = p.Comments?.Count ?? 0,
-                Reports = p.Reports?.Select(r => new ReportInfoDto
+                var imageUrl = p.ImageUrl;
+                
+                // If post has an ImageUrl, try to get a fresh accessible URL if it's an AI-generated image
+                if (!string.IsNullOrEmpty(imageUrl) && _imageRepository != null && _blobStorageService != null)
                 {
-                    ReportId = r.ReportId,
-                    UserId = r.UserId,
-                    Reason = r.Reason,
-                    CreatedAt = r.CreatedAt,
-                    ReporterName = r.User?.Name ?? string.Empty,
-                    ReporterEmail = r.User?.Email ?? string.Empty
-                }).ToList() ?? new List<ReportInfoDto>()
-            });
+                    try
+                    {
+                        // Check if there's an associated Image entity (AI-generated images have this)
+                        var images = await _imageRepository.GetByPostIdAsync(p.PostId);
+                        var aiImage = images.FirstOrDefault(i => i.Source == ImageSource.AIGenerated);
+                        if (aiImage != null)
+                        {
+                            // Regenerate SAS token URL for secure access
+                            imageUrl = await _blobStorageService.GetBlobUrlAsync(aiImage.ContainerName, aiImage.BlobName, 60);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Failed to regenerate URL for reported post {PostId}, using stored URL", p.PostId);
+                        // Continue with stored URL if regeneration fails
+                    }
+                }
+                
+                result.Add(new ReportedPostDto
+                {
+                    PostId = p.PostId,
+                    UserId = p.UserId,
+                    Content = p.Content,
+                    ImageUrl = imageUrl,
+                    CreatedAt = p.CreatedAt,
+                    UpdatedAt = p.UpdatedAt,
+                    ReportCount = p.Reports?.Count ?? 0,
+                    AuthorName = p.User?.Name ?? string.Empty,
+                    AuthorEmail = p.User?.Email ?? string.Empty,
+                    AuthorUserName = p.User?.UserName ?? string.Empty,
+                    LikesCount = p.Likes?.Count ?? 0,
+                    CommentsCount = p.Comments?.Count ?? 0,
+                    Reports = p.Reports?.Select(r => new ReportInfoDto
+                    {
+                        ReportId = r.ReportId,
+                        UserId = r.UserId,
+                        Reason = r.Reason,
+                        CreatedAt = r.CreatedAt,
+                        ReporterName = r.User?.Name ?? string.Empty,
+                        ReporterEmail = r.User?.Email ?? string.Empty
+                    }).ToList() ?? new List<ReportInfoDto>()
+                });
+            }
+            
+            return result;
         }
     }
 }

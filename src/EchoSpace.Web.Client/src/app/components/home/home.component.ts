@@ -13,7 +13,8 @@ import { SuggestedUsersComponent } from '../suggested-users/suggested-users.comp
 import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { ToastService } from '../../services/toast.service';
-import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
+import { Post, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
+import { TrendingTag } from '../../services/tags.service';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
 import { UserService } from '../../services/user.service';
 import { ProfileCardComponent } from '../profile-card/profile-card.component';
@@ -130,13 +131,8 @@ export class HomeComponent implements OnInit {
   
 
 
-  trendingTopics: TrendingTopic[] = [
-    { tag: '#WebDevelopment', posts: '1.2K' },
-    { tag: '#TechNews', posts: '890' },
-    { tag: '#AI', posts: '2.5K' },
-    { tag: '#JavaScript', posts: '1.8K' },
-    { tag: '#Design', posts: '756' }
-  ];
+  trendingTags: TrendingTag[] = [];
+  isLoadingTrendingTags = false;
 
   ngOnInit(): void {
     // Load current user data
@@ -144,6 +140,9 @@ export class HomeComponent implements OnInit {
     
     // Load tags
     this.loadTags();
+    
+    // Load trending tags
+    this.loadTrendingTags();
     
     // Load posts
     this.loadPosts();
@@ -718,6 +717,31 @@ export class HomeComponent implements OnInit {
         this.isLoadingTags = false;
       }
     });
+  }
+
+  loadTrendingTags(): void {
+    this.isLoadingTrendingTags = true;
+    this.tagsService.getTrendingTags(5).subscribe({
+      next: (tags) => {
+        this.trendingTags = tags;
+        this.isLoadingTrendingTags = false;
+      },
+      error: (error) => {
+        console.error('Error loading trending tags:', error);
+        this.isLoadingTrendingTags = false;
+      }
+    });
+  }
+
+  navigateToTag(tagId: string): void {
+    this.router.navigate(['/tag', tagId]);
+  }
+
+  formatPostCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'K';
+    }
+    return count.toString();
   }
 
   onPhotoClick(): void {

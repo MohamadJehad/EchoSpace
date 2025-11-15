@@ -11,6 +11,7 @@ namespace EchoSpace.Core.Interfaces
         Task<Tag?> UpdateAsync(Tag tag);
         Task<bool> DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
+        Task<IEnumerable<(Tag Tag, int PostsCount)>> GetTrendingAsync(int count = 10);
     }
 }
 
