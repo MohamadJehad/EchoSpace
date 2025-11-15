@@ -1,14 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { UserService, User } from '../../services/user.service';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarComponent, ConfirmationModalComponent],
+  imports: [CommonModule, RouterModule, FormsModule, NavbarComponent, ConfirmationModalComponent],
   templateUrl: './user-list.component.html',
   styleUrls: ['./user-list.component.css']
 })
@@ -18,8 +20,20 @@ export class UserListComponent implements OnInit {
   error: string | null = null;
   showModal = false;
   pendingUserId: string | null = null;
-  pendingAction: 'delete' | 'lock' | 'unlock' | null = null;
+  pendingAction: 'delete' | 'lock' | 'unlock' | 'changeRole' | null = null;
   isProcessing = false;
+  
+  // Role change
+  editingRoleUserId: string | null = null;
+  editingRoleValue: number | null = null;
+  
+  // Available roles
+  roles = [
+    { value: 0, label: 'User' },
+    { value: 1, label: 'Admin' },
+    { value: 2, label: 'Moderator' },
+    { value: 3, label: 'Operation' }
+  ];
 
   constructor(private userService: UserService) { }
 
@@ -62,6 +76,47 @@ export class UserListComponent implements OnInit {
     this.showModal = true;
   }
 
+  changeUserRole(userId: string, newRole: number): void {
+    this.pendingUserId = userId;
+    this.pendingAction = 'changeRole';
+    this.editingRoleValue = newRole;
+    this.showModal = true;
+  }
+
+  startEditRole(userId: string): void {
+    const user = this.users.find(u => u.id === userId);
+    if (user) {
+      // Get role as number (handle both string and number)
+      let roleValue = 0;
+      if (typeof user.role === 'number') {
+        roleValue = user.role;
+      } else if (typeof user.role === 'string') {
+        const roleMap: { [key: string]: number } = {
+          'User': 0,
+          'Admin': 1,
+          'Moderator': 2,
+          'Operation': 3
+        };
+        roleValue = roleMap[user.role] ?? 0;
+      }
+      this.editingRoleUserId = userId;
+      this.editingRoleValue = roleValue;
+    }
+  }
+
+  cancelEditRole(): void {
+    this.editingRoleUserId = null;
+    this.editingRoleValue = null;
+  }
+
+  saveRoleChange(userId: string): void {
+    if (this.editingRoleValue === null || this.editingRoleValue === undefined) return;
+    
+    this.pendingUserId = userId;
+    this.pendingAction = 'changeRole';
+    this.showModal = true;
+  }
+
   onConfirm(): void {
     if (!this.pendingUserId || !this.pendingAction) return;
 
@@ -94,7 +149,15 @@ export class UserListComponent implements OnInit {
     const handleError = (err: any) => {
       this.isProcessing = false;
       console.error(`Failed to ${action} user`, err);
-      this.error = `Failed to ${action} user: ${err.error?.message || err.message || 'Unknown error'}`;
+      // Extract validation errors if present
+      let errorMessage = err.error?.message || err.message || 'Unknown error';
+      if (err.error?.errors) {
+        const validationErrors = Object.entries(err.error.errors)
+          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .join('; ');
+        errorMessage = `Validation errors: ${validationErrors}`;
+      }
+      this.error = `Failed to ${action} user: ${errorMessage}`;
       this.showModal = false;
       this.pendingUserId = null;
       this.pendingAction = null;
@@ -115,6 +178,25 @@ export class UserListComponent implements OnInit {
         next: (user) => handleSuccess(user), 
         error: handleError 
       });
+    } else if (action === 'changeRole') {
+      if (this.editingRoleValue === null || this.editingRoleValue === undefined) {
+        handleError({ message: 'Role value is required' });
+        return;
+      }
+      // Update user role only - ensure it's sent as a number
+      const roleValue = typeof this.editingRoleValue === 'string' 
+        ? parseInt(this.editingRoleValue, 10) 
+        : this.editingRoleValue;
+      this.userService.updateUser(userId, { 
+        role: roleValue 
+      }).subscribe({
+        next: (user) => {
+          handleSuccess(user);
+          this.editingRoleUserId = null;
+          this.editingRoleValue = null;
+        },
+        error: handleError
+      });
     }
   }
 
@@ -123,6 +205,8 @@ export class UserListComponent implements OnInit {
     this.pendingUserId = null;
     this.pendingAction = null;
     this.isProcessing = false;
+    this.editingRoleUserId = null;
+    this.editingRoleValue = null;
   }
 
   getModalConfig() {
@@ -147,6 +231,14 @@ export class UserListComponent implements OnInit {
           message: 'Are you sure you want to unlock this user account? The user will be able to log in again.',
           confirmText: 'Unlock Account',
           buttonClass: 'bg-green-600 hover:bg-green-700'
+        };
+      case 'changeRole':
+        const roleLabel = this.roles.find(r => r.value === this.editingRoleValue)?.label || 'Unknown';
+        return {
+          title: 'Change User Role',
+          message: `Are you sure you want to change this user's role to ${roleLabel}? This will affect their access permissions.`,
+          confirmText: 'Change Role',
+          buttonClass: 'bg-blue-600 hover:bg-blue-700'
         };
       default:
         return {
@@ -178,6 +270,26 @@ export class UserListComponent implements OnInit {
       return `Locked until ${lockoutEnd.toLocaleString()}`;
     }
     return 'Active';
+  }
+
+  getUserRole(user: User): string {
+    return normalizeRole(user.role);
+  }
+
+  getUserRoleValue(user: User): number {
+    if (typeof user.role === 'number') {
+      return user.role;
+    }
+    if (typeof user.role === 'string') {
+      const roleMap: { [key: string]: number } = {
+        'User': 0,
+        'Admin': 1,
+        'Moderator': 2,
+        'Operation': 3
+      };
+      return roleMap[user.role] ?? 0;
+    }
+    return 0;
   }
 }
 

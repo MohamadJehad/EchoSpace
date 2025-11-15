@@ -71,6 +71,9 @@
                       <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider hidden sm:table-cell">
                         Email
                       </th>
+                      <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Role
+                      </th>
                       <th scope="col" class="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider hidden lg:table-cell">
                         Created At
                       </th>
@@ -97,6 +100,61 @@
                         </td>
                         <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
                           {{ user.email }}
+                        </td>
+                        <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                          @if (editingRoleUserId === user.id) {
+                            <div class="flex items-center space-x-2">
+                              <select
+                                [(ngModel)]="editingRoleValue"
+                                class="px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                @for (role of roles; track role.value) {
+                                  <option [ngValue]="role.value">{{ role.label }}</option>
+                                }
+                              </select>
+                              <button
+                                (click)="saveRoleChange(user.id)"
+                                class="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                                title="Save"
+                              >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                              <button
+                                (click)="cancelEditRole()"
+                                class="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                                title="Cancel"
+                              >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          } @else {
+                            <div class="flex items-center space-x-2">
+                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                    [class.bg-gray-100]="getUserRole(user) === 'User'"
+                                    [class.text-gray-800]="getUserRole(user) === 'User'"
+                                    [class.bg-blue-100]="getUserRole(user) === 'Admin'"
+                                    [class.text-blue-800]="getUserRole(user) === 'Admin'"
+                                    [class.bg-purple-100]="getUserRole(user) === 'Moderator'"
+                                    [class.text-purple-800]="getUserRole(user) === 'Moderator'"
+                                    [class.bg-amber-100]="getUserRole(user) === 'Operation'"
+                                    [class.text-amber-800]="getUserRole(user) === 'Operation'">
+                                {{ getUserRole(user) }}
+                              </span>
+                              <button
+                                (click)="startEditRole(user.id)"
+                                class="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                                title="Change Role"
+                              >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                            </div>
+                          }
                         </td>
                         <td class="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
                           {{ user.createdAt | date:'short' }}

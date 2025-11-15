@@ -47,6 +47,7 @@ namespace EchoSpace.Infrastructure.Repositories
             existing.Name = user.Name;
             existing.Email = user.Email;
             existing.ProfilePhotoId = user.ProfilePhotoId;
+            existing.Role = user.Role;
             
             // Update lockout-related fields if they are being modified
             existing.LockoutEnabled = user.LockoutEnabled;

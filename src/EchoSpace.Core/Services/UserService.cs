@@ -44,8 +44,23 @@ namespace EchoSpace.Core.Services
                 return null;
             }
 
-            existing.Name = request.Name;
-            existing.Email = request.Email;
+            // Update only provided fields
+            if (!string.IsNullOrEmpty(request.Name))
+            {
+                existing.Name = request.Name;
+            }
+            
+            if (!string.IsNullOrEmpty(request.Email))
+            {
+                existing.Email = request.Email;
+            }
+            
+            // Update role if provided
+            if (request.Role.HasValue)
+            {
+                existing.Role = request.Role.Value;
+            }
+            
             existing.UpdatedAt = DateTime.UtcNow;
 
             return await _userRepository.UpdateAsync(existing);
