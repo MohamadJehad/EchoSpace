@@ -17,6 +17,11 @@ export interface Post {
   isFollowingAuthor?: boolean;
   timeAgo?: string;
   
+  // Translation
+  translatedContent?: string;
+  isTranslated?: boolean;
+  translationLanguage?: string;
+  
   // Backend author fields
   authorName?: string;
   authorEmail?: string;
@@ -36,6 +41,7 @@ export interface CreatePostRequest {
   content: string;
   imageUrl?: string;
   tagIds?: string[];
+  generateImage?: boolean;
 }
 
 export interface UpdatePostRequest {

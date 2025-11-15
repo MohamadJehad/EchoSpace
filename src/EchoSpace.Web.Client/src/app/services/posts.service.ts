@@ -81,4 +81,13 @@ export class PostsService {
   getReportedPosts(): Observable<ReportedPost[]> {
     return this.http.get<ReportedPost[]>(`${this.apiUrl}/reported`, { headers: this.getHeaders() });
   }
+
+  // Translate a post
+  translatePost(postId: string, language: string = 'en'): Observable<{ postId: string; language: string; translated: string }> {
+    return this.http.post<{ postId: string; language: string; translated: string }>(
+      `${this.apiUrl}/translate`,
+      { postId, language },
+      { headers: this.getHeaders() }
+    );
+  }
 }
