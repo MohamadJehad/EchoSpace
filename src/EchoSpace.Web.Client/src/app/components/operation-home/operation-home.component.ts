@@ -248,8 +248,11 @@ export class OperationHomeComponent implements OnInit {
     this.postsService.deletePost(postId, this.currentUser.id).subscribe({
       next: () => {
         this.error = null;
+        // Remove from regular posts
         this.posts = this.posts.filter(p => p.postId !== postId);
         this.filteredPosts = this.filteredPosts.filter(p => p.postId !== postId);
+        // Remove from reported posts
+        this.reportedPosts = this.reportedPosts.filter(p => p.postId !== postId);
         this.isProcessing = false;
         this.showPostModal = false;
         this.pendingPostId = null;
