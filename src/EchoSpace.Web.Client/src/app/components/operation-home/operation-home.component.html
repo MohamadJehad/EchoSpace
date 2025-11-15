@@ -162,7 +162,7 @@
 
                     @if (showReportDetails[post.postId]) {
                       <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
-                        <p class="text-xs text-blue-600">Debug: Reports array length = {{ post.reports?.length || 0 }}, ReportCount = {{ post.reportCount }}</p>
+                        <p class="text-xs text-blue-600">Debug: Reports array length = {{ post.reports.length || 0 }}, ReportCount = {{ post.reportCount }}</p>
                       </div>
                       <div class="mt-3">
                         @if (post.reports && post.reports.length > 0) {
