@@ -9,6 +9,7 @@ using EchoSpace.Core.DTOs.Posts;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
+using EchoSpace.Infrastructure.Options;
 using EchoSpace.Infrastructure.Repositories;
 using EchoSpace.Infrastructure.Services;
 using EchoSpace.Tools.Email;
@@ -27,7 +28,6 @@ using System.Threading.RateLimiting;
 using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
-using EchoSpace.Infrastructure.Services;
 using EchoSpace.Infrastructure.Services.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -277,11 +277,24 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 
+
+//=============================================================
+// Email settings
+//=============================================================
+
 // 1. Configure the EmailSettings class to read from the "EmailSettings" section
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 // 2. Register your EmailSender as a service
 builder.Services.AddTransient<IEmailSender, EmailSender>();
+
+
+//=============================================================
+// Gemni Settings
+//=============================================================
+builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
+builder.Services.AddScoped<IAiService, GeminiAiService>();
+
 
 //=============================================================
 // Security settings
