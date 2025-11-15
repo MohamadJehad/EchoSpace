@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -66,7 +66,31 @@ export class HomeComponent implements OnInit {
   postToDelete: Post | null = null;
   
   showComments: { [postId: string]: boolean } = {};
+
+  // Translation states
+  translatingPosts: { [postId: string]: boolean } = {};
+  translationLanguage: string = 'en'; // Default to English
+  showLanguageSelector: { [postId: string]: boolean } = {};
   
+  // Available languages for translation
+  availableLanguages = [
+    { code: 'en', name: 'English' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'fr', name: 'French' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'nl', name: 'Dutch' },
+    { code: 'pl', name: 'Polish' }
+  ];
+
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -450,6 +474,78 @@ export class HomeComponent implements OnInit {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  }
+
+  toggleLanguageSelector(postId: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.showLanguageSelector[postId] = !this.showLanguageSelector[postId];
+  }
+
+  closeLanguageSelector(postId: string): void {
+    this.showLanguageSelector[postId] = false;
+  }
+
+  closeAllLanguageSelectors(): void {
+    Object.keys(this.showLanguageSelector).forEach(key => {
+      this.showLanguageSelector[key] = false;
+    });
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    // Close language selectors when clicking outside
+    const target = event.target as HTMLElement;
+    const isLanguageSelector = target.closest('.language-selector-container');
+    if (!isLanguageSelector) {
+      this.closeAllLanguageSelectors();
+    }
+  }
+
+  translatePost(postId: string, language?: string): void {
+    if (this.translatingPosts[postId]) {
+      return; // Already translating
+    }
+
+    const post = this.posts.find(p => p.postId === postId);
+    if (!post) {
+      return;
+    }
+
+    // If already translated, show original
+    if (post.isTranslated && post.translatedContent && !language) {
+      post.isTranslated = false;
+      post.translatedContent = undefined;
+      post.translationLanguage = undefined;
+      this.showLanguageSelector[postId] = false;
+      return;
+    }
+
+    // Use provided language or default
+    const targetLanguage = language || this.translationLanguage;
+    this.showLanguageSelector[postId] = false;
+    this.translatingPosts[postId] = true;
+
+    this.postsService.translatePost(postId, targetLanguage).subscribe({
+      next: (response) => {
+        post.translatedContent = response.translated;
+        post.isTranslated = true;
+        post.translationLanguage = response.language;
+        this.translatingPosts[postId] = false;
+        this.toastService.success('Translated', `Post has been translated to ${this.getLanguageName(response.language)}.`);
+      },
+      error: (error) => {
+        console.error('Error translating post:', error);
+        this.translatingPosts[postId] = false;
+        this.toastService.error('Translation Failed', 'Failed to translate post. Please try again.');
+      }
+    });
+  }
+
+  getLanguageName(code: string): string {
+    const lang = this.availableLanguages.find(l => l.code === code);
+    return lang ? lang.name : code.toUpperCase();
   }
 
   likePost(postId: string): void {

@@ -17,6 +17,11 @@ export interface Post {
   isFollowingAuthor?: boolean;
   timeAgo?: string;
   
+  // Translation
+  translatedContent?: string;
+  isTranslated?: boolean;
+  translationLanguage?: string;
+  
   // Backend author fields
   authorName?: string;
   authorEmail?: string;

@@ -9,7 +9,7 @@ namespace EchoSpace.Core.DTOs
 
 
         [Required]
-        public string Language {get; set;} = "FR";
+        public string Language { get; set; } = "en";
    
     }
 }
