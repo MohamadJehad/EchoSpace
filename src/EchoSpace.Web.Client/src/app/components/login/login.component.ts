@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { TotpSetupComponent } from '../totp-setup/totp-setup.component';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-login',
@@ -85,9 +86,11 @@ export class LoginComponent {
           // Set session with the auth response
           this.authService.setSessionFromCallback(response);
           // Redirect based on user role
-          const userRole = response.user?.role || 'User';
+          const userRole = normalizeRole(response.user?.role);
           if (userRole === 'Admin') {
             this.router.navigate(['/admin/users']);
+          } else if (userRole === 'Operation') {
+            this.router.navigate(['/operation']);
           } else {
             this.router.navigate(['/home']);
           }

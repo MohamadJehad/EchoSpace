@@ -1,16 +1,19 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Core.Interfaces.Services;
 
 namespace EchoSpace.Core.Services
 {
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
+        private readonly IAnalyticsService _analyticsService;
 
-        public UserService(IUserRepository userRepository)
+        public UserService(IUserRepository userRepository, IAnalyticsService analyticsService)
         {
             _userRepository = userRepository;
+            _analyticsService = analyticsService;
         }
 
         public Task<IEnumerable<User>> GetAllAsync()
@@ -44,8 +47,23 @@ namespace EchoSpace.Core.Services
                 return null;
             }
 
-            existing.Name = request.Name;
-            existing.Email = request.Email;
+            // Update only provided fields
+            if (!string.IsNullOrEmpty(request.Name))
+            {
+                existing.Name = request.Name;
+            }
+            
+            if (!string.IsNullOrEmpty(request.Email))
+            {
+                existing.Email = request.Email;
+            }
+            
+            // Update role if provided
+            if (request.Role.HasValue)
+            {
+                existing.Role = request.Role.Value;
+            }
+            
             existing.UpdatedAt = DateTime.UtcNow;
 
             return await _userRepository.UpdateAsync(existing);
@@ -81,6 +99,9 @@ namespace EchoSpace.Core.Services
             user.LockoutEnabled = true;
             user.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100); // Effectively permanent lock until manually unlocked
             user.UpdatedAt = DateTime.UtcNow;
+
+            // Terminate all active sessions for the user to revoke their tokens
+            await _analyticsService.TerminateUserSessionsAsync(userId);
 
             return await _userRepository.UpdateAsync(user);
         }

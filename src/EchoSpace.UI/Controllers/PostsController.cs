@@ -310,10 +310,10 @@ namespace EchoSpace.UI.Controllers
 
         /// <summary>
         /// Delete a post
-        /// ABAC: Requires user to own the post OR be Admin/Moderator
+        /// ABAC: Requires user to own the post OR be Operation/Admin/Moderator
         /// </summary>
         [HttpDelete("{id}")]
-        [RequireAdminOrOwner("Post")]
+        [Authorize(Policy = "OperationOrAdminOrOwnerOfPost")]
         public async Task<ActionResult> DeletePost(Guid id, CancellationToken cancellationToken)
         {
             try

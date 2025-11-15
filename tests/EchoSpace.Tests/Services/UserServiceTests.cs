@@ -1,6 +1,8 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
+using EchoSpace.Core.DTOs.Dashboard;
 using EchoSpace.Core.Interfaces;
+using EchoSpace.Core.Interfaces.Services;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
 using EchoSpace.Infrastructure.Repositories;
@@ -13,6 +15,7 @@ namespace EchoSpace.Tests.Services
         private readonly DbContextOptions<EchoSpaceDbContext> _options;
         private readonly EchoSpaceDbContext _context;
         private readonly IUserRepository _userRepository;
+        private readonly IAnalyticsService _analyticsService;
         private readonly IUserService _userService;
 
         public UserServiceTests()
@@ -23,7 +26,8 @@ namespace EchoSpace.Tests.Services
 
             _context = new EchoSpaceDbContext(_options);
             _userRepository = new UserRepository(_context);
-            _userService = new UserService(_userRepository);
+            _analyticsService = new MockAnalyticsService();
+            _userService = new UserService(_userRepository, _analyticsService);
         }
 
         [Fact]
@@ -183,6 +187,55 @@ namespace EchoSpace.Tests.Services
         public void Dispose()
         {
             _context.Dispose();
+        }
+    }
+
+    // Mock implementation of IAnalyticsService for testing
+    internal class MockAnalyticsService : IAnalyticsService
+    {
+        public Task<DashboardOverviewDto> GetDashboardOverviewAsync()
+        {
+            return Task.FromResult(new DashboardOverviewDto());
+        }
+
+        public Task<TimeSeriesDataDto> GetUserGrowthAsync(int days = 30)
+        {
+            return Task.FromResult(new TimeSeriesDataDto());
+        }
+
+        public Task<TimeSeriesDataDto> GetPostActivityAsync(int days = 30)
+        {
+            return Task.FromResult(new TimeSeriesDataDto());
+        }
+
+        public Task<TimeSeriesDataDto> GetLoginActivityAsync(int days = 30)
+        {
+            return Task.FromResult(new TimeSeriesDataDto());
+        }
+
+        public Task<List<ActiveSessionDto>> GetActiveSessionsAsync()
+        {
+            return Task.FromResult(new List<ActiveSessionDto>());
+        }
+
+        public Task<List<ActiveSessionDto>> GetUserSessionsAsync(Guid userId)
+        {
+            return Task.FromResult(new List<ActiveSessionDto>());
+        }
+
+        public Task<List<FailedLoginAttemptDto>> GetFailedLoginAttemptsAsync(int top = 50)
+        {
+            return Task.FromResult(new List<FailedLoginAttemptDto>());
+        }
+
+        public Task<bool> TerminateSessionAsync(Guid sessionId)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task<int> TerminateUserSessionsAsync(Guid userId)
+        {
+            return Task.FromResult(0);
         }
     }
 }
