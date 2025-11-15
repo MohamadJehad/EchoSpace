@@ -25,6 +25,7 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<Image> Images { get; set; }
         public DbSet<Tag> Tags { get; set; }
         public DbSet<PostTag> PostTags { get; set; }
+        public DbSet<PostReport> PostReports { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -150,6 +151,23 @@ namespace EchoSpace.Infrastructure.Data
 
                 // Prevent duplicate likes
                 entity.HasIndex(l => new { l.PostId, l.UserId }).IsUnique();
+            });
+
+            // Configure PostReport
+            modelBuilder.Entity<PostReport>(entity =>
+            {
+                entity.HasOne(r => r.Post)
+                    .WithMany(p => p.Reports)
+                    .HasForeignKey(r => r.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Prevent duplicate reports from same user for same post
+                entity.HasIndex(r => new { r.PostId, r.UserId }).IsUnique();
             });
 
             // Configure Follow
