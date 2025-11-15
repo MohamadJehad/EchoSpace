@@ -11,11 +11,14 @@ namespace EchoSpace.UI.Controllers
     {
         private readonly ILogger<LikesController> _logger;
         private readonly ILikeService _likeService;
+        
+        private readonly IPostService _postService;
 
-        public LikesController(ILogger<LikesController> logger, ILikeService likeService)
+        public LikesController(ILogger<LikesController> logger, ILikeService likeService, IPostService postService)
         {
             _logger = logger;
             _likeService = likeService;
+            _postService = postService;
         }
 
         private Guid GetCurrentUserId()
@@ -46,6 +49,8 @@ namespace EchoSpace.UI.Controllers
                 {
                     return BadRequest("Post is already liked by this user");
                 }
+
+                // _postService
 
                 var likeCount = await _likeService.GetLikeCountAsync(postId);
                 

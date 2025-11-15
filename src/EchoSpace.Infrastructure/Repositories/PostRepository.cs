@@ -2,6 +2,7 @@ using EchoSpace.Core.Entities;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1;
 
 namespace EchoSpace.Infrastructure.Repositories
 {
@@ -52,7 +53,7 @@ namespace EchoSpace.Infrastructure.Repositories
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
         }
-
+        
         public async Task<IEnumerable<Post>> GetRecentAsync(int count = 10)
         {
             return await _dbContext.Posts

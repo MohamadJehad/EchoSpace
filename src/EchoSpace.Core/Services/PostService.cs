@@ -1,5 +1,6 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs.Posts;
+using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
 
 namespace EchoSpace.Core.Services
@@ -26,11 +27,17 @@ namespace EchoSpace.Core.Services
             return posts.Select(p => MapToDto(p, null));
         }
 
+
         public async Task<IEnumerable<PostDto>> GetAllAsync(Guid? currentUserId)
         {
             var posts = await _postRepository.GetAllAsync();
             return posts.Select(p => MapToDto(p, currentUserId));
         }
+
+        // public async Task<UserDto?> GetOwner(Guid id)
+        // {
+            
+        // }
 
         public async Task<PostDto?> GetByIdAsync(Guid id)
         {
