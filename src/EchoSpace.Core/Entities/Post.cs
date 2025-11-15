@@ -31,6 +31,8 @@ namespace EchoSpace.Core.Entities
         public virtual ICollection<Like> Likes { get; set; } = new List<Like>();
 
         public virtual ICollection<PostTag> PostTags { get; set; } = new List<PostTag>();
+
+        public virtual ICollection<PostReport> Reports { get; set; } = new List<PostReport>();
     }
 }
 

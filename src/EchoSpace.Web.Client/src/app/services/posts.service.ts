@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Post, CreatePostRequest, UpdatePostRequest } from '../interfaces';
+import { Post, CreatePostRequest, UpdatePostRequest, ReportedPost } from '../interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -66,5 +66,19 @@ export class PostsService {
   // Get posts from following users
   getPostsFromFollowing(): Observable<Post[]> {
     return this.http.get<Post[]>(`${this.apiUrl}/following`, { headers: this.getHeaders() });
+  }
+
+  // Report a post
+  reportPost(postId: string, reason?: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(
+      `${this.apiUrl}/${postId}/report`,
+      { reason },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // Get reported posts (Operation/Admin only)
+  getReportedPosts(): Observable<ReportedPost[]> {
+    return this.http.get<ReportedPost[]>(`${this.apiUrl}/reported`, { headers: this.getHeaders() });
   }
 }

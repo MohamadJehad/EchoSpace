@@ -20,6 +20,14 @@
       <div class="mb-6">
         <div class="flex space-x-2 border-b-2 border-amber-200">
           <button
+            (click)="switchTab('reported')"
+            [class]="activeTab === 'reported' 
+              ? 'px-6 py-3 font-semibold text-amber-900 border-b-4 border-amber-600 bg-amber-100 rounded-t-lg transition-all' 
+              : 'px-6 py-3 font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-t-lg transition-all'"
+          >
+            🚨 Reported Posts
+          </button>
+          <button
             (click)="switchTab('posts')"
             [class]="activeTab === 'posts' 
               ? 'px-6 py-3 font-semibold text-amber-900 border-b-4 border-amber-600 bg-amber-100 rounded-t-lg transition-all' 
@@ -58,6 +66,141 @@
       @if (error) {
         <div class="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg">
           <p>{{ error }}</p>
+        </div>
+      }
+
+      <!-- Reported Posts Tab -->
+      @if (activeTab === 'reported') {
+        <div>
+          @if (reportedPostsLoading) {
+            <div class="text-center py-12">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+              <p class="mt-4 text-amber-700">Loading reported posts...</p>
+            </div>
+          } @else if (reportedPosts.length === 0) {
+            <div class="text-center py-12 bg-white rounded-2xl shadow-lg">
+              <p class="text-amber-600 text-lg">No reported posts found</p>
+            </div>
+          } @else {
+            <div class="space-y-4">
+              @for (post of reportedPosts; track post.postId) {
+                <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-red-500 hover:shadow-xl transition-shadow">
+                  <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-12 h-12 bg-red-200 rounded-full flex items-center justify-center text-red-800 font-bold">
+                        {{ (post.authorName || 'U').charAt(0).toUpperCase() }}
+                      </div>
+                      <div>
+                        <h3 class="font-semibold text-red-900">{{ post.authorName || 'Unknown User' }}</h3>
+                        <p class="text-sm text-red-600">{{ formatDate(post.createdAt) }}</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                      <div class="bg-red-100 px-4 py-2 rounded-lg">
+                        <span class="text-red-800 font-bold text-lg">{{ post.reportCount }}</span>
+                        <span class="text-red-600 text-sm ml-1">reports</span>
+                      </div>
+                      <button
+                        (click)="deletePost(post.postId)"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+                      >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="mb-4">
+                    <p class="text-red-900 whitespace-pre-wrap">{{ post.content }}</p>
+                  </div>
+                  
+                  @if (post.imageUrl) {
+                    <div class="mb-4">
+                      <img [src]="post.imageUrl" alt="Post image" class="w-full max-h-96 object-cover rounded-lg border-2 border-red-200">
+                    </div>
+                  }
+                  
+                  <div class="flex items-center space-x-4 text-sm text-red-600 mb-4">
+                    <span class="flex items-center space-x-1">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      <span>{{ post.likesCount || 0 }} likes</span>
+                    </span>
+                    <span class="flex items-center space-x-1">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <span>{{ post.commentsCount || 0 }} comments</span>
+                    </span>
+                  </div>
+
+                  <!-- Report Details Section -->
+                  <div class="border-t-2 border-red-200 pt-4">
+                    <button
+                      (click)="toggleReportDetails(post.postId)"
+                      class="w-full flex items-center justify-between text-left text-red-700 hover:text-red-800 transition-colors mb-2"
+                    >
+                      <span class="font-semibold flex items-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>View Report Details ({{ post.reportCount }})</span>
+                      </span>
+                      <svg 
+                        class="w-5 h-5 transition-transform"
+                        [class.rotate-180]="showReportDetails[post.postId]"
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    @if (showReportDetails[post.postId]) {
+                      <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+                        <p class="text-xs text-blue-600">Debug: Reports array length = {{ post.reports?.length || 0 }}, ReportCount = {{ post.reportCount }}</p>
+                      </div>
+                      <div class="mt-3">
+                        @if (post.reports && post.reports.length > 0) {
+                          <div class="space-y-3">
+                            @for (report of post.reports; track report.reportId) {
+                              <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+                                <div class="flex items-start justify-between mb-2">
+                                  <div>
+                                    <p class="font-medium text-red-900">{{ report.reporterName || 'Anonymous' }}</p>
+                                    <p class="text-xs text-red-600">{{ formatDate(report.createdAt) }}</p>
+                                  </div>
+                                </div>
+                                @if (report.reason && report.reason.trim()) {
+                                  <p class="text-sm text-red-800 mt-2 whitespace-pre-wrap">{{ report.reason }}</p>
+                                } @else {
+                                  <p class="text-sm text-red-600 italic mt-2">No reason provided</p>
+                                }
+                              </div>
+                            }
+                          </div>
+                        } @else {
+                          <div class="bg-gray-50 border-l-4 border-gray-300 p-4 rounded-r-lg">
+                            <p class="text-sm text-gray-600">
+                              @if (post.reportCount > 0) {
+                                Loading report details...
+                              } @else {
+                                No report details available
+                              }
+                            </p>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
         </div>
       }
 
