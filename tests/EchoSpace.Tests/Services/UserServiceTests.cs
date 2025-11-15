@@ -1,12 +1,14 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs;
 using EchoSpace.Core.DTOs.Dashboard;
+using EchoSpace.Core.DTOs.Images;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Interfaces.Services;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
 using EchoSpace.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace EchoSpace.Tests.Services
 {
@@ -16,6 +18,8 @@ namespace EchoSpace.Tests.Services
         private readonly EchoSpaceDbContext _context;
         private readonly IUserRepository _userRepository;
         private readonly IAnalyticsService _analyticsService;
+        private readonly IImageService _imageService;
+        private readonly ILogger<UserService> _logger;
         private readonly IUserService _userService;
 
         public UserServiceTests()
@@ -27,7 +31,9 @@ namespace EchoSpace.Tests.Services
             _context = new EchoSpaceDbContext(_options);
             _userRepository = new UserRepository(_context);
             _analyticsService = new MockAnalyticsService();
-            _userService = new UserService(_userRepository, _analyticsService);
+            _imageService = new MockImageService();
+            _logger = new MockLogger<UserService>();
+            _userService = new UserService(_userRepository, _analyticsService, _imageService, _logger);
         }
 
         [Fact]
@@ -236,6 +242,64 @@ namespace EchoSpace.Tests.Services
         public Task<int> TerminateUserSessionsAsync(Guid userId)
         {
             return Task.FromResult(0);
+        }
+    }
+
+    // Mock implementation of IImageService for testing
+    internal class MockImageService : IImageService
+    {
+        public Task<ImageDto> UploadImageAsync(UploadImageRequest request)
+        {
+            return Task.FromResult(new ImageDto());
+        }
+
+        public Task<ImageDto?> GetImageAsync(Guid imageId)
+        {
+            return Task.FromResult<ImageDto?>(null);
+        }
+
+        public Task<IEnumerable<ImageDto>> GetUserImagesAsync(Guid userId)
+        {
+            return Task.FromResult<IEnumerable<ImageDto>>(new List<ImageDto>());
+        }
+
+        public Task<IEnumerable<ImageDto>> GetImagesBySourceAsync(Core.Enums.ImageSource source)
+        {
+            return Task.FromResult<IEnumerable<ImageDto>>(new List<ImageDto>());
+        }
+
+        public Task<IEnumerable<ImageDto>> GetImagesByPostIdAsync(Guid postId)
+        {
+            return Task.FromResult<IEnumerable<ImageDto>>(new List<ImageDto>());
+        }
+
+        public Task<bool> DeleteImageAsync(Guid imageId)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task<string?> GetImageUrlAsync(Guid imageId, int expiryMinutes = 60)
+        {
+            return Task.FromResult<string?>(null);
+        }
+    }
+
+    // Mock implementation of ILogger<T> for testing
+    internal class MockLogger<T> : ILogger<T>
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return false;
+        }
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            // Do nothing - this is a mock logger
         }
     }
 }
