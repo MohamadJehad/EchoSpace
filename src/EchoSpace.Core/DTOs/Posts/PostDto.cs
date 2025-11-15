@@ -11,6 +11,7 @@ namespace EchoSpace.Core.DTOs.Posts
         public int LikesCount { get; set; }
         public int CommentsCount { get; set; }
         public bool IsLikedByCurrentUser { get; set; }
+        public bool IsFollowingAuthor { get; set; }
         
         // Author information
         public string AuthorName { get; set; } = string.Empty;

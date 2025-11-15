@@ -16,13 +16,15 @@ namespace EchoSpace.UI.Controllers
         private readonly ILikeService _likeService;
         private readonly IAuditLogDBService _auditLogDBService;
         private readonly IPostReportService _postReportService;
-        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService, IAuditLogDBService auditLogDBService, IPostReportService postReportService)
+        private readonly IFollowRepository _followRepository;
+        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService, IAuditLogDBService auditLogDBService, IPostReportService postReportService, IFollowRepository followRepository)
         {
             _logger = logger;
             _postService = postService;
             _likeService = likeService;
             _auditLogDBService = auditLogDBService;
             _postReportService = postReportService;
+            _followRepository = followRepository;
         }   
 
 
@@ -141,13 +143,21 @@ namespace EchoSpace.UI.Controllers
                 var currentUserId = GetCurrentUserId();
                 var posts = await _postService.GetRecentAsync(count, currentUserId);
                 
-                // Populate like status for current user
+                // Populate like status and follow status for current user
                 if (currentUserId.HasValue)
                 {
+                    // Get unique author IDs
+                    var authorIds = posts.Select(p => p.UserId).Distinct().ToList();
+                    
+                    // Batch get follow statuses
+                    var followStatuses = await _followRepository.GetFollowStatusesAsync(currentUserId.Value, authorIds);
+                    
                     foreach (var post in posts)
                     {
                         post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, currentUserId.Value);
                         post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                        // Set follow status (false if not following or if it's own post)
+                        post.IsFollowingAuthor = post.UserId != currentUserId.Value && followStatuses.GetValueOrDefault(post.UserId, false);
                     }
                 }
                 
@@ -177,11 +187,19 @@ namespace EchoSpace.UI.Controllers
                 _logger.LogInformation("Getting posts from following for user {UserId}", userId);
                 var posts = await _postService.GetPostsFromFollowingAsync(userId);
                 
-                // Populate like status for current user
+                // Get unique author IDs
+                var authorIds = posts.Select(p => p.UserId).Distinct().ToList();
+                
+                // Batch get follow statuses
+                var followStatuses = await _followRepository.GetFollowStatusesAsync(userId, authorIds);
+                
+                // Populate like status and follow status for current user
                 foreach (var post in posts)
                 {
                     post.IsLikedByCurrentUser = await _likeService.IsLikedByUserAsync(post.PostId, userId);
                     post.LikesCount = await _likeService.GetLikeCountAsync(post.PostId);
+                    // Set follow status (false if not following or if it's own post)
+                    post.IsFollowingAuthor = post.UserId != userId && followStatuses.GetValueOrDefault(post.UserId, false);
                 }
                 
                 return Ok(posts);

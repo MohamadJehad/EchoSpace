@@ -38,7 +38,12 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.checkFollowStatus();
+    // Use the follow status from the post if available (from backend), otherwise check via API
+    if (this.post.isFollowingAuthor !== undefined) {
+      this.isFollowing = this.post.isFollowingAuthor;
+    } else {
+      this.checkFollowStatus();
+    }
   }
 
   ngOnDestroy(): void {
@@ -124,6 +129,8 @@ export class PostDropdownComponent implements OnInit, OnDestroy {
     action.subscribe({
       next: () => {
         this.isFollowing = !this.isFollowing;
+        // Update the post object to keep it in sync
+        this.post.isFollowingAuthor = this.isFollowing;
         this.isLoadingFollowAction = false;
         this.toggleDropdown.emit();
         this.followStatusChanged.emit();
