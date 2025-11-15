@@ -62,12 +62,14 @@
           <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden">
             <div class="p-6">
               <div class="flex items-center space-x-4 mb-4">
-                <div class="w-16 h-16 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                <a [routerLink]="['/profile', result.id]" class="w-16 h-16 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0 cursor-pointer hover:opacity-80 transition">
                   {{ getInitials(result.name) }}
-                </div>
+                </a>
                 <div class="flex-1 min-w-0">
-                  <h3 class="text-lg font-semibold text-gray-900 truncate">{{ result.name }}</h3>
-                  <p class="text-sm text-gray-600 truncate">&#64;{{ result.userName }}</p>
+                  <a [routerLink]="['/profile', result.id]" class="block cursor-pointer hover:text-primary-600 transition">
+                    <h3 class="text-lg font-semibold text-gray-900 truncate">{{ result.name }}</h3>
+                    <p class="text-sm text-gray-600 truncate">&#64;{{ result.userName }}</p>
+                  </a>
                 </div>
               </div>
               
@@ -79,9 +81,9 @@
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
                   {{ (result.matchScore * 100).toFixed(0) }}% match
                 </span>
-                <button class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+                <a [routerLink]="['/profile', result.id]" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium inline-block">
                   View Profile
-                </button>
+                </a>
               </div>
             </div>
           </div>

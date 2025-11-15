@@ -10,6 +10,7 @@ import { ForgotPasswordComponent } from './components/forgot-password/forgot-pas
 import { ResetPasswordComponent } from './components/reset-password/reset-password.component';
 import { OperationHomeComponent } from './components/operation-home/operation-home.component';
 import { PostsByTagComponent } from './components/posts-by-tag/posts-by-tag.component';
+import { UserProfileComponent } from './components/user-profile/user-profile.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
 
@@ -22,6 +23,7 @@ export const routes: Routes = [
   { path: 'home', component: HomeComponent, canActivate: [authGuard] },
   { path: 'search', component: SearchResultsComponent, canActivate: [authGuard] },
   { path: 'tag/:tagId', component: PostsByTagComponent, canActivate: [authGuard] },
+  { path: 'profile/:userId', component: UserProfileComponent, canActivate: [authGuard] },
   { 
     path: 'admin/users', 
     component: UserListComponent, 

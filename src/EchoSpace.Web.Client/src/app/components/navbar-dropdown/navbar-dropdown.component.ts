@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { normalizeRole } from '../../utils/role.util';
 
 interface UserData {
+  id?: string;
   name: string;
   email: string;
   initials: string;

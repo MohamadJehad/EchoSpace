@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { UsersService } from '../../services/users.service';
 import { FollowsService } from '../../services/follows.service';
 import { SuggestedUser } from '../../interfaces';
@@ -7,7 +8,7 @@ import { SuggestedUser } from '../../interfaces';
 @Component({
   selector: 'app-suggested-users',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './suggested-users.component.html',
   styleUrl: './suggested-users.component.css'
 })

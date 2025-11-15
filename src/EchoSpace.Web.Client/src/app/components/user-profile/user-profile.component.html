@@ -1,0 +1,393 @@
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+  <!-- Navigation Bar -->
+  <nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16 gap-4">
+        <div class="flex items-center space-x-3 flex-shrink-0">
+          <a 
+            [routerLink]="['/home']" 
+            class="cursor-pointer hover:opacity-80 transition-opacity"
+            title="Go to Home">
+            <img src="images/echospace-logo.svg" alt="EchoSpace" class="h-10" />
+          </a>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <button 
+            [routerLink]="['/search']"
+            class="md:hidden p-2 rounded-full hover:bg-gray-100 transition"
+            title="Search"
+          >
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          
+          <!-- User Menu Dropdown Component -->
+          <app-navbar-dropdown 
+            [currentUser]="currentUser" 
+            (logout)="onLogout()">
+          </app-navbar-dropdown>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Loading State -->
+    @if (isLoading) {
+      <div class="bg-white rounded-2xl shadow-lg p-8">
+        <div class="flex justify-center items-center">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <span class="ml-2 text-gray-600">Loading profile...</span>
+        </div>
+      </div>
+    }
+
+    <!-- User Profile Header -->
+    @if (!isLoading && user) {
+      <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <!-- Profile Photo -->
+          <div class="w-24 h-24 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-3xl overflow-hidden flex-shrink-0">
+            @if (getUserProfilePhotoUrl()) {
+              <img [src]="getUserProfilePhotoUrl()" [alt]="user.name" class="w-full h-full object-cover">
+            } @else {
+              {{ getInitials(user.name) }}
+            }
+          </div>
+
+          <!-- User Info -->
+          <div class="flex-1 min-w-0">
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ user.name }}</h1>
+            <p class="text-gray-600 mb-2">{{ '@' + user.email.split('@')[0] }}</p>
+            <p class="text-sm text-gray-500">Member since {{ formatDate(user.createdAt) }}</p>
+            
+            <!-- Follow Button (if not own profile) -->
+            @if (!isOwnProfile && currentUser) {
+              <div class="mt-4">
+                <button
+                  (click)="onFollowToggle()"
+                  [disabled]="isLoadingFollowStatus"
+                  class="px-6 py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  [class.bg-primary-600]="!isFollowing"
+                  [class.text-white]="!isFollowing"
+                  [class.hover:bg-primary-700]="!isFollowing"
+                  [class.bg-gray-200]="isFollowing"
+                  [class.text-gray-700]="isFollowing"
+                  [class.hover:bg-gray-300]="isFollowing"
+                >
+                  @if (isLoadingFollowStatus) {
+                    <span class="flex items-center gap-2">
+                      <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></span>
+                      Loading...
+                    </span>
+                  } @else {
+                    {{ isFollowing ? 'Following' : 'Follow' }}
+                  }
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Posts Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Posts</h2>
+        
+        <!-- Loading Posts -->
+        @if (isLoadingPosts) {
+          <div class="flex justify-center items-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <span class="ml-2 text-gray-600">Loading posts...</span>
+          </div>
+        }
+
+        <!-- Empty State -->
+        @if (!isLoadingPosts && posts.length === 0) {
+          <div class="bg-white rounded-2xl shadow-lg p-8 text-center">
+            <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-gray-500 text-lg">{{ isOwnProfile ? "You haven't posted anything yet." : "This user hasn't posted anything yet." }}</p>
+          </div>
+        }
+
+        <!-- Posts List -->
+        @if (!isLoadingPosts && posts.length > 0) {
+          @for (post of posts; track post.postId) {
+            <div class="bg-white rounded-2xl shadow-lg mb-6 overflow-hidden hover:shadow-xl transition">
+              <!-- Post Header -->
+              <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden">
+                      @if (post.author?.profilePhotoUrl) {
+                        <img [src]="post.author?.profilePhotoUrl" [alt]="post.author?.name || post.authorName || 'User'" class="w-full h-full object-cover">
+                      } @else {
+                        {{ post.author?.initials || post.authorName?.charAt(0) || 'U' }}
+                      }
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-gray-900">{{ post.author?.name || post.authorName || 'Unknown User' }}</h3>
+                      <p class="text-sm text-gray-600">{{ formatDate(post.createdAt) }}</p>
+                    </div>
+                  </div>
+                  @if (isOwnProfile) {
+                    <app-post-dropdown
+                      [post]="post"
+                      [currentUserId]="currentUser.id"
+                      [isOpen]="isDropdownOpen(post.postId)"
+                      (editPost)="onEditPost($event)"
+                      (deletePost)="onDeletePost($event)"
+                      (toggleDropdown)="togglePostDropdown(post.postId)"
+                      (followStatusChanged)="onFollowStatusChanged()">
+                    </app-post-dropdown>
+                  }
+                </div>
+
+                <!-- Post Tags -->
+                @if (post.tags && post.tags.length > 0) {
+                  <div class="mb-3 flex flex-wrap gap-2">
+                    @for (tag of post.tags; track tag.tagId) {
+                      <span
+                        [style.background-color]="(tag.color || '#6B7280') + '20'"
+                        [style.color]="tag.color || '#6B7280'"
+                        [style.border-color]="tag.color || '#6B7280'"
+                        class="inline-block px-3 py-1 rounded-full text-xs font-medium border"
+                      >
+                        {{ tag.name }}
+                      </span>
+                    }
+                  </div>
+                }
+
+                <!-- Post Content -->
+                <div class="space-y-2">
+                  <!-- Edit Form (when editing) -->
+                  @if (editingPost && editingPost.postId === post.postId) {
+                    <form (ngSubmit)="onSaveEdit()" class="space-y-3">
+                      <textarea 
+                        [(ngModel)]="editPostForm.content"
+                        name="editContent"
+                        placeholder="What's on your mind?" 
+                        class="w-full bg-gray-100 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 transition resize-none"
+                        rows="3"
+                        required
+                      ></textarea>
+                      <div class="flex items-center gap-2">
+                        <button 
+                          type="button"
+                          (click)="editingPost = null; editPostForm = { content: '', imageUrl: '' }"
+                          class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit"
+                          [disabled]="isSavingPost || !editPostForm.content.trim()"
+                          class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        >
+                          @if (isSavingPost) {
+                            <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                          }
+                          <span>{{ isSavingPost ? 'Saving...' : 'Save' }}</span>
+                        </button>
+                      </div>
+                    </form>
+                  } @else {
+                    <!-- Regular Post Content -->
+                    <p class="text-gray-800 leading-relaxed">
+                      {{ post.isSummarized && post.summarizedContent ? post.summarizedContent : (post.isTranslated && post.translatedContent ? post.translatedContent : post.content) }}
+                    </p>
+                    
+                    <!-- Translation and Summarization buttons -->
+                    <div class="flex items-center gap-2 mt-2 relative language-selector-container" (click)="$event.stopPropagation()">
+                      <!-- Summarize button -->
+                      @if (!post.isSummarized && !post.isTranslated) {
+                        <button
+                          (click)="summarizePost(post.postId)"
+                          [disabled]="summarizingPosts[post.postId] || translatingPosts[post.postId]"
+                          class="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition px-2 py-1 rounded hover:bg-indigo-50"
+                          title="Summarize post"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Summarize</span>
+                        </button>
+                      }
+                      
+                      <!-- Show original button for summarized posts -->
+                      @if (post.isSummarized && post.summarizedContent) {
+                        <button
+                          (click)="summarizePost(post.postId)"
+                          class="text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1 transition px-2 py-1 rounded hover:bg-gray-50"
+                          title="Show original"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Show Original</span>
+                        </button>
+                      }
+                      
+                      <!-- Summarization status -->
+                      @if (summarizingPosts[post.postId]) {
+                        <span class="text-xs text-gray-500 flex items-center gap-1">
+                          <span class="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600"></span>
+                          Summarizing...
+                        </span>
+                      }
+                      
+                      <!-- Translate button with language selector -->
+                      @if (!post.isTranslated && !post.isSummarized) {
+                        <div class="relative">
+                        <button
+                          (click)="toggleLanguageSelector(post.postId, $event)"
+                          [disabled]="translatingPosts[post.postId]"
+                          class="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition px-2 py-1 rounded hover:bg-primary-50"
+                          title="Translate post"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                          </svg>
+                          <span>Translate</span>
+                          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        <!-- Language selector dropdown -->
+                        @if (showLanguageSelector[post.postId]) {
+                          <div
+                            class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-[150px] max-h-[300px] overflow-y-auto"
+                          >
+                            <div class="px-3 py-1 text-xs font-semibold text-gray-500 border-b border-gray-100">
+                              Select Language
+                            </div>
+                            @for (lang of availableLanguages; track lang.code) {
+                              <button
+                                (click)="translatePost(post.postId, lang.code)"
+                                [disabled]="translatingPosts[post.postId]"
+                                class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-primary-50 transition flex items-center justify-between disabled:opacity-50"
+                              >
+                                <span>{{ lang.name }}</span>
+                                <span class="text-xs text-gray-400">{{ lang.code.toUpperCase() }}</span>
+                              </button>
+                            }
+                          </div>
+                        }
+                        </div>
+                      }
+                      
+                      <!-- Show original button for translated posts -->
+                      @if (post.isTranslated && post.translatedContent && !post.isSummarized) {
+                        <button
+                          (click)="translatePost(post.postId)"
+                          class="text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1 transition px-2 py-1 rounded hover:bg-gray-50"
+                          title="Show original"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Show Original</span>
+                        </button>
+                      }
+                      
+                      <!-- Translation status -->
+                      @if (translatingPosts[post.postId]) {
+                        <span class="text-xs text-gray-500 flex items-center gap-1">
+                          <span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-600"></span>
+                          Translating...
+                        </span>
+                      }
+                      
+                      <!-- Language indicator -->
+                      @if (post.isTranslated && post.translationLanguage && !post.isSummarized) {
+                        <span class="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                          {{ getLanguageName(post.translationLanguage) }}
+                        </span>
+                      }
+                    </div>
+                  }
+                </div>
+
+                <!-- Post Image -->
+                @if (post.imageUrl) {
+                  <div class="mt-4 relative">
+                    <img [src]="post.imageUrl" [alt]="post.content" class="w-full h-auto max-h-[500px] object-cover rounded-lg">
+                  </div>
+                }
+              </div>
+
+              <!-- Post Actions -->
+              <div class="px-6 py-4 border-t border-gray-100">
+                <div class="flex items-center justify-between text-gray-600">
+                  <button
+                    (click)="likePost(post.postId)"
+                    class="flex items-center space-x-2 hover:text-primary-600 transition"
+                    [class.text-primary-600]="post.isLikedByCurrentUser"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <span>{{ post.likesCount }}</span>
+                  </button>
+                  
+                  <button
+                    (click)="toggleComments(post.postId)"
+                    class="flex items-center space-x-2 hover:text-primary-600 transition"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <span>{{ post.commentsCount }}</span>
+                  </button>
+                  
+                  <button class="flex items-center space-x-2 hover:text-primary-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.885 12.938 9 12.482 9 12c0-.482-.115-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    <span>Share</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Comments Section -->
+              @if (showComments[post.postId]) {
+                <app-post-comments
+                  [postId]="post.postId"
+                  [commentsCount]="post.commentsCount"
+                  [currentUserId]="currentUser?.id"
+                  [currentUserInitials]="currentUser?.initials"
+                  [currentUserName]="currentUser?.name"
+                  [currentUserEmail]="currentUser?.email"
+                  [currentUserProfilePhotoUrl]="currentUser?.profilePhotoUrl"
+                  [isOpen]="showComments[post.postId]"
+                  (commentsCountChanged)="onCommentsCountChanged(post.postId, $event)"
+                  (toggleRequested)="toggleComments(post.postId)">
+                </app-post-comments>
+              }
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Confirmation Modal -->
+  <app-confirmation-modal
+    [isOpen]="showDeleteModal"
+    [title]="'Delete Post'"
+    [message]="'Are you sure you want to delete this post? This action cannot be undone.'"
+    [confirmText]="'Delete'"
+    [cancelText]="'Cancel'"
+    [isLoading]="isDeletingPost"
+    (confirm)="onConfirmDelete()"
+    (cancel)="onCancelDelete()">
+  </app-confirmation-modal>
+</div>
+

@@ -217,15 +217,17 @@
             <div class="p-6">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                  <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden">
+                  <a [routerLink]="['/profile', post.userId]" class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden cursor-pointer hover:opacity-80 transition">
                     @if (post.author?.profilePhotoUrl) {
                       <img [src]="post.author?.profilePhotoUrl" [alt]="post.author?.name || post.authorName || 'User'" class="w-full h-full object-cover">
                     } @else {
                       {{ post.author?.initials || post.authorName?.charAt(0) || 'U' }}
                     }
-                  </div>
+                  </a>
                   <div>
-                    <h3 class="font-semibold text-gray-900">{{ post.author?.name || post.authorName || 'Unknown User' }}</h3>
+                    <a [routerLink]="['/profile', post.userId]" class="block cursor-pointer hover:text-primary-600 transition">
+                      <h3 class="font-semibold text-gray-900">{{ post.author?.name || post.authorName || 'Unknown User' }}</h3>
+                    </a>
                     <p class="text-sm text-gray-600">{{ post.timeAgo }}</p>
                   </div>
                 </div>

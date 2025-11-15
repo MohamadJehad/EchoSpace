@@ -37,14 +37,16 @@
   <div *ngIf="!isLoading && suggestedUsers.length > 0" class="space-y-3">
     <div *ngFor="let user of suggestedUsers; trackBy: trackByUserId" class="suggested-user-item group hover:bg-gray-50 rounded-lg p-2 transition-colors">
       <div class="flex items-start space-x-3">
-        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+        <a [routerLink]="['/profile', user.id]" class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 cursor-pointer hover:opacity-80 transition">
           {{ user.initials }}
-        </div>
+        </a>
         <div class="flex-1 min-w-0 flex flex-col user-info">
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
-              <p class="user-name font-medium text-gray-900 text-sm truncate" [title]="user.name">{{ user.name }}</p>
-              <p class="user-username text-xs text-gray-600 truncate" [title]="user.username">{{ '@' + user.username }}</p>
+              <a [routerLink]="['/profile', user.id]" class="block cursor-pointer hover:text-primary-600 transition">
+                <p class="user-name font-medium text-gray-900 text-sm truncate" [title]="user.name">{{ user.name }}</p>
+                <p class="user-username text-xs text-gray-600 truncate" [title]="user.username">{{ '@' + user.username }}</p>
+              </a>
               <p class="text-xs text-gray-500">{{ user.postsCount }} posts</p>
             </div>
             <button 
@@ -126,14 +128,16 @@
       <div *ngIf="!isLoadingAll && allSuggestedUsers.length > 0" class="space-y-3">
         <div *ngFor="let user of allSuggestedUsers; trackBy: trackByUserId" class="suggested-user-item group hover:bg-gray-50 rounded-lg p-3 transition-colors">
           <div class="flex items-start space-x-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+            <a [routerLink]="['/profile', user.id]" class="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 cursor-pointer hover:opacity-80 transition">
               {{ user.initials }}
-            </div>
+            </a>
             <div class="flex-1 min-w-0 flex flex-col user-info">
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
-                  <p class="user-name font-medium text-gray-900 text-sm truncate" [title]="user.name">{{ user.name }}</p>
-                  <p class="user-username text-xs text-gray-600 truncate" [title]="user.username">{{ '@' + user.username }}</p>
+                  <a [routerLink]="['/profile', user.id]" class="block cursor-pointer hover:text-primary-600 transition">
+                    <p class="user-name font-medium text-gray-900 text-sm truncate" [title]="user.name">{{ user.name }}</p>
+                    <p class="user-username text-xs text-gray-600 truncate" [title]="user.username">{{ '@' + user.username }}</p>
+                  </a>
                   <p class="text-xs text-gray-500">{{ user.postsCount }} posts</p>
                 </div>
                 <button 
