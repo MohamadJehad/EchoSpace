@@ -29,6 +29,7 @@ using FluentValidation.AspNetCore;
 using Serilog;
 using EchoSpace.Core.Interfaces.Services;
 using EchoSpace.Infrastructure.Services.Logging;
+using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -137,6 +138,30 @@ var authBuilder = builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
     };
+    
+    // Add event handler to check if user is locked on each request
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<EchoSpaceDbContext>();
+                var user = await dbContext.Users.FindAsync(userId);
+                
+                if (user != null)
+                {
+                    // Check if account is locked
+                    if (user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+                    {
+                        context.Fail("Account is locked. Please contact support.");
+                        return;
+                    }
+                }
+            }
+        }
+    };
 });
 
 // Add Authorization with ABAC (Attribute-Based Access Control) policies
@@ -154,6 +179,14 @@ builder.Services.AddAuthorization(options =>
     var moderatorOrAdminPolicy = AbacPolicyBuilder.CreateModeratorOrAdminRolePolicy();
     options.AddAbacPolicy(moderatorOrAdminPolicy, "General", "Moderate");
 
+    // ABAC: Operation Role Policy
+    var operationPolicy = AbacPolicyBuilder.CreateOperationRolePolicy();
+    options.AddAbacPolicy(operationPolicy, "General", "Operation");
+
+    // ABAC: Operation or Admin Role Policy
+    var operationOrAdminPolicy = AbacPolicyBuilder.CreateOperationOrAdminRolePolicy();
+    options.AddAbacPolicy(operationOrAdminPolicy, "General", "OperationOrAdmin");
+
     // ABAC: Owner-based policies
     var ownerOfPostPolicy = AbacPolicyBuilder.CreateOwnerPolicy("Post");
     options.AddAbacPolicy(ownerOfPostPolicy, "Post");
@@ -168,12 +201,22 @@ builder.Services.AddAuthorization(options =>
     var adminOrOwnerOfCommentPolicy = AbacPolicyBuilder.CreateAdminOrOwnerPolicy("Comment");
     options.AddAbacPolicy(adminOrOwnerOfCommentPolicy, "Comment", "UpdateOrDelete");
 
+    // ABAC: Operation OR Admin OR Owner policies (for post deletion by Operation)
+    var operationOrAdminOrOwnerOfPostPolicy = AbacPolicyBuilder.CreateOperationOrAdminOrOwnerPolicy("Post");
+    options.AddAbacPolicy(operationOrAdminOrOwnerOfPostPolicy, "Post", "OperationDelete");
+
     // Legacy policy names for backward compatibility (now using ABAC)
     options.AddPolicy("AdminOnly", policy => policy.Requirements.Add(
         new EchoSpace.Core.Authorization.Requirements.AbacRequirement(adminPolicy, "General", "Admin")));
     
     options.AddPolicy("ModeratorOrAdmin", policy => policy.Requirements.Add(
         new EchoSpace.Core.Authorization.Requirements.AbacRequirement(moderatorOrAdminPolicy, "General", "Moderate")));
+    
+    options.AddPolicy("OperationOnly", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(operationPolicy, "General", "Operation")));
+    
+    options.AddPolicy("OperationOrAdmin", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(operationOrAdminPolicy, "General", "OperationOrAdmin")));
     
     options.AddPolicy("AuthenticatedUser", policy => policy.Requirements.Add(
         new EchoSpace.Core.Authorization.Requirements.AbacRequirement(authenticatedUserPolicy, "General")));
@@ -189,6 +232,9 @@ builder.Services.AddAuthorization(options =>
     
     options.AddPolicy("AdminOrOwnerOfComment", policy => policy.Requirements.Add(
         new EchoSpace.Core.Authorization.Requirements.AbacRequirement(adminOrOwnerOfCommentPolicy, "Comment", "UpdateOrDelete")));
+    
+    options.AddPolicy("OperationOrAdminOrOwnerOfPost", policy => policy.Requirements.Add(
+        new EchoSpace.Core.Authorization.Requirements.AbacRequirement(operationOrAdminOrOwnerOfPostPolicy, "Post", "OperationDelete")));
 });
 
 // Register ABAC authorization handler (primary handler for all ABAC policies)
@@ -236,6 +282,15 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Analytics service
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+
+//AuditLog repository
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<IAuditLogDBService, AuditLogDBService>();
+builder.Services.AddScoped<AuditActionFilter>();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<AuditActionFilter>();
+});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -444,11 +499,18 @@ builder.Services.AddScoped<IGoogleSafeBrowsingService>(sp =>
 builder.Services.AddScoped<IGooglePerspectiveService>(sp =>
     new GooglePerspectiveService(perspectiveApiKey));
 builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValidator>();
+builder.Services.AddAzureClients(clientBuilder =>
+{
+    clientBuilder.AddBlobServiceClient(builder.Configuration["StorageConnection:blobServiceUri"]!).WithName("StorageConnection");
+    clientBuilder.AddQueueServiceClient(builder.Configuration["StorageConnection:queueServiceUri"]!).WithName("StorageConnection");
+    clientBuilder.AddTableServiceClient(builder.Configuration["StorageConnection:tableServiceUri"]!).WithName("StorageConnection");
+});
 
 
 var app = builder.Build();
 
 app.UseSecurityHeaders();
+app.UseMiddleware<RequestContextMiddleware>();
 
 // Test database connection on startup
 try

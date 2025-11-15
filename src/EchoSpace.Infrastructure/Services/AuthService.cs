@@ -155,6 +155,15 @@ namespace EchoSpace.Infrastructure.Services
                 throw new UnauthorizedAccessException("Invalid refresh token.");
             }
 
+            // Check if user account is locked
+            if (IsAccountLocked(session.User))
+            {
+                // Remove the session since user is locked
+                _context.UserSessions.Remove(session);
+                await _context.SaveChangesAsync();
+                throw new UnauthorizedAccessException("Account is locked. Please contact support.");
+            }
+
             // Update session expiry
             session.ExpiresAt = DateTime.UtcNow.AddDays(7);
             await _context.SaveChangesAsync();

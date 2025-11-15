@@ -1,15 +1,16 @@
 using System.ComponentModel.DataAnnotations;
+using EchoSpace.Core.Enums;
 
 namespace EchoSpace.Core.DTOs
 {
     public class UpdateUserRequest
     {
-        [Required]
         [MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; }
 
-        [Required]
         [EmailAddress]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+
+        public UserRole? Role { get; set; }
     }
 }

@@ -24,6 +24,7 @@ export class PostCommentsComponent implements OnInit, OnChanges {
   @Input() currentUserEmail: string = '';
   @Input() currentUserProfilePhotoUrl: string | null = null;
   @Input() isOpen: boolean = false;
+  @Input() allowCreate: boolean = true; // Allow/disallow creating new comments
 
   @Output() commentsCountChanged = new EventEmitter<number>();
   @Output() toggleRequested = new EventEmitter<void>();

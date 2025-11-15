@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-navbar',
@@ -12,7 +13,8 @@ import { AuthService } from '../../services/auth.service';
 })
 export class NavbarComponent implements OnInit {
   currentUser: any = null;
-  isAdmin = false;
+  isAdmin: boolean = false;
+  isOperation: boolean = false;
 
   constructor(
     private authService: AuthService,
@@ -22,7 +24,9 @@ export class NavbarComponent implements OnInit {
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
-      this.isAdmin = user?.role === 'Admin';
+      const normalizedRole = normalizeRole(user?.role);
+      this.isAdmin = normalizedRole === 'Admin';
+      this.isOperation = normalizedRole === 'Operation';
     });
   }
 

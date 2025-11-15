@@ -14,13 +14,15 @@ namespace EchoSpace.UI.Controllers
         private readonly ILogger<PostsController> _logger;
         private readonly IPostService _postService;
         private readonly ILikeService _likeService;
-
-        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService)
+        private readonly IAuditLogDBService _auditLogDBService;
+        public PostsController(ILogger<PostsController> logger, IPostService postService, ILikeService likeService, IAuditLogDBService auditLogDBService)
         {
             _logger = logger;
             _postService = postService;
             _likeService = likeService;
-        }
+            _auditLogDBService = auditLogDBService;
+        }   
+
 
         private Guid? GetCurrentUserId()
         {
@@ -202,11 +204,44 @@ namespace EchoSpace.UI.Controllers
                     return BadRequest(ModelState);
                 }
                 var created = await _postService.CreateAsync(request);
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                 
+                if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                {
+                    ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                }
+                 // Log the action to the database
+                 await _auditLogDBService.LogAsync(
+                    actionType: "PostCreated",
+                    userId: GetCurrentUserId(),                   // Or from claims: Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier))
+                    resourceId: created.PostId.ToString(),
+                    details: new 
+                    { 
+                        ContentLength = created.Content?.Length ?? 0 
+                    },
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
+
                 return CreatedAtAction(nameof(GetPost), new { id = created.PostId }, created);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while creating post for user {UserId}", request?.UserId);
+                  // Optional: log failure to AuditLog as well
+                   var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                   
+                    if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                    {
+                        ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                    }
+                   await _auditLogDBService.LogAsync(
+                    actionType: "PostCreateFailed",
+                    userId: GetCurrentUserId(),
+                    details: new { ErrorMessage = ex.Message },
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }
@@ -231,21 +266,54 @@ namespace EchoSpace.UI.Controllers
                 {
                     return NotFound($"Post with ID {id} not found");
                 }
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                 
+                if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                {
+                    ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                }
+                 // Log the action to the database
+                 await _auditLogDBService.LogAsync(
+                    actionType: "PostUpdated",
+                    userId: GetCurrentUserId(),                   // Or from claims: Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier))
+                    resourceId: post.PostId.ToString(),
+                    details: new 
+                    { 
+                        ContentLength = post.Content?.Length ?? 0 
+                    },
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
+
                 return Ok(post);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while updating post {PostId}", id);
+                 // Optional: log failure to AuditLog as well
+                   var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                   
+                    if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                    {
+                        ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                    }
+                   await _auditLogDBService.LogAsync(
+                    actionType: "PostUpdateFailed",
+                    userId: GetCurrentUserId(),
+                    details: new { ErrorMessage = ex.Message },
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }
 
         /// <summary>
         /// Delete a post
-        /// ABAC: Requires user to own the post OR be Admin/Moderator
+        /// ABAC: Requires user to own the post OR be Operation/Admin/Moderator
         /// </summary>
         [HttpDelete("{id}")]
-        [RequireAdminOrOwner("Post")]
+        [Authorize(Policy = "OperationOrAdminOrOwnerOfPost")]
         public async Task<ActionResult> DeletePost(Guid id, CancellationToken cancellationToken)
         {
             try
@@ -255,11 +323,40 @@ namespace EchoSpace.UI.Controllers
                 {
                     return NotFound($"Post with ID {id} not found");
                 }
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                 
+                if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                {
+                    ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                }
+                 // Log the action to the database
+                 await _auditLogDBService.LogAsync(
+                    actionType: "PostDeleted",
+                    userId: GetCurrentUserId(),                   // Or from claims: Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier))
+                    resourceId: id.ToString(),
+                    details: null,
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
                 return NoContent();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while deleting post {PostId}", id);
+                 // Optional: log failure to AuditLog as well
+                   var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                   
+                    if (HttpContext?.Request?.Headers.ContainsKey("X-Forwarded-For") == true)
+                    {
+                        ipAddress = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                    }
+                   await _auditLogDBService.LogAsync(
+                    actionType: "PostUpdateFailed",
+                    userId: GetCurrentUserId(),
+                    details: new { ErrorMessage = ex.Message },
+                    correlationId: Guid.NewGuid().ToString(),
+                    ipAddress: ipAddress
+                );
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }
