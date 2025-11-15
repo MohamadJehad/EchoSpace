@@ -14,6 +14,7 @@ export interface Post {
   likesCount: number; 
   commentsCount: number; 
   isLikedByCurrentUser: boolean; 
+  isFollowingAuthor?: boolean;
   timeAgo?: string;
   
   // Backend author fields
