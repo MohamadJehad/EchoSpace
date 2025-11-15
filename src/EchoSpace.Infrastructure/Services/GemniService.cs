@@ -1,5 +1,6 @@
 using Google.GenAI;
 using Google.GenAI.Types;
+using EchoSpace.Tools.Sanitizer;
 using Microsoft.Extensions.Options;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Infrastructure.Options;
@@ -12,10 +13,11 @@ namespace EchoSpace.Infrastructure.Services
         // --- Correction 1: Added the type 'GenerativeModel' ---
         private readonly Client  _client;
         private readonly string _modelName;
+
         public GeminiAiService(IOptions<GeminiOptions> options)
         {
-            var config = options.Value;
             
+            GeminiOptions config = options.Value;
 
             _modelName = config.Model;
 
@@ -27,6 +29,8 @@ namespace EchoSpace.Infrastructure.Services
 
         public async Task<string> TranslateTextAsync(string text, string language)
         {
+
+            text = PromptSanitizer.Clean(text);
             var prompt = 
                 $"""
                         System message (high priority):
@@ -49,6 +53,9 @@ namespace EchoSpace.Infrastructure.Services
 
         public async Task<string> SummarizeTextAsync(string text)
         {
+            
+            
+            text = PromptSanitizer.Clean(text);
             var prompt = 
                 $"""
                         System message (high priority):
@@ -68,5 +75,11 @@ namespace EchoSpace.Infrastructure.Services
             var result = await _client.Models.GenerateContentAsync(model:_modelName,contents:prompt);
             return result.Candidates[0].Content.Parts[0].Text ?? string.Empty;
         }
+        public async Task<Boolean> GenerateImage(string text)
+            {
+            // Pollination
+             return false;   
+            }
     }
+
 }
