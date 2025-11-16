@@ -4,6 +4,8 @@ using EchoSpace.Core.DTOs.Auth;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Enums;
 using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
+using ImageSharpImage = SixLabors.ImageSharp.Image;
 
 namespace EchoSpace.Core.Services
 {
@@ -162,6 +164,20 @@ namespace EchoSpace.Core.Services
                             contentType = "image/png";
                     }
                     
+                    // Validate actual file content (magic bytes)
+                    if (!ValidateImageContent(imageBytes, contentType))
+                    {
+                        _logger?.LogWarning("AI-generated image failed magic bytes validation for post {PostId}", createdPost.PostId);
+                        throw new InvalidOperationException("AI-generated image content does not match declared type.");
+                    }
+
+                    // Validate image can be decoded
+                    if (!ValidateImageCanBeDecoded(imageBytes))
+                    {
+                        _logger?.LogWarning("AI-generated image failed decoding validation for post {PostId}", createdPost.PostId);
+                        throw new InvalidOperationException("AI-generated image is not a valid or decodable image.");
+                    }
+                    
                     // Upload to blob storage
                     var containerName = "ai-images";
                     var imageId = Guid.NewGuid();
@@ -177,7 +193,7 @@ namespace EchoSpace.Core.Services
                     var accessibleUrl = await _blobStorageService.GetBlobUrlAsync(containerName, blobName, 60);
                     
                     // Create image entity
-                    var image = new Image
+                    var image = new Entities.Image
                     {
                         ImageId = imageId,
                         Source = ImageSource.AIGenerated,
@@ -352,6 +368,61 @@ namespace EchoSpace.Core.Services
                     })
                     .ToList() ?? new List<TagInfoDto>()
             };
+        }
+
+        /// <summary>
+        /// Validates image content by checking magic bytes (file signature)
+        /// This prevents spoofing where a malicious file is renamed with .jpg extension
+        /// </summary>
+        private bool ValidateImageContent(byte[] fileBytes, string contentType)
+        {
+            if (fileBytes == null || fileBytes.Length < 4)
+            {
+                return false;
+            }
+
+            // Check magic bytes (file signature) - this is the actual file type, not spoofable
+            var signature = fileBytes.Take(4).ToArray();
+            
+            return contentType.ToLower() switch
+            {
+                "image/jpeg" or "image/jpg" => 
+                    signature[0] == 0xFF && signature[1] == 0xD8, // JPEG signature: FF D8
+                
+                "image/png" => 
+                    signature[0] == 0x89 && signature[1] == 0x50 && 
+                    signature[2] == 0x4E && signature[3] == 0x47, // PNG signature: 89 50 4E 47
+                
+                "image/gif" => 
+                    signature[0] == 0x47 && signature[1] == 0x49 && signature[2] == 0x46, // GIF signature: GIF
+                
+                "image/webp" => 
+                    fileBytes.Length >= 12 &&
+                    signature[0] == 0x52 && signature[1] == 0x49 && 
+                    signature[2] == 0x46 && signature[3] == 0x46 && // WebP signature: RIFF
+                    fileBytes[8] == 0x57 && fileBytes[9] == 0x45 && 
+                    fileBytes[10] == 0x42 && fileBytes[11] == 0x50, // WEBP
+                
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Validates that the image can actually be decoded by ImageSharp
+        /// This ensures the file is a valid, non-corrupted image
+        /// </summary>
+        private bool ValidateImageCanBeDecoded(byte[] fileBytes)
+        {
+            try
+            {
+                using var image = ImageSharpImage.Load(fileBytes);
+                return image != null; // If it can be decoded, it's a valid image
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning("Image validation failed: {Error}", ex.Message);
+                return false; // Invalid or corrupted image
+            }
         }
     }
 }
