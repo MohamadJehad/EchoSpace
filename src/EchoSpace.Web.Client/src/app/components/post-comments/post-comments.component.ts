@@ -6,6 +6,7 @@ import { ToastService } from '../../services/toast.service';
 import { Comment, CreateCommentRequest } from '../../interfaces/comment.interface';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { UserService } from '../../services/user.service';
+import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -47,7 +48,8 @@ export class PostCommentsComponent implements OnInit, OnChanges {
   constructor(
     private commentsService: CommentsService,
     private toastService: ToastService,
-    private userService: UserService
+    private userService: UserService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -279,7 +281,7 @@ export class PostCommentsComponent implements OnInit, OnChanges {
     // environment.apiUrl already includes /api, so we don't need to add it again
     fetch(`${environment.apiUrl}/images/${imageId}/url`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
       }
     })
     .then(response => {

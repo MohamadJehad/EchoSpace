@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Tag } from '../interfaces/tag.interface';
@@ -21,27 +21,19 @@ export class TagsService {
 
   constructor(private http: HttpClient) {}
 
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('accessToken');
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
-  }
-
   // Get all tags
   getAllTags(): Observable<Tag[]> {
-    return this.http.get<Tag[]>(this.apiUrl, { headers: this.getHeaders() });
+    return this.http.get<Tag[]>(this.apiUrl);
   }
 
   // Get tag by ID
   getTagById(id: string): Observable<Tag> {
-    return this.http.get<Tag>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() });
+    return this.http.get<Tag>(`${this.apiUrl}/${id}`);
   }
 
   // Get trending tags
   getTrendingTags(count: number = 10): Observable<TrendingTag[]> {
-    return this.http.get<TrendingTag[]>(`${this.apiUrl}/trending?count=${count}`, { headers: this.getHeaders() });
+    return this.http.get<TrendingTag[]>(`${this.apiUrl}/trending?count=${count}`);
   }
 }
 

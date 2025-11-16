@@ -14,14 +14,13 @@ export const roleGuard = (allowedRoles: string[]): CanActivateFn => {
       return false;
     }
 
-    // Get user from localStorage
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
+    // Get user from authService synchronously
+    const user = authService.getCurrentUser();
+    if (!user) {
       router.navigate(['/login']);
       return false;
     }
 
-    const user = JSON.parse(userStr);
     const userRole = user.role;
 
     // Check if user has required role (handles both numeric and string)

@@ -174,30 +174,11 @@ export class HomeComponent implements OnInit {
           this.loadUserProfile();
         }
       } else {
-        // Fallback: Try to get from localStorage
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          this.currentUser = {
-            name: parsedUser.username || parsedUser.name || 'User',
-            email: parsedUser.email || '',
-            initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U'),
-            role: parsedUser.role || 'User',
-            id: parsedUser.id || '',
-            profilePhotoUrl: null
-          };
-          
-          // Redirect Operation users to their homepage
-          const normalizedRole = normalizeRole(this.currentUser.role);
-          if (normalizedRole === 'Operation') {
-            this.router.navigate(['/operation']);
-            return;
-          }
-          
-          if (this.currentUser.id) {
-            this.loadUserProfile();
-          }
-        }
+        // User data should be loaded from authService.currentUser$
+        // The interceptor will handle token automatically
+        // If no user is loaded, redirect to login
+        this.router.navigate(['/login']);
+        return;
       }
     });
   }
@@ -261,7 +242,7 @@ export class HomeComponent implements OnInit {
     
     fetch(url, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
       }
     })
     .then(response => {
@@ -446,7 +427,7 @@ export class HomeComponent implements OnInit {
     // environment.apiUrl already includes /api, so we don't need to add it again
     fetch(`${environment.apiUrl}/images/${imageId}/url`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
       }
     })
     .then(response => response.json())

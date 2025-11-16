@@ -73,17 +73,18 @@ export class OperationHomeComponent implements OnInit {
   }
 
   loadCurrentUser(): void {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      this.currentUser = {
-        name: user.name || '',
-        email: user.email || '',
-        role: user.role || '',
-        id: user.id || '',
-        profilePhotoUrl: user.profilePhotoUrl || null
-      };
-    }
+    // Get user from authService instead of directly from cookies
+    this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.currentUser = {
+          name: user.name || '',
+          email: user.email || '',
+          role: user.role || '',
+          id: user.id || '',
+          profilePhotoUrl: user.profilePhotoUrl || null
+        };
+      }
+    });
   }
 
   loadReportedPosts(): void {

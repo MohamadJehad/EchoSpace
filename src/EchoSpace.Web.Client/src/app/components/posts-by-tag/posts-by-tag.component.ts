@@ -110,7 +110,7 @@ export class PostsByTagComponent implements OnInit {
           // Fetch the profile photo URL through the images endpoint (same as home component)
           fetch(`${environment.apiUrl}/images/${profilePhotoId}/url`, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+              'Authorization': `Bearer ${this.authService.getToken()}`
             }
           })
           .then(response => response.json())

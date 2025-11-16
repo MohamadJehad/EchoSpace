@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -23,32 +23,24 @@ export class LikesService {
 
   constructor(private http: HttpClient) {}
 
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('accessToken');
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
-  }
-
   // Like a post
   likePost(postId: string): Observable<LikeResponse> {
-    return this.http.post<LikeResponse>(`${this.apiUrl}/${postId}`, {}, { headers: this.getHeaders() });
+    return this.http.post<LikeResponse>(`${this.apiUrl}/${postId}`, {});
   }
 
   // Unlike a post
   unlikePost(postId: string): Observable<LikeResponse> {
-    return this.http.delete<LikeResponse>(`${this.apiUrl}/${postId}`, { headers: this.getHeaders() });
+    return this.http.delete<LikeResponse>(`${this.apiUrl}/${postId}`);
   }
 
   // Toggle like status (like if not liked, unlike if liked)
   toggleLike(postId: string): Observable<LikeResponse> {
-    return this.http.post<LikeResponse>(`${this.apiUrl}/${postId}/toggle`, {}, { headers: this.getHeaders() });
+    return this.http.post<LikeResponse>(`${this.apiUrl}/${postId}/toggle`, {});
   }
 
   // Get like status for a post
   getLikeStatus(postId: string): Observable<LikeStatus> {
-    return this.http.get<LikeStatus>(`${this.apiUrl}/${postId}/status`, { headers: this.getHeaders() });
+    return this.http.get<LikeStatus>(`${this.apiUrl}/${postId}/status`);
   }
 }
 

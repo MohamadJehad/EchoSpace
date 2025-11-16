@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -88,47 +88,40 @@ export class DashboardService {
 
   constructor(private http: HttpClient) { }
 
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('accessToken');
-    return new HttpHeaders({
-      'Authorization': `Bearer ${token}`
-    });
-  }
-
   getOverview(): Observable<DashboardOverview> {
-    return this.http.get<DashboardOverview>(`${this.apiUrl}/overview`, { headers: this.getHeaders() });
+    return this.http.get<DashboardOverview>(`${this.apiUrl}/overview`);
   }
 
   getUserGrowth(days: number = 30): Observable<TimeSeriesData> {
-    return this.http.get<TimeSeriesData>(`${this.apiUrl}/users/growth?days=${days}`, { headers: this.getHeaders() });
+    return this.http.get<TimeSeriesData>(`${this.apiUrl}/users/growth?days=${days}`);
   }
 
   getPostActivity(days: number = 30): Observable<TimeSeriesData> {
-    return this.http.get<TimeSeriesData>(`${this.apiUrl}/posts/activity?days=${days}`, { headers: this.getHeaders() });
+    return this.http.get<TimeSeriesData>(`${this.apiUrl}/posts/activity?days=${days}`);
   }
 
   getLoginActivity(days: number = 30): Observable<TimeSeriesData> {
-    return this.http.get<TimeSeriesData>(`${this.apiUrl}/login/activity?days=${days}`, { headers: this.getHeaders() });
+    return this.http.get<TimeSeriesData>(`${this.apiUrl}/login/activity?days=${days}`);
   }
 
   getActiveSessions(): Observable<ActiveSession[]> {
-    return this.http.get<ActiveSession[]>(`${this.apiUrl}/sessions/active`, { headers: this.getHeaders() });
+    return this.http.get<ActiveSession[]>(`${this.apiUrl}/sessions/active`);
   }
 
   getUserSessions(userId: string): Observable<ActiveSession[]> {
-    return this.http.get<ActiveSession[]>(`${this.apiUrl}/sessions/user/${userId}`, { headers: this.getHeaders() });
+    return this.http.get<ActiveSession[]>(`${this.apiUrl}/sessions/user/${userId}`);
   }
 
   getFailedLoginAttempts(top: number = 50): Observable<FailedLoginAttempt[]> {
-    return this.http.get<FailedLoginAttempt[]>(`${this.apiUrl}/security/failed-attempts?top=${top}`, { headers: this.getHeaders() });
+    return this.http.get<FailedLoginAttempt[]>(`${this.apiUrl}/security/failed-attempts?top=${top}`);
   }
 
   terminateSession(sessionId: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/sessions/${sessionId}`, { headers: this.getHeaders() });
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/sessions/${sessionId}`);
   }
 
   terminateUserSessions(userId: string): Observable<{ message: string; count: number }> {
-    return this.http.delete<{ message: string; count: number }>(`${this.apiUrl}/sessions/user/${userId}`, { headers: this.getHeaders() });
+    return this.http.delete<{ message: string; count: number }>(`${this.apiUrl}/sessions/user/${userId}`);
   }
 }
 

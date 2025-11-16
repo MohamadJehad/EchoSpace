@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Post, CreatePostRequest, UpdatePostRequest, ReportedPost } from '../interfaces';
@@ -12,17 +12,9 @@ export class PostsService {
 
   constructor(private http: HttpClient) {}
 
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('accessToken');
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
-  }
-
   // Get all posts
   getAllPosts(): Observable<Post[]> {
-    return this.http.get<Post[]>(this.apiUrl, { headers: this.getHeaders() });
+    return this.http.get<Post[]>(this.apiUrl);
   }
 
   // Get post by ID
@@ -42,17 +34,17 @@ export class PostsService {
 
   // Create new post
   createPost(request: CreatePostRequest): Observable<Post> {
-    return this.http.post<Post>(this.apiUrl, request, { headers: this.getHeaders() });
+    return this.http.post<Post>(this.apiUrl, request);
   }
 
   // Update post
   updatePost(id: string, request: UpdatePostRequest, userId: string): Observable<Post> {
-    return this.http.put<Post>(`${this.apiUrl}/${id}?userId=${userId}`, request, { headers: this.getHeaders() });
+    return this.http.put<Post>(`${this.apiUrl}/${id}?userId=${userId}`, request);
   }
 
   // Delete post
   deletePost(id: string, userId: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}?userId=${userId}`, { headers: this.getHeaders() });
+    return this.http.delete<void>(`${this.apiUrl}/${id}?userId=${userId}`);
   }
 
   // Check if post exists
@@ -65,29 +57,27 @@ export class PostsService {
 
   // Get posts from following users
   getPostsFromFollowing(): Observable<Post[]> {
-    return this.http.get<Post[]>(`${this.apiUrl}/following`, { headers: this.getHeaders() });
+    return this.http.get<Post[]>(`${this.apiUrl}/following`);
   }
 
   // Report a post
   reportPost(postId: string, reason?: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(
       `${this.apiUrl}/${postId}/report`,
-      { reason },
-      { headers: this.getHeaders() }
+      { reason }
     );
   }
 
   // Get reported posts (Operation/Admin only)
   getReportedPosts(): Observable<ReportedPost[]> {
-    return this.http.get<ReportedPost[]>(`${this.apiUrl}/reported`, { headers: this.getHeaders() });
+    return this.http.get<ReportedPost[]>(`${this.apiUrl}/reported`);
   }
 
   // Translate a post
   translatePost(postId: string, language: string = 'en'): Observable<{ postId: string; language: string; translated: string }> {
     return this.http.post<{ postId: string; language: string; translated: string }>(
       `${this.apiUrl}/translate`,
-      { postId, language },
-      { headers: this.getHeaders() }
+      { postId, language }
     );
   }
 
@@ -95,13 +85,12 @@ export class PostsService {
   summarizePost(postId: string): Observable<{ postId: string; summary: string }> {
     return this.http.post<{ postId: string; summary: string }>(
       `${this.apiUrl}/summarize`,
-      { postId },
-      { headers: this.getHeaders() }
+      { postId }
     );
   }
 
   // Get posts by tag ID
   getPostsByTag(tagId: string): Observable<Post[]> {
-    return this.http.get<Post[]>(`${this.apiUrl}/tag/${tagId}`, { headers: this.getHeaders() });
+    return this.http.get<Post[]>(`${this.apiUrl}/tag/${tagId}`);
   }
 }

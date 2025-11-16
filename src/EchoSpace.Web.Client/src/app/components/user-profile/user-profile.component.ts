@@ -216,7 +216,7 @@ export class UserProfileComponent implements OnInit {
     const url = `${environment.apiUrl}/images/${imageId}/url`;
     fetch(url, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
       }
     })
       .then(response => response.json())
