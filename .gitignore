@@ -370,6 +370,14 @@ src/EchoSpace.UI/appsettings.Development.json
 src/EchoSpace.UI/appsettings.Production.json
 
 # Terraform
-Terraform/
+terraform/terraform.tfvars
+terraform/backend.tf
+terraform/backend.hcl
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/*.tfvars
+!terraform/*.tfvars.example
 src/EchoSpace.Web.Client/ssl/cert.pem
 src/EchoSpace.Web.Client/ssl/key.pem

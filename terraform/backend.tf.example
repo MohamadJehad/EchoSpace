@@ -1,0 +1,31 @@
+# Terraform Backend Configuration Example
+# This file configures remote state storage in Azure Storage Account
+# 
+# SETUP INSTRUCTIONS (when you have a new Azure subscription):
+# 1. Create a Storage Account in Azure (or use existing)
+# 2. Create a container named "tfstate" (or your preferred name)
+# 3. Copy this file to backend.tf
+# 4. Update the values below with your Storage Account details
+# 5. Initialize backend: terraform init -backend-config=backend.hcl
+#
+# NOTE: backend.tf is in .gitignore - each developer should have their own backend.hcl
+
+terraform {
+  backend "azurerm" {
+    # These values can be provided via backend.hcl or environment variables
+    # resource_group_name  = "echospace-resources"
+    # storage_account_name = "echospacetfstate"  # Must be globally unique
+    # container_name       = "tfstate"
+    # key                  = "terraform.tfstate"
+  }
+}
+
+# Alternative: Use backend.hcl file (recommended - not committed to git)
+# Create backend.hcl with:
+# resource_group_name  = "echospace-resources"
+# storage_account_name = "echospacetfstate"
+# container_name       = "tfstate"
+# key                  = "terraform.tfstate"
+#
+# Then initialize with: terraform init -backend-config=backend.hcl
+

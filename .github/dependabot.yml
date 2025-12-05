@@ -1,0 +1,100 @@
+# Dependabot Configuration
+# Automatically checks for dependency updates and creates PRs
+
+version: 2
+updates:
+  # .NET NuGet packages
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "echospace-team"
+    labels:
+      - "dependencies"
+      - "dotnet"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # Ignore major version updates for now (review manually)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      dotnet-packages:
+        patterns:
+          - "Microsoft.*"
+          - "Azure.*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Node.js npm packages
+  - package-ecosystem: "npm"
+    directory: "/src/EchoSpace.Web.Client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "echospace-team"
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "angular"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # Ignore major version updates for Angular (review manually)
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      angular-packages:
+        patterns:
+          - "@angular/*"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "@angular-devkit/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci-cd"
+    commit-message:
+      prefix: "ci"
+
+  # Terraform providers
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "terraform"
+      - "infrastructure"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+

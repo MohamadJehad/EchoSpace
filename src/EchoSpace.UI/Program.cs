@@ -79,7 +79,8 @@ builder.Services.AddCors(options =>
         {
            policy.WithOrigins(
                     "http://localhost:4200",
-                    "https://localhost:4200" // if using HTTPS for Angular dev server
+                    "https://localhost:4200", // if using HTTPS for Angular dev server
+                    "https://echospace-angular-app-dev.azurewebsites.net" // Production frontend
                 )
                   .AllowAnyMethod()
                   .AllowAnyHeader()
