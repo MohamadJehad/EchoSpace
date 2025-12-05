@@ -97,7 +97,8 @@ resource "azurerm_linux_web_app" "angular" {
     }
 
     # Startup command for serving static Angular files
-    app_command_line = "npm start"
+    # Angular 19+ builds to browser/ subdirectory
+    app_command_line = "cd browser && npm start"
   }
 
   app_settings = {
