@@ -18,10 +18,10 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
-  
+
   # Use subscription_id from variable if provided, otherwise use Azure CLI default
   subscription_id = var.subscription_id != "" ? var.subscription_id : null
-  
+
   # Skip automatic provider registration to avoid timeouts
   skip_provider_registration = false
 }
@@ -87,18 +87,18 @@ resource "azurerm_linux_web_app" "angular" {
   }
 
   site_config {
-    always_on = var.app_service_plan_sku != "F1" ? true : false  # Free tier doesn't support always_on
-    
+    always_on = var.app_service_plan_sku != "F1" ? true : false # Free tier doesn't support always_on
+
     # Security: TLS version
     minimum_tls_version = var.minimum_tls_version
-    
+
     application_stack {
       node_version = "20-lts"
     }
   }
 
   app_settings = {
-    "WEBSITE_NODE_DEFAULT_VERSION" = "~20"
+    "WEBSITE_NODE_DEFAULT_VERSION"   = "~20"
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
     "ASPNETCORE_ENVIRONMENT"         = var.environment
   }
@@ -126,13 +126,13 @@ resource "azurerm_linux_web_app" "backend" {
   }
 
   site_config {
-    always_on = var.app_service_plan_sku != "F1" ? true : false  # Free tier doesn't support always_on
-    
+    always_on = var.app_service_plan_sku != "F1" ? true : false # Free tier doesn't support always_on
+
     # Security: TLS version
     minimum_tls_version = var.minimum_tls_version
-    
+
     application_stack {
-      dotnet_version = "8.0"  # Azure App Service supports up to 8.0
+      dotnet_version = "8.0" # Azure App Service supports up to 8.0
     }
   }
 
@@ -158,7 +158,7 @@ resource "azurerm_mssql_server" "main" {
   location                     = var.location
   version                      = "12.0"
   administrator_login          = var.sql_admin_login
-  administrator_login_password  = var.sql_admin_password
+  administrator_login_password = var.sql_admin_password
   minimum_tls_version          = "1.2"
 
   tags = merge(var.common_tags, {
@@ -174,8 +174,8 @@ resource "azurerm_mssql_database" "main" {
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
   license_type   = "LicenseIncluded"
-  max_size_gb    = 2  # Basic tier: 2GB max
-  sku_name       = "Basic"  # Cheapest tier
+  max_size_gb    = 2       # Basic tier: 2GB max
+  sku_name       = "Basic" # Cheapest tier
   zone_redundant = false
 
   tags = merge(var.common_tags, {
@@ -199,9 +199,9 @@ resource "azurerm_storage_account" "main" {
   resource_group_name      = local.resource_group_name
   location                 = var.location
   account_tier             = "Standard"
-  account_replication_type = "LRS"  # Locally redundant - cheapest option
+  account_replication_type = "LRS" # Locally redundant - cheapest option
   min_tls_version          = "TLS1_2"
-  
+
   # Storage account name must be 3-24 chars, lowercase, alphanumeric only
   # This ensures it's valid
 
@@ -245,7 +245,7 @@ resource "azurerm_key_vault" "main" {
 
   # Soft delete and purge protection for security
   soft_delete_retention_days = 7
-  purge_protection_enabled   = false  # Set to true for production
+  purge_protection_enabled   = false # Set to true for production
 
   # Network ACLs - restrict access
   network_acls {

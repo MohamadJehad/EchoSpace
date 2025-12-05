@@ -6,7 +6,7 @@ variable "subscription_id" {
   type        = string
   # Set this in terraform.tfvars or via environment variable
   # For now, can use placeholder - will use Azure CLI default if not set
-  default     = ""
+  default = ""
 }
 
 variable "resource_group_name" {
@@ -75,7 +75,7 @@ variable "enable_managed_identity" {
 variable "enable_key_vault" {
   description = "Enable Key Vault creation"
   type        = bool
-  default     = false  # Set to true when subscription is available
+  default     = false # Set to true when subscription is available
 }
 
 variable "key_vault_name" {
@@ -88,7 +88,7 @@ variable "key_vault_name" {
 variable "enable_application_insights" {
   description = "Enable Application Insights"
   type        = bool
-  default     = false  # Set to true when subscription is available
+  default     = false # Set to true when subscription is available
 }
 
 variable "application_insights_name" {
@@ -121,7 +121,7 @@ variable "sql_admin_password" {
   description = "SQL Server administrator password (min 8 chars, must contain uppercase, lowercase, numbers, special chars)"
   type        = string
   sensitive   = true
-  default     = ""  # Must be set in terraform.tfvars
+  default     = "" # Must be set in terraform.tfvars
 }
 
 # Storage Account Configuration
