@@ -15,6 +15,7 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<AuthProvider> AuthProviders { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<AccountUnlockToken> AccountUnlockTokens { get; set; }
 
         // Content Tables
         public DbSet<Post> Posts { get; set; }
@@ -22,6 +23,10 @@ namespace EchoSpace.Infrastructure.Data
         public DbSet<Like> Likes { get; set; }
         public DbSet<Follow> Follows { get; set; }
         public DbSet<Image> Images { get; set; }
+        public DbSet<Tag> Tags { get; set; }
+        public DbSet<PostTag> PostTags { get; set; }
+        public DbSet<PostReport> PostReports { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -70,6 +75,19 @@ namespace EchoSpace.Infrastructure.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // Configure AccountUnlockToken
+            modelBuilder.Entity<AccountUnlockToken>(entity =>
+            {
+                entity.HasIndex(t => t.Token).IsUnique();
+                entity.HasIndex(t => t.UserId);
+                entity.HasIndex(t => t.ExpiresAt);
+                
+                entity.HasOne(t => t.User)
+                    .WithMany()
+                    .HasForeignKey(t => t.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // Configure Post
             modelBuilder.Entity<Post>(entity =>
             {
@@ -77,6 +95,31 @@ namespace EchoSpace.Infrastructure.Data
                     .WithMany(u => u.Posts)
                     .HasForeignKey(p => p.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure Tag
+            modelBuilder.Entity<Tag>(entity =>
+            {
+                entity.HasIndex(t => t.Name).IsUnique();
+            });
+
+            // Configure PostTag (many-to-many junction table)
+            modelBuilder.Entity<PostTag>(entity =>
+            {
+                entity.HasKey(pt => pt.PostTagId);
+
+                entity.HasOne(pt => pt.Post)
+                    .WithMany(p => p.PostTags)
+                    .HasForeignKey(pt => pt.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(pt => pt.Tag)
+                    .WithMany(t => t.PostTags)
+                    .HasForeignKey(pt => pt.TagId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Prevent duplicate post-tag combinations
+                entity.HasIndex(pt => new { pt.PostId, pt.TagId }).IsUnique();
             });
 
             // Configure Comment
@@ -110,6 +153,23 @@ namespace EchoSpace.Infrastructure.Data
                 entity.HasIndex(l => new { l.PostId, l.UserId }).IsUnique();
             });
 
+            // Configure PostReport
+            modelBuilder.Entity<PostReport>(entity =>
+            {
+                entity.HasOne(r => r.Post)
+                    .WithMany(p => p.Reports)
+                    .HasForeignKey(r => r.PostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Prevent duplicate reports from same user for same post
+                entity.HasIndex(r => new { r.PostId, r.UserId }).IsUnique();
+            });
+
             // Configure Follow
             modelBuilder.Entity<Follow>(entity =>
             {
@@ -128,7 +188,24 @@ namespace EchoSpace.Infrastructure.Data
                 // Prevent self-follow
                 entity.ToTable(t => t.HasCheckConstraint("CK_Follow_NotSelf", "[FollowerId] != [FollowedId]"));
             });
+            //AuditLog
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasIndex(a => a.UserId);
+                entity.HasIndex(a => a.TimestampUtc);
+                entity.ToTable("AuditLog");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.TimestampUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UserIpAddress).HasMaxLength(45);
+                entity.Property(x => x.ActionType).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.ResourceId).HasMaxLength(100);
+                entity.Property(x => x.CorrelationId).HasMaxLength(100);
+                entity.Property(x => x.ActionDetails).HasColumnType("nvarchar(max)");
+                entity.HasIndex(x => x.TimestampUtc);
+                entity.HasIndex(x => new { x.UserId, x.TimestampUtc });
+                entity.HasIndex(x => new { x.ActionType, x.TimestampUtc });
 
+            });
             // Configure Image
             modelBuilder.Entity<Image>(entity =>
             {

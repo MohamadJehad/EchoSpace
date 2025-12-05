@@ -1,0 +1,93 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run: pre-commit run --all-files
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: detect-aws-credentials
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+
+  # Terraform formatting and validation
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.83.0
+    hooks:
+      - id: terraform_fmt
+        args: ['-recursive']
+      - id: terraform_validate
+        args: ['-recursive']
+      - id: terraform_tflint
+        args: ['-args=--only=terraform_deprecated_interpolation']
+      - id: terraform_docs
+        args: ['--hook-config=--path-to-file=README.md']
+
+  # Secrets scanning (Gitleaks)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+        args: ['--verbose', '--no-banner']
+
+  # .NET formatting
+  - repo: https://github.com/dotnet/format
+    rev: v5.1.250801
+    hooks:
+      - id: dotnet-format
+        args: ['--include', 'src/**/*.cs']
+
+  # TypeScript/JavaScript linting
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.0.0
+    hooks:
+      - id: eslint
+        files: \.(ts|js)$
+        types: [file]
+        additional_dependencies:
+          - eslint@9.0.0
+          - '@typescript-eslint/eslint-plugin@7.0.0'
+          - '@typescript-eslint/parser@7.0.0'
+          - eslint-plugin-security@3.0.0
+        args: ['--fix', '--max-warnings=0']
+        exclude: 'node_modules|dist|\.angular'
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.33.0
+    hooks:
+      - id: yamllint
+        args: ['-d', '{extends: default, rules: {line-length: {max: 120}}}']
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+
+  # Checkov for Terraform security
+  - repo: https://github.com/bridgecrewio/checkov
+    rev: 3.1.0
+    hooks:
+      - id: checkov
+        args: ['--framework', 'terraform', '--soft-fail']
+        files: \.tf$
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+

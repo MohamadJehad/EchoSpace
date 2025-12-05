@@ -49,6 +49,30 @@ namespace EchoSpace.UI.Authorization.Handlers
             // Build ABAC context from current request
             var abacContext = await BuildAbacContext(context, requirement, httpContext);
 
+            // Special handling for OperationOrAdminOrOwner policies (OR logic)
+            if (requirement.Policy.PolicyName.Contains("OperationOrAdminOrOwner"))
+            {
+                // Check if user is Operation/Admin/Moderator OR owner
+                bool isOperationOrAdminOrModerator = abacContext.Subject.Role == "Operation" || 
+                                                     abacContext.Subject.Role == "Admin" || 
+                                                     abacContext.Subject.Role == "Moderator";
+                bool isOwner = abacContext.Resource.OwnerId.HasValue && 
+                               abacContext.Subject.UserId == abacContext.Resource.OwnerId.Value;
+
+                if (isOperationOrAdminOrModerator || isOwner)
+                {
+                    context.Succeed(requirement);
+                    _logger.LogInformation(
+                        "ABAC policy '{PolicyName}' evaluated successfully (Operation/Admin/Moderator={IsOperationOrAdmin}, Owner={IsOwner}) for user {UserId} on {ResourceType}",
+                        requirement.Policy.PolicyName,
+                        isOperationOrAdminOrModerator,
+                        isOwner,
+                        abacContext.Subject.UserId,
+                        requirement.ResourceType);
+                    return;
+                }
+            }
+
             // Special handling for AdminOrOwner policies (OR logic)
             if (requirement.Policy.PolicyName.Contains("AdminOrOwner"))
             {

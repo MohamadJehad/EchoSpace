@@ -1,0 +1,14 @@
+# OWASP ZAP Rules Configuration
+# Format: Rule ID, New Level, URL (optional)
+# Levels: IGNORE, PASS, INFO, LOW, MEDIUM, HIGH, CRITICAL
+
+# Example: Ignore specific rules
+# 10021	IGNORE
+# 10054	IGNORE
+
+# Example: Lower severity for specific rules
+# 10015	LOW
+
+# Note: Add rule IDs here to customize ZAP scan behavior
+# Get rule IDs from ZAP scan results
+

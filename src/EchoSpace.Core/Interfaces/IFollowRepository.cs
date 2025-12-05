@@ -12,6 +12,7 @@ namespace EchoSpace.Core.Interfaces
         Task<IEnumerable<Follow>> GetFollowingAsync(Guid userId);
         Task<int> GetFollowerCountAsync(Guid userId);
         Task<int> GetFollowingCountAsync(Guid userId);
+        Task<Dictionary<Guid, bool>> GetFollowStatusesAsync(Guid followerId, IEnumerable<Guid> followedIds);
     }
 }
 

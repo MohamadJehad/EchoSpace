@@ -50,6 +50,7 @@
   }
 
   <!-- Add Comment Form -->
+  @if (allowCreate) {
   <div class="mt-4 pt-4 border-t border-gray-200">
     <div class="flex items-start space-x-3">
       <div class="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 overflow-hidden">
@@ -83,6 +84,7 @@
       </div>
     </div>
   </div>
+  }
 </div>
 
 <!-- Delete Confirmation Modal -->

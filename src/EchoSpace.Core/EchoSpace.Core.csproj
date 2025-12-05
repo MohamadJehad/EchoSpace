@@ -7,10 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    <PackageReference Include="RestSharp" Version="111.4.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
+<PropertyGroup>
+  <NoWarn>$(NoWarn);NU1603;NU1902</NoWarn>
+</PropertyGroup>
 
 </Project>

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap, catchError } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { CookieService } from './cookie.service';
 
 export interface LoginRequest {
   email: string;
@@ -56,12 +57,20 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<any>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
-    // Load user from localStorage on init
-    const token = localStorage.getItem('accessToken');
-    const user = localStorage.getItem('user');
+  constructor(
+    private http: HttpClient,
+    private cookieService: CookieService
+  ) {
+    // Load user from cookies on init
+    const token = this.cookieService.get('accessToken');
+    const user = this.cookieService.get('user');
     if (token && user) {
-      this.currentUserSubject.next(JSON.parse(user));
+      try {
+        this.currentUserSubject.next(JSON.parse(user));
+      } catch (e) {
+        // Invalid JSON, clear it
+        this.clearSession();
+      }
     }
   }
 
@@ -83,7 +92,7 @@ export class AuthService {
   }
 
   logout(): void {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = this.cookieService.get('refreshToken');
     if (refreshToken) {
       this.http.post(`${this.apiUrl}/logout`, { refreshToken }).subscribe();
     }
@@ -91,33 +100,41 @@ export class AuthService {
   }
 
   refreshToken(): Observable<AuthResponse> {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = this.cookieService.get('refreshToken');
     return this.http
       .post<AuthResponse>(`${this.apiUrl}/refresh`, { refreshToken })
       .pipe(tap((response) => this.setSession(response)));
   }
 
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('accessToken');
+    const token = this.cookieService.get('accessToken');
     return !!token && !this.isTokenExpired();
   }
 
   private setSession(authResult: AuthResponse): void {
-    localStorage.setItem('accessToken', authResult.accessToken);
-    localStorage.setItem('refreshToken', authResult.refreshToken);
-    localStorage.setItem('user', JSON.stringify(authResult.user));
+    // Store in cookies instead of localStorage
+    // Access token: 15 minutes (0.01 days ≈ 15 minutes)
+    this.cookieService.set('accessToken', authResult.accessToken, 0.01);
+    
+    // Refresh token: 7 days
+    this.cookieService.set('refreshToken', authResult.refreshToken, 7);
+    
+    // User data: 7 days (same as refresh token)
+    this.cookieService.set('user', JSON.stringify(authResult.user), 7);
+    
     this.currentUserSubject.next(authResult.user);
   }
 
   private clearSession(): void {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    // Delete cookies instead of localStorage
+    this.cookieService.delete('accessToken');
+    this.cookieService.delete('refreshToken');
+    this.cookieService.delete('user');
     this.currentUserSubject.next(null);
   }
 
   private isTokenExpired(): boolean {
-    const token = localStorage.getItem('accessToken');
+    const token = this.cookieService.get('accessToken');
     if (!token) return true;
 
     try {
@@ -129,7 +146,20 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('accessToken');
+    return this.cookieService.get('accessToken');
+  }
+
+  // Get current user synchronously from cookies
+  getCurrentUser(): any | null {
+    const userStr = this.cookieService.get('user');
+    if (userStr) {
+      try {
+        return JSON.parse(userStr);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 
   // Public method to set session from OAuth callback

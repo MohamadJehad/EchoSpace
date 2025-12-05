@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Comment, CreateCommentRequest, UpdateCommentRequest } from '../interfaces/comment.interface';
@@ -12,52 +12,44 @@ export class CommentsService {
 
   constructor(private http: HttpClient) {}
 
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('accessToken');
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
-  }
-
   // Get all comments
   getAllComments(): Observable<Comment[]> {
-    return this.http.get<Comment[]>(this.apiUrl, { headers: this.getHeaders() });
+    return this.http.get<Comment[]>(this.apiUrl);
   }
 
   // Get comment by ID
   getCommentById(commentId: string): Observable<Comment> {
-    return this.http.get<Comment>(`${this.apiUrl}/${commentId}`, { headers: this.getHeaders() });
+    return this.http.get<Comment>(`${this.apiUrl}/${commentId}`);
   }
 
   // Get comments by post ID
   getCommentsByPost(postId: string): Observable<Comment[]> {
-    return this.http.get<Comment[]>(`${this.apiUrl}/post/${postId}`, { headers: this.getHeaders() });
+    return this.http.get<Comment[]>(`${this.apiUrl}/post/${postId}`);
   }
 
   // Get comments by user ID
   getCommentsByUser(userId: string): Observable<Comment[]> {
-    return this.http.get<Comment[]>(`${this.apiUrl}/user/${userId}`, { headers: this.getHeaders() });
+    return this.http.get<Comment[]>(`${this.apiUrl}/user/${userId}`);
   }
 
   // Get comment count for a post
   getCommentCountByPost(postId: string): Observable<number> {
-    return this.http.get<number>(`${this.apiUrl}/post/${postId}/count`, { headers: this.getHeaders() });
+    return this.http.get<number>(`${this.apiUrl}/post/${postId}/count`);
   }
 
   // Create a new comment
   createComment(request: CreateCommentRequest): Observable<Comment> {
-    return this.http.post<Comment>(this.apiUrl, request, { headers: this.getHeaders() });
+    return this.http.post<Comment>(this.apiUrl, request);
   }
 
   // Update a comment
   updateComment(commentId: string, request: UpdateCommentRequest): Observable<Comment> {
-    return this.http.put<Comment>(`${this.apiUrl}/${commentId}`, request, { headers: this.getHeaders() });
+    return this.http.put<Comment>(`${this.apiUrl}/${commentId}`, request);
   }
 
   // Delete a comment
   deleteComment(commentId: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${commentId}`, { headers: this.getHeaders() });
+    return this.http.delete<void>(`${this.apiUrl}/${commentId}`);
   }
 }
 

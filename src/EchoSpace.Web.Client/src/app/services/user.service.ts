@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -10,6 +10,10 @@ export interface User {
   createdAt: string;
   updatedAt?: string;
   profilePhotoId?: string | null;
+  lockoutEnabled?: boolean;
+  lockoutEnd?: string | null;
+  accessFailedCount?: number;
+  role?: number | string; // Can be number (enum) or string
 }
 
 export interface CreateUserRequest {
@@ -20,6 +24,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   email?: string;
+  role?: number; // UserRole enum value (0=User, 1=Admin, 2=Moderator, 3=Operation)
 }
 
 @Injectable({
@@ -29,13 +34,6 @@ export class UserService {
   private apiUrl = `${environment.apiUrl}/users`;
 
   constructor(private http: HttpClient) { }
-
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('accessToken');
-    return new HttpHeaders({
-      'Authorization': `Bearer ${token}`
-    });
-  }
 
   getAllUsers(): Observable<User[]> {
     return this.http.get<User[]>(this.apiUrl);
@@ -62,17 +60,24 @@ export class UserService {
     formData.append('file', file);
     return this.http.post<{ message: string; imageId: string; imageUrl: string }>(
       `${this.apiUrl}/me/profile-photo`, 
-      formData,
-      { headers: this.getHeaders() }
+      formData
     );
   }
 
   removeProfilePhoto(): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/me/profile-photo`, { headers: this.getHeaders() });
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/me/profile-photo`);
   }
 
   getCurrentUser(): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/me`, { headers: this.getHeaders() });
+    return this.http.get<User>(`${this.apiUrl}/me`);
+  }
+
+  lockUser(id: string): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/${id}/lock`, {});
+  }
+
+  unlockUser(id: string): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/${id}/unlock`, {});
   }
 }
 

@@ -2,6 +2,7 @@ using EchoSpace.Core.Entities;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1;
 
 namespace EchoSpace.Infrastructure.Repositories
 {
@@ -19,6 +20,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .OrderByDescending(p => p.CreatedAt)
@@ -30,6 +33,8 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .FirstOrDefaultAsync(p => p.PostId == id);
@@ -40,18 +45,22 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .Where(p => p.UserId == userId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
         }
-
+        
         public async Task<IEnumerable<Post>> GetRecentAsync(int count = 10)
         {
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .OrderByDescending(p => p.CreatedAt)
@@ -111,9 +120,25 @@ namespace EchoSpace.Infrastructure.Repositories
             return await _dbContext.Posts
                 .AsNoTracking()
                 .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
                 .Include(p => p.Comments)
                 .Include(p => p.Likes)
                 .Where(p => followedUserIds.Contains(p.UserId))
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Post>> GetByTagIdAsync(Guid tagId)
+        {
+            return await _dbContext.Posts
+                .AsNoTracking()
+                .Include(p => p.User)
+                .Include(p => p.PostTags)
+                    .ThenInclude(pt => pt.Tag)
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Where(p => p.PostTags.Any(pt => pt.TagId == tagId))
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
         }

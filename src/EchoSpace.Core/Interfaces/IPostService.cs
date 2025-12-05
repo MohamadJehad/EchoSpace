@@ -1,5 +1,6 @@
 using EchoSpace.Core.Entities;
 using EchoSpace.Core.DTOs.Posts;
+using EchoSpace.Core.DTOs.Auth;
 
 namespace EchoSpace.Core.Interfaces
 {
@@ -7,6 +8,9 @@ namespace EchoSpace.Core.Interfaces
     {
         Task<IEnumerable<PostDto>> GetAllAsync();
         Task<IEnumerable<PostDto>> GetAllAsync(Guid? currentUserId);
+
+        // Task<UserDto> GetOwner(Guid);
+
         Task<PostDto?> GetByIdAsync(Guid id);
         Task<PostDto?> GetByIdAsync(Guid id, Guid? currentUserId);
         Task<IEnumerable<PostDto>> GetByUserIdAsync(Guid userId);
@@ -19,5 +23,7 @@ namespace EchoSpace.Core.Interfaces
         Task<bool> ExistsAsync(Guid id);
         Task<bool> IsOwnerAsync(Guid postId, Guid userId);
         Task<IEnumerable<PostDto>> GetPostsFromFollowingAsync(Guid userId);
+        Task<IEnumerable<PostDto>> GetByTagIdAsync(Guid tagId);
+        Task<IEnumerable<PostDto>> GetByTagIdAsync(Guid tagId, Guid? currentUserId);
     }
 }

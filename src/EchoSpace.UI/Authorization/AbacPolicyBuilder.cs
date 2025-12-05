@@ -89,6 +89,64 @@ namespace EchoSpace.UI.Authorization
         }
 
         /// <summary>
+        /// Create ABAC policy: User must have Operation role
+        /// </summary>
+        public static AbacPolicy CreateOperationRolePolicy()
+        {
+            return new AbacPolicy
+            {
+                PolicyName = "OperationRole",
+                Description = "User must have Operation role",
+                Rules = new List<AbacPolicyRule>
+                {
+                    new AbacPolicyRule
+                    {
+                        AttributeCategory = "Subject",
+                        AttributeName = "IsAuthenticated",
+                        Operator = "Equals",
+                        ExpectedValue = true
+                    },
+                    new AbacPolicyRule
+                    {
+                        AttributeCategory = "Subject",
+                        AttributeName = "Role",
+                        Operator = "Equals",
+                        ExpectedValue = "Operation"
+                    }
+                }
+            };
+        }
+
+        /// <summary>
+        /// Create ABAC policy: User must have Operation or Admin role
+        /// </summary>
+        public static AbacPolicy CreateOperationOrAdminRolePolicy()
+        {
+            return new AbacPolicy
+            {
+                PolicyName = "OperationOrAdminRole",
+                Description = "User must have Operation or Admin role",
+                Rules = new List<AbacPolicyRule>
+                {
+                    new AbacPolicyRule
+                    {
+                        AttributeCategory = "Subject",
+                        AttributeName = "IsAuthenticated",
+                        Operator = "Equals",
+                        ExpectedValue = true
+                    },
+                    new AbacPolicyRule
+                    {
+                        AttributeCategory = "Subject",
+                        AttributeName = "Role",
+                        Operator = "In",
+                        ExpectedValue = new[] { "Operation", "Admin" }
+                    }
+                }
+            };
+        }
+
+        /// <summary>
         /// Create ABAC policy: User must own the resource
         /// </summary>
         public static AbacPolicy CreateOwnerPolicy(string resourceType)
@@ -137,6 +195,32 @@ namespace EchoSpace.UI.Authorization
                         AttributeName = "Role",
                         Operator = "In",
                         ExpectedValue = new[] { "Admin", "Moderator" }
+                    }
+                    // Rule 2: Owner check is handled separately in the handler
+                }
+            };
+        }
+
+        /// <summary>
+        /// Create ABAC policy: User must be Operation/Admin/Moderator OR own the resource
+        /// This requires custom evaluation in the handler
+        /// </summary>
+        public static AbacPolicy CreateOperationOrAdminOrOwnerPolicy(string resourceType)
+        {
+            return new AbacPolicy
+            {
+                PolicyName = $"OperationOrAdminOrOwnerOf{resourceType}",
+                Description = $"User must be Operation/Admin/Moderator OR own the {resourceType} resource",
+                Rules = new List<AbacPolicyRule>
+                {
+                    // This policy is evaluated with OR logic in the handler
+                    // Rule 1: Operation/Admin/Moderator role
+                    new AbacPolicyRule
+                    {
+                        AttributeCategory = "Subject",
+                        AttributeName = "Role",
+                        Operator = "In",
+                        ExpectedValue = new[] { "Operation", "Admin", "Moderator" }
                     }
                     // Rule 2: Owner check is handled separately in the handler
                 }

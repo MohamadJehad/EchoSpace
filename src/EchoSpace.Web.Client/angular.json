@@ -63,9 +63,18 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+              "ssl": true,
+              "sslKey": "ssl/key.pem",
+              "sslCert": "ssl/cert.pem",
+              "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
-              "buildTarget": "EchoSpace.Web.Client:build:production"
+              "buildTarget": "EchoSpace.Web.Client:build:production",
+              "ssl": true,
+              "sslKey": "ssl/key.pem",
+              "sslCert": "ssl/cert.pem"
             },
             "development": {
               "buildTarget": "EchoSpace.Web.Client:build:development"

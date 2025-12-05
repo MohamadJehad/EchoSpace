@@ -4,7 +4,12 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16 gap-4">
         <div class="flex items-center space-x-3 flex-shrink-0">
-          <img src="images/echospace-logo.svg" alt="EchoSpace" class="h-10" />
+          <a 
+            [routerLink]="['/home']" 
+            class="cursor-pointer hover:opacity-80 transition-opacity"
+            title="Go to Home">
+            <img src="images/echospace-logo.svg" alt="EchoSpace" class="h-10" />
+          </a>
         </div>
         
         <!-- Search Bar (Hidden on small screens) -->
@@ -59,15 +64,6 @@
         <!-- Create Post Card -->
         <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <form (ngSubmit)="createPost()">
-            <!-- Hidden file input -->
-            <input 
-              type="file" 
-              id="photo-upload" 
-              accept="image/*" 
-              (change)="onFileSelected($event)"
-              class="hidden"
-            />
-            
             <div class="flex items-center space-x-4">
               <textarea 
                 [(ngModel)]="newPost.content"
@@ -80,48 +76,77 @@
               ></textarea>
             </div>
             
-            <!-- Image Preview -->
-            <div class="mt-4" *ngIf="imagePreview">
-              <div class="relative">
-                <img [src]="imagePreview" alt="Preview" class="w-full max-h-64 object-cover rounded-lg">
-                <button 
-                  type="button"
-                  (click)="removeSelectedImage()"
-                  class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-                    
-            <!-- Character count -->
-            <div class="mt-2 text-right">
+            <!-- Character count and Tag selector toggle -->
+            <div class="mt-2 flex items-center justify-between">
+              <button
+                type="button"
+                (click)="showTagSelector = !showTagSelector"
+                class="flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <span>{{ showTagSelector ? 'Hide tags' : 'Select tags' }}</span>
+                @if (newPost.tagIds.length > 0) {
+                  <span class="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-xs font-medium">
+                    {{ newPost.tagIds.length }}
+                  </span>
+                }
+              </button>
               <span class="text-xs text-gray-500" [class.text-red-500]="newPost.content.length > 4500">
                 {{ newPost.content.length }}/5000
               </span>
             </div>
             
+            <!-- Tag Selection (Collapsible) -->
+            @if (showTagSelector) {
+              <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all">
+                <label class="block text-sm font-medium text-gray-700 mb-3">Select tags (optional)</label>
+                <div class="flex flex-wrap gap-2">
+                  @if (isLoadingTags) {
+                    <div class="text-sm text-gray-500">Loading tags...</div>
+                  } @else {
+                    @for (tag of tags; track tag.tagId) {
+                      <button
+                        type="button"
+                        (click)="toggleTagSelection(tag.tagId)"
+                        [style.background-color]="isTagSelected(tag.tagId) ? (tag.color || '#3B82F6') + '20' : ''"
+                        [style.color]="isTagSelected(tag.tagId) ? (tag.color || '#3B82F6') : '#4B5563'"
+                        [style.border-color]="isTagSelected(tag.tagId) ? (tag.color || '#3B82F6') : '#E5E7EB'"
+                        class="px-3 py-1.5 rounded-full text-sm font-medium border transition hover:shadow-md flex items-center gap-1.5"
+                      >
+                        @if (isTagSelected(tag.tagId)) {
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                          </svg>
+                        }
+                        {{ tag.name }}
+                      </button>
+                    }
+                  }
+                </div>
+                @if (newPost.tagIds.length > 0) {
+                  <p class="text-xs text-gray-500 mt-3">{{ newPost.tagIds.length }} tag(s) selected</p>
+                }
+              </div>
+            }
+            
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-1 border-t border-gray-100 gap-3">
-              <div class="flex flex-wrap gap-2">
-                <button 
-                  type="button" 
-                  (click)="onPhotoClick()"
-                  [disabled]="isCreatingPost"
-                  class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-gray-600 disabled:opacity-50 text-sm"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="flex flex-wrap gap-2 items-center">
+                <!-- Generate AI Image Checkbox -->
+                <label class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition cursor-pointer text-sm">
+                  <input 
+                    type="checkbox" 
+                    [(ngModel)]="newPost.generateImage"
+                    name="generateImage"
+                    [disabled]="isCreatingPost"
+                    class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
+                  />
+                  <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span class="hidden sm:inline text-sm font-medium">{{ imagePreview ? 'Change Photo' : 'Photo' }}</span>
-                </button>
-                <button type="button" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-gray-600 text-sm">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="hidden sm:inline text-sm font-medium">Feeling</span>
-                </button>
+                  <span class="text-gray-700 font-medium">Generate AI Image</span>
+                </label>
                 <button 
                   type="button" 
                   (click)="clearForm()"
@@ -192,15 +217,17 @@
             <div class="p-6">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                  <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden">
-                    @if (post.author.profilePhotoUrl) {
-                      <img [src]="post.author.profilePhotoUrl" [alt]="post.author.name" class="w-full h-full object-cover">
+                  <a [routerLink]="['/profile', post.userId]" class="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center text-white font-semibold overflow-hidden cursor-pointer hover:opacity-80 transition">
+                    @if (post.author?.profilePhotoUrl) {
+                      <img [src]="post.author?.profilePhotoUrl" [alt]="post.author?.name || post.authorName || 'User'" class="w-full h-full object-cover">
                     } @else {
-                      {{ post.author.initials }}
+                      {{ post.author?.initials || post.authorName?.charAt(0) || 'U' }}
                     }
-                  </div>
+                  </a>
                   <div>
-                    <h3 class="font-semibold text-gray-900">{{ post.author.name }}</h3>
+                    <a [routerLink]="['/profile', post.userId]" class="block cursor-pointer hover:text-primary-600 transition">
+                      <h3 class="font-semibold text-gray-900">{{ post.author?.name || post.authorName || 'Unknown User' }}</h3>
+                    </a>
                     <p class="text-sm text-gray-600">{{ post.timeAgo }}</p>
                   </div>
                 </div>
@@ -215,6 +242,22 @@
                 </app-post-dropdown>
               </div>
 
+              <!-- Post Tags -->
+              @if (post.tags && post.tags.length > 0) {
+                <div class="mt-2 mb-3 flex flex-wrap gap-2">
+                  @for (tag of post.tags; track tag.tagId) {
+                    <span
+                      [style.background-color]="(tag.color || '#6B7280') + '20'"
+                      [style.color]="tag.color || '#6B7280'"
+                      [style.border-color]="tag.color || '#6B7280'"
+                      class="inline-block px-3 py-1 rounded-full text-xs font-medium border"
+                    >
+                      {{ tag.name }}
+                    </span>
+                  }
+                </div>
+              }
+              
               <!-- Post Content -->
               <div class="mt-4">
                 <!-- Edit Form (when editing) -->
@@ -264,7 +307,108 @@
                 </div>
                 
                 <!-- Regular Post Content (when not editing) -->
-                <p *ngIf="!editingPost || editingPost.postId !== post.postId" class="text-gray-800 leading-relaxed">{{ post.content }}</p>
+                <div *ngIf="!editingPost || editingPost.postId !== post.postId" class="space-y-2">
+                  <p class="text-gray-800 leading-relaxed">
+                    {{ post.isSummarized && post.summarizedContent ? post.summarizedContent : (post.isTranslated && post.translatedContent ? post.translatedContent : post.content) }}
+                  </p>
+                  
+                  <!-- Translation and Summarization buttons -->
+                  <div class="flex items-center gap-2 mt-2 relative language-selector-container" (click)="$event.stopPropagation()">
+                    <!-- Summarize button -->
+                    <button
+                      *ngIf="!post.isSummarized && !post.isTranslated"
+                      (click)="summarizePost(post.postId)"
+                      [disabled]="summarizingPosts[post.postId] || translatingPosts[post.postId]"
+                      class="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition px-2 py-1 rounded hover:bg-indigo-50"
+                      title="Summarize post"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>Summarize</span>
+                    </button>
+                    
+                    <!-- Show original button for summarized posts -->
+                    <button
+                      *ngIf="post.isSummarized && post.summarizedContent"
+                      (click)="summarizePost(post.postId)"
+                      class="text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1 transition px-2 py-1 rounded hover:bg-gray-50"
+                      title="Show original"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Show Original</span>
+                    </button>
+                    
+                    <!-- Summarization status -->
+                    <span *ngIf="summarizingPosts[post.postId]" class="text-xs text-gray-500 flex items-center gap-1">
+                      <span class="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600"></span>
+                      Summarizing...
+                    </span>
+                    
+                    <!-- Translate button with language selector -->
+                    <div *ngIf="!post.isTranslated && !post.isSummarized" class="relative">
+                      <button
+                        (click)="toggleLanguageSelector(post.postId, $event)"
+                        [disabled]="translatingPosts[post.postId]"
+                        class="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition px-2 py-1 rounded hover:bg-primary-50"
+                        title="Translate post"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                        </svg>
+                        <span>Translate</span>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      <!-- Language selector dropdown -->
+                      <div
+                        *ngIf="showLanguageSelector[post.postId]"
+                        class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-[150px] max-h-[300px] overflow-y-auto"
+                      >
+                        <div class="px-3 py-1 text-xs font-semibold text-gray-500 border-b border-gray-100">
+                          Select Language
+                        </div>
+                        <button
+                          *ngFor="let lang of availableLanguages"
+                          (click)="translatePost(post.postId, lang.code)"
+                          [disabled]="translatingPosts[post.postId]"
+                          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-primary-50 transition flex items-center justify-between disabled:opacity-50"
+                        >
+                          <span>{{ lang.name }}</span>
+                          <span class="text-xs text-gray-400">{{ lang.code.toUpperCase() }}</span>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Show original button -->
+                    <button
+                      *ngIf="post.isTranslated && post.translatedContent"
+                      (click)="translatePost(post.postId)"
+                      class="text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1 transition px-2 py-1 rounded hover:bg-gray-50"
+                      title="Show original"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Show Original</span>
+                    </button>
+                    
+                    <!-- Translation status -->
+                    <span *ngIf="translatingPosts[post.postId]" class="text-xs text-gray-500 flex items-center gap-1">
+                      <span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-600"></span>
+                      Translating...
+                    </span>
+                    
+                    <!-- Language indicator -->
+                    <span *ngIf="post.isTranslated && post.translationLanguage" class="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                      {{ getLanguageName(post.translationLanguage) }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -326,15 +470,27 @@
         <!-- Suggested Users Component -->
         <app-suggested-users></app-suggested-users>
 
-        <!-- Trending Topics -->
+        <!-- Trending Tags -->
         <div class="bg-white rounded-2xl shadow-lg p-6 mt-6 sticky top-24">
-          <h3 class="font-semibold text-gray-900 mb-4">Trending Topics</h3>
+          <h3 class="font-semibold text-gray-900 mb-4">Trending Tags</h3>
           <div class="space-y-3">
-            @for (topic of trendingTopics; track topic.tag) {
-              <div class="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition">
-                <p class="text-sm font-semibold text-primary-600">{{ topic.tag }}</p>
-                <p class="text-xs text-gray-600">{{ topic.posts }} posts</p>
-              </div>
+            @if (isLoadingTrendingTags) {
+              <div class="text-sm text-gray-500">Loading trending tags...</div>
+            } @else if (trendingTags.length === 0) {
+              <div class="text-sm text-gray-500">No trending tags yet</div>
+            } @else {
+              @for (tag of trendingTags; track tag.tagId) {
+                <div 
+                  class="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition"
+                  (click)="navigateToTag(tag.tagId)">
+                  <p 
+                    class="text-sm font-semibold"
+                    [style.color]="tag.color || '#3B82F6'">
+                    #{{ tag.name }}
+                  </p>
+                  <p class="text-xs text-gray-600">{{ formatPostCount(tag.postsCount) }} posts</p>
+                </div>
+              }
             }
           </div>
         </div>

@@ -363,9 +363,25 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Configuration files with secrets
+appsettings.json
+appsettings.*.json
 src/EchoSpace.UI/appsettings.json
 src/EchoSpace.UI/appsettings.Development.json
 src/EchoSpace.UI/appsettings.Production.json
 
 # Terraform
-Terraform/
+terraform/terraform.tfvars
+terraform/backend.tf
+terraform/backend.hcl
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/*.tfvars
+!terraform/*.tfvars.example
+# SSL Certificates and Keys (local development only)
+src/EchoSpace.Web.Client/ssl/*.pem
+src/EchoSpace.Web.Client/ssl/*.key
+src/EchoSpace.Web.Client/ssl/*.crt
+src/EchoSpace.Web.Client/ssl/*.cert
+src/EchoSpace.Web.Client/ssl/localhost*

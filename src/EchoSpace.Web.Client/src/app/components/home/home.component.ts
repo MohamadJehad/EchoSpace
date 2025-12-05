@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -6,17 +6,20 @@ import { AuthService } from '../../services/auth.service';
 import { PostsService } from '../../services/posts.service';
 import { FollowsService } from '../../services/follows.service';
 import { LikesService } from '../../services/likes.service';
+import { TagsService } from '../../services/tags.service';
 import { NavbarDropdownComponent } from '../navbar-dropdown/navbar-dropdown.component';
 import { SearchBarComponent } from '../search-bar/search-bar.component';
 import { SuggestedUsersComponent } from '../suggested-users/suggested-users.component';
 import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { ToastService } from '../../services/toast.service';
-import { Post, TrendingTopic, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
+import { Post, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
+import { TrendingTag } from '../../services/tags.service';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
 import { UserService } from '../../services/user.service';
 import { ProfileCardComponent } from '../profile-card/profile-card.component';
 import { environment } from '../../../environments/environment';
+import { normalizeRole } from '../../utils/role.util';
 
 @Component({
   selector: 'app-home',
@@ -33,8 +36,15 @@ export class HomeComponent implements OnInit {
   // Create post form
   newPost = {
     content: '',
-    imageUrl: ''
+    imageUrl: '',
+    tagIds: [] as string[],
+    generateImage: false
   };
+  
+  // Tags
+  tags: any[] = [];
+  isLoadingTags = false;
+  showTagSelector = false;
 
   // Photo upload
   selectedFile: File | null = null;
@@ -58,7 +68,34 @@ export class HomeComponent implements OnInit {
   postToDelete: Post | null = null;
   
   showComments: { [postId: string]: boolean } = {};
+
+  // Translation states
+  translatingPosts: { [postId: string]: boolean } = {};
+  translationLanguage: string = 'en'; // Default to English
+  showLanguageSelector: { [postId: string]: boolean } = {};
   
+  // Summarization state
+  summarizingPosts: { [postId: string]: boolean } = {};
+  
+  // Available languages for translation
+  availableLanguages = [
+    { code: 'en', name: 'English' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'fr', name: 'French' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'nl', name: 'Dutch' },
+    { code: 'pl', name: 'Polish' }
+  ];
+
   currentUser = {
     name: 'John Doe',
     email: 'john.doe@example.com',
@@ -88,22 +125,24 @@ export class HomeComponent implements OnInit {
     private followsService: FollowsService,
     private likesService: LikesService,
     private toastService: ToastService,
-    private userService: UserService
+    private userService: UserService,
+    private tagsService: TagsService
   ) {}
   
 
 
-  trendingTopics: TrendingTopic[] = [
-    { tag: '#WebDevelopment', posts: '1.2K' },
-    { tag: '#TechNews', posts: '890' },
-    { tag: '#AI', posts: '2.5K' },
-    { tag: '#JavaScript', posts: '1.8K' },
-    { tag: '#Design', posts: '756' }
-  ];
+  trendingTags: TrendingTag[] = [];
+  isLoadingTrendingTags = false;
 
   ngOnInit(): void {
     // Load current user data
     this.loadUserData();
+    
+    // Load tags
+    this.loadTags();
+    
+    // Load trending tags
+    this.loadTrendingTags();
     
     // Load posts
     this.loadPosts();
@@ -122,28 +161,24 @@ export class HomeComponent implements OnInit {
           profilePhotoUrl: null
         };
         
+        // Redirect Operation users to their homepage
+        const normalizedRole = normalizeRole(this.currentUser.role);
+        if (normalizedRole === 'Operation') {
+          this.router.navigate(['/operation']);
+          return;
+        }
+        
         // Load user statistics once we have the user ID
         if (this.currentUser.id) {
           this.loadUserStatistics();
           this.loadUserProfile();
         }
       } else {
-        // Fallback: Try to get from localStorage
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          this.currentUser = {
-            name: parsedUser.username || parsedUser.name || 'User',
-            email: parsedUser.email || '',
-            initials: this.getInitials(parsedUser.username || parsedUser.name || parsedUser.email || 'U'),
-            role: parsedUser.role || 'User',
-            id: parsedUser.id || '',
-            profilePhotoUrl: null
-          };
-          if (this.currentUser.id) {
-            this.loadUserProfile();
-          }
-        }
+        // User data should be loaded from authService.currentUser$
+        // The interceptor will handle token automatically
+        // If no user is loaded, redirect to login
+        this.router.navigate(['/login']);
+        return;
       }
     });
   }
@@ -207,7 +242,7 @@ export class HomeComponent implements OnInit {
     
     fetch(url, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
       }
     })
     .then(response => {
@@ -232,11 +267,13 @@ export class HomeComponent implements OnInit {
         
         // Update all posts by current user
         this.posts.forEach(post => {
-          if (post.author.userId === this.currentUser.id) {
-            post.author.profilePhotoUrl = data.url;
+          if (post.author?.userId === this.currentUser.id) {
+            if (post.author) {
+              post.author.profilePhotoUrl = data.url;
+            }
           }
         });
-        console.log('loadProfilePhotoUrl: Updated', this.posts.filter(p => p.author.userId === this.currentUser.id).length, 'posts with new profile photo');
+        console.log('loadProfilePhotoUrl: Updated', this.posts.filter(p => p.author?.userId === this.currentUser.id).length, 'posts with new profile photo');
       } else {
         console.warn('loadProfilePhotoUrl: Response did not contain a valid URL:', data);
       }
@@ -259,11 +296,13 @@ export class HomeComponent implements OnInit {
     
     // Update all posts by current user to show new profile photo
     this.posts.forEach(post => {
-      if (post.author.userId === this.currentUser.id) {
-        post.author.profilePhotoUrl = imageUrl;
+      if (post.author?.userId === this.currentUser.id) {
+        if (post.author) {
+          post.author.profilePhotoUrl = imageUrl;
+        }
       }
     });
-    console.log('onProfilePhotoUpdated: Updated posts count:', this.posts.filter(p => p.author.userId === this.currentUser.id).length);
+    console.log('onProfilePhotoUpdated: Updated posts count:', this.posts.filter(p => p.author?.userId === this.currentUser.id).length);
   }
 
   getInitials(name: string): string {
@@ -361,7 +400,7 @@ export class HomeComponent implements OnInit {
 
   private loadProfilePhotosForPosts(posts: Post[]): void {
     // Get unique user IDs from posts
-    const userIds = [...new Set(posts.map(post => post.author.userId).filter(id => id && id !== this.currentUser.id))];
+    const userIds = [...new Set(posts.map(post => post.author?.userId).filter(id => id && id !== this.currentUser.id))];
     
     // Load profile photos for each unique user
     userIds.forEach(userId => {
@@ -388,7 +427,7 @@ export class HomeComponent implements OnInit {
     // environment.apiUrl already includes /api, so we don't need to add it again
     fetch(`${environment.apiUrl}/images/${imageId}/url`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
       }
     })
     .then(response => response.json())
@@ -398,8 +437,10 @@ export class HomeComponent implements OnInit {
       
       // Update all posts with this author's profile photo
       this.posts.forEach(post => {
-        if (post.author.userId === userId) {
-          post.author.profilePhotoUrl = data.url;
+        if (post.author?.userId === userId) {
+          if (post.author) {
+            post.author.profilePhotoUrl = data.url;
+          }
         }
       });
     })
@@ -417,6 +458,123 @@ export class HomeComponent implements OnInit {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  }
+
+  toggleLanguageSelector(postId: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.showLanguageSelector[postId] = !this.showLanguageSelector[postId];
+  }
+
+  closeLanguageSelector(postId: string): void {
+    this.showLanguageSelector[postId] = false;
+  }
+
+  closeAllLanguageSelectors(): void {
+    Object.keys(this.showLanguageSelector).forEach(key => {
+      this.showLanguageSelector[key] = false;
+    });
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    // Close language selectors when clicking outside
+    const target = event.target as HTMLElement;
+    const isLanguageSelector = target.closest('.language-selector-container');
+    if (!isLanguageSelector) {
+      this.closeAllLanguageSelectors();
+    }
+  }
+
+  translatePost(postId: string, language?: string): void {
+    if (this.translatingPosts[postId]) {
+      return; // Already translating
+    }
+
+    const post = this.posts.find(p => p.postId === postId);
+    if (!post) {
+      return;
+    }
+
+    // If already translated, show original
+    if (post.isTranslated && post.translatedContent && !language) {
+      post.isTranslated = false;
+      post.translatedContent = undefined;
+      post.translationLanguage = undefined;
+      this.showLanguageSelector[postId] = false;
+      // Also clear summarization state if it was set
+      if (post.isSummarized) {
+        post.isSummarized = false;
+        post.summarizedContent = undefined;
+      }
+      return;
+    }
+
+    // Use provided language or default
+    const targetLanguage = language || this.translationLanguage;
+    this.showLanguageSelector[postId] = false;
+    this.translatingPosts[postId] = true;
+
+    this.postsService.translatePost(postId, targetLanguage).subscribe({
+      next: (response) => {
+        post.translatedContent = response.translated;
+        post.isTranslated = true;
+        post.translationLanguage = response.language;
+        this.translatingPosts[postId] = false;
+        this.toastService.success('Translated', `Post has been translated to ${this.getLanguageName(response.language)}.`);
+      },
+      error: (error) => {
+        console.error('Error translating post:', error);
+        this.translatingPosts[postId] = false;
+        this.toastService.error('Translation Failed', 'Failed to translate post. Please try again.');
+      }
+    });
+  }
+
+  getLanguageName(code: string): string {
+    const lang = this.availableLanguages.find(l => l.code === code);
+    return lang ? lang.name : code.toUpperCase();
+  }
+
+  summarizePost(postId: string): void {
+    if (this.summarizingPosts[postId]) {
+      return; // Already summarizing
+    }
+
+    const post = this.posts.find(p => p.postId === postId);
+    if (!post) {
+      return;
+    }
+
+    // If already summarized, show original
+    if (post.isSummarized && post.summarizedContent) {
+      post.isSummarized = false;
+      post.summarizedContent = undefined;
+      // Also clear translation state if it was set
+      if (post.isTranslated) {
+        post.isTranslated = false;
+        post.translatedContent = undefined;
+        post.translationLanguage = undefined;
+      }
+      return;
+    }
+
+    this.summarizingPosts[postId] = true;
+
+    this.postsService.summarizePost(postId).subscribe({
+      next: (response) => {
+        post.summarizedContent = response.summary;
+        post.isSummarized = true;
+        this.summarizingPosts[postId] = false;
+        this.toastService.success('Summarized', 'Post has been summarized successfully.');
+      },
+      error: (error) => {
+        console.error('Error summarizing post:', error);
+        this.summarizingPosts[postId] = false;
+        this.toastService.error('Summarization Failed', 'Failed to summarize post. Please try again.');
+      }
+    });
   }
 
   likePost(postId: string): void {
@@ -469,7 +627,9 @@ export class HomeComponent implements OnInit {
     const createPostRequest: CreatePostRequest = {
       userId: this.currentUser.id,
       content: this.newPost.content.trim(),
-      imageUrl: ""
+      imageUrl: "",
+      tagIds: this.newPost.tagIds.length > 0 ? this.newPost.tagIds : undefined,
+      generateImage: this.newPost.generateImage
     };
 
     this.postsService.createPost(createPostRequest).subscribe({
@@ -492,7 +652,7 @@ export class HomeComponent implements OnInit {
       error: (error) => {
         console.error('Error creating post:', error);
         this.isCreatingPost = false;
-        this.toastService.error('Error', 'Failed to create post. Please try again.');
+        this.toastService.error('Error', 'Failed to create post. Post contains unsafe or toxic contents. Please fix post contents and try again.');
       }
     });
   }
@@ -505,10 +665,64 @@ export class HomeComponent implements OnInit {
   clearForm(): void {
     this.newPost = {
       content: '',
-      imageUrl: ''
+      imageUrl: '',
+      tagIds: [],
+      generateImage: false
     };
     this.selectedFile = null;
     this.imagePreview = null;
+  }
+  
+  toggleTagSelection(tagId: string): void {
+    const index = this.newPost.tagIds.indexOf(tagId);
+    if (index > -1) {
+      this.newPost.tagIds.splice(index, 1);
+    } else {
+      this.newPost.tagIds.push(tagId);
+    }
+  }
+  
+  isTagSelected(tagId: string): boolean {
+    return this.newPost.tagIds.includes(tagId);
+  }
+  
+  loadTags(): void {
+    this.isLoadingTags = true;
+    this.tagsService.getAllTags().subscribe({
+      next: (tags) => {
+        this.tags = tags;
+        this.isLoadingTags = false;
+      },
+      error: (error) => {
+        console.error('Error loading tags:', error);
+        this.isLoadingTags = false;
+      }
+    });
+  }
+
+  loadTrendingTags(): void {
+    this.isLoadingTrendingTags = true;
+    this.tagsService.getTrendingTags(5).subscribe({
+      next: (tags) => {
+        this.trendingTags = tags;
+        this.isLoadingTrendingTags = false;
+      },
+      error: (error) => {
+        console.error('Error loading trending tags:', error);
+        this.isLoadingTrendingTags = false;
+      }
+    });
+  }
+
+  navigateToTag(tagId: string): void {
+    this.router.navigate(['/tag', tagId]);
+  }
+
+  formatPostCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'K';
+    }
+    return count.toString();
   }
 
   onPhotoClick(): void {
@@ -613,7 +827,7 @@ export class HomeComponent implements OnInit {
       error: (error) => {
         console.error('Error updating post:', error);
         this.isSavingPost = false;
-        this.toastService.error('Error', 'Failed to update post. Please try again.');
+        this.toastService.error('Error', 'Failed to update post. Contents of the post are not safe. Please fix contents and try again.');
       }
     });
   }
