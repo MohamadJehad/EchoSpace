@@ -108,7 +108,7 @@ jobs:
         run: npm run build -- --configuration production
 
       - name: Create static site package.json
-        working-directory: src/EchoSpace.Web.Client/dist/echo-space.web.client
+        working-directory: src/EchoSpace.Web.Client/dist/echo-space.web.client/browser
         run: |
           cat > package.json << 'EOF'
           {
@@ -126,7 +126,8 @@ jobs:
       - name: Create deployment package
         run: |
           cd src/EchoSpace.Web.Client/dist/echo-space.web.client
-          zip -r ../../../../frontend-deploy.zip .
+          # Include browser folder and package.json at root
+          zip -r ../../../../frontend-deploy.zip . -x "*.git*"
 
       - name: Deploy to Azure App Service (Frontend)
         uses: azure/webapps-deploy@v3
