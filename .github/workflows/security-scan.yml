@@ -291,6 +291,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: 'src/EchoSpace.Web.Client/package-lock.json'
+        
+    - name: Install dependencies
+      working-directory: src/EchoSpace.Web.Client
+      run: npm ci
         
     - name: Install CycloneDX npm tool
       run: npm install -g @cyclonedx/cyclonedx-npm || true
