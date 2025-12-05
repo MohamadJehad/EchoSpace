@@ -33,6 +33,21 @@ using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// EARLY DIAGNOSTIC: Log configuration BEFORE service registration to catch startup failures
+// Use console output directly since Serilog isn't configured yet
+Console.WriteLine("=== EARLY CONFIGURATION DIAGNOSTICS (Before Service Registration) ===");
+Console.WriteLine($"Jwt:Key = {(string.IsNullOrEmpty(builder.Configuration["Jwt:Key"]) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"Jwt:Issuer = {builder.Configuration["Jwt:Issuer"] ?? "NULL"}");
+Console.WriteLine($"Jwt:Audience = {builder.Configuration["Jwt:Audience"] ?? "NULL"}");
+Console.WriteLine($"GoogleApis:SafeBrowsingApiKey = {(string.IsNullOrEmpty(builder.Configuration["GoogleApis:SafeBrowsingApiKey"]) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"GoogleApis:PerspectiveApiKey = {(string.IsNullOrEmpty(builder.Configuration["GoogleApis:PerspectiveApiKey"]) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"StorageConnection:blobServiceUri = {builder.Configuration["StorageConnection:blobServiceUri"] ?? "NULL"}");
+Console.WriteLine($"StorageConnection:queueServiceUri = {builder.Configuration["StorageConnection:queueServiceUri"] ?? "NULL"}");
+Console.WriteLine($"StorageConnection:tableServiceUri = {builder.Configuration["StorageConnection:tableServiceUri"] ?? "NULL"}");
+Console.WriteLine($"ConnectionStrings:DefaultConnection = {(string.IsNullOrEmpty(builder.Configuration.GetConnectionString("DefaultConnection")) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"ASPNETCORE_ENVIRONMENT = {builder.Configuration["ASPNETCORE_ENVIRONMENT"] ?? "NULL"}");
+Console.WriteLine("=== END EARLY CONFIGURATION DIAGNOSTICS ===");
+
 // Configure Serilog - using simpler configuration to avoid build issues
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -137,7 +152,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key configuration is required but was not found.")))
     };
     
     // Add event handler to check if user is locked on each request
@@ -504,9 +519,15 @@ builder.Services.AddRateLimiter(options =>
 var safeBrowsingApiKey = builder.Configuration["GoogleApis:SafeBrowsingApiKey"];
 var perspectiveApiKey = builder.Configuration["GoogleApis:PerspectiveApiKey"];
 if (string.IsNullOrWhiteSpace(safeBrowsingApiKey))
-    throw new InvalidOperationException("API key must be set.");
+{
+    Console.WriteLine("ERROR: GoogleApis:SafeBrowsingApiKey is missing!");
+    throw new InvalidOperationException("GoogleApis:SafeBrowsingApiKey must be set.");
+}
 if (string.IsNullOrWhiteSpace(perspectiveApiKey))
-    throw new InvalidOperationException("API key must be set.");
+{
+    Console.WriteLine("ERROR: GoogleApis:PerspectiveApiKey is missing!");
+    throw new InvalidOperationException("GoogleApis:PerspectiveApiKey must be set.");
+}
 // Register Google API services
 builder.Services.AddScoped<IGoogleSafeBrowsingService>(sp =>
     new GoogleSafeBrowsingService(safeBrowsingApiKey));
@@ -516,9 +537,15 @@ builder.Services.AddScoped<IGooglePerspectiveService>(sp =>
 builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValidator>();
 builder.Services.AddAzureClients(clientBuilder =>
 {
-    clientBuilder.AddBlobServiceClient(builder.Configuration["StorageConnection:blobServiceUri"]!).WithName("StorageConnection");
-    clientBuilder.AddQueueServiceClient(builder.Configuration["StorageConnection:queueServiceUri"]!).WithName("StorageConnection");
-    clientBuilder.AddTableServiceClient(builder.Configuration["StorageConnection:tableServiceUri"]!).WithName("StorageConnection");
+    var blobUri = builder.Configuration["StorageConnection:blobServiceUri"] ?? throw new InvalidOperationException("StorageConnection:blobServiceUri is required but was not found.");
+    var queueUri = builder.Configuration["StorageConnection:queueServiceUri"] ?? throw new InvalidOperationException("StorageConnection:queueServiceUri is required but was not found.");
+    var tableUri = builder.Configuration["StorageConnection:tableServiceUri"] ?? throw new InvalidOperationException("StorageConnection:tableServiceUri is required but was not found.");
+    
+    Console.WriteLine($"Registering Azure Storage clients: Blob={blobUri}, Queue={queueUri}, Table={tableUri}");
+    
+    clientBuilder.AddBlobServiceClient(blobUri).WithName("StorageConnection");
+    clientBuilder.AddQueueServiceClient(queueUri).WithName("StorageConnection");
+    clientBuilder.AddTableServiceClient(tableUri).WithName("StorageConnection");
 });
 
 
