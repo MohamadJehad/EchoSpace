@@ -524,6 +524,21 @@ builder.Services.AddAzureClients(clientBuilder =>
 
 var app = builder.Build();
 
+// DIAGNOSTIC: Log configuration values to verify Azure App Service settings are being read
+var diagnosticLogger = app.Services.GetRequiredService<ILogger<Program>>();
+diagnosticLogger.LogInformation("=== CONFIGURATION DIAGNOSTICS ===");
+diagnosticLogger.LogInformation("Jwt:Key = {Value}", string.IsNullOrEmpty(builder.Configuration["Jwt:Key"]) ? "NULL or EMPTY" : "SET (length: " + builder.Configuration["Jwt:Key"]!.Length + ")");
+diagnosticLogger.LogInformation("Jwt:Issuer = {Value}", builder.Configuration["Jwt:Issuer"] ?? "NULL");
+diagnosticLogger.LogInformation("Jwt:Audience = {Value}", builder.Configuration["Jwt:Audience"] ?? "NULL");
+diagnosticLogger.LogInformation("GoogleApis:SafeBrowsingApiKey = {Value}", string.IsNullOrEmpty(builder.Configuration["GoogleApis:SafeBrowsingApiKey"]) ? "NULL or EMPTY" : "SET");
+diagnosticLogger.LogInformation("GoogleApis:PerspectiveApiKey = {Value}", string.IsNullOrEmpty(builder.Configuration["GoogleApis:PerspectiveApiKey"]) ? "NULL or EMPTY" : "SET");
+diagnosticLogger.LogInformation("StorageConnection:blobServiceUri = {Value}", builder.Configuration["StorageConnection:blobServiceUri"] ?? "NULL");
+diagnosticLogger.LogInformation("StorageConnection:queueServiceUri = {Value}", builder.Configuration["StorageConnection:queueServiceUri"] ?? "NULL");
+diagnosticLogger.LogInformation("StorageConnection:tableServiceUri = {Value}", builder.Configuration["StorageConnection:tableServiceUri"] ?? "NULL");
+diagnosticLogger.LogInformation("ConnectionStrings:DefaultConnection = {Value}", string.IsNullOrEmpty(builder.Configuration.GetConnectionString("DefaultConnection")) ? "NULL or EMPTY" : "SET");
+diagnosticLogger.LogInformation("ASPNETCORE_ENVIRONMENT = {Value}", builder.Configuration["ASPNETCORE_ENVIRONMENT"] ?? "NULL");
+diagnosticLogger.LogInformation("=== END CONFIGURATION DIAGNOSTICS ===");
+
 app.UseSecurityHeaders();
 app.UseMiddleware<RequestContextMiddleware>();
 
