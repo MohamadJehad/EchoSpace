@@ -113,6 +113,12 @@ var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:Enabl
 builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        Console.WriteLine("ERROR: ConnectionStrings:DefaultConnection is NULL or EMPTY!");
+        throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required but was not found.");
+    }
+    Console.WriteLine($"Using database connection string (server only): {connectionString.Split(';')[0]}");
     options.UseSqlServer(connectionString, sqlOptions =>
     {
         // Enable retry logic for transient failures (common with Azure SQL)
