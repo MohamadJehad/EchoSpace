@@ -34,16 +34,20 @@ using Microsoft.Extensions.Azure;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog - using simpler configuration to avoid build issues
+// In Azure App Service, logs are automatically captured by the platform
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    .WriteTo.Console()
+    .WriteTo.Console() // Console logs are captured by Azure App Service
+    // File logging - only for local development
+    // Azure App Service automatically captures console output
     .WriteTo.File(
-        Path.Combine("logs", "audit", "audit-.log"),
+        Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? ".", "logs", "audit", "audit-.log"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+        shared: true) // Allow multiple processes to write to the same file
 );
 
 // Add services to the container.
