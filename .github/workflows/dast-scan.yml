@@ -31,7 +31,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup OWASP ZAP
-      uses: zaproxy/action-baseline@v0.10.0
+      uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
         rules_file_name: '.zap/rules.tsv'
@@ -39,7 +39,7 @@ jobs:
         
     - name: ZAP Baseline Scan
       if: github.event.inputs.scan_type == 'baseline' || github.event.inputs.scan_type == ''
-      uses: zaproxy/action-baseline@v0.10.0
+      uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
         fail_action: true
