@@ -107,6 +107,22 @@ jobs:
         working-directory: src/EchoSpace.Web.Client
         run: npm run build -- --configuration production
 
+      - name: Create static site package.json
+        working-directory: src/EchoSpace.Web.Client/dist/echo-space.web.client
+        run: |
+          cat > package.json << 'EOF'
+          {
+            "name": "echo-space-web-client",
+            "version": "1.0.0",
+            "scripts": {
+              "start": "npx serve -s . -l 8080"
+            },
+            "dependencies": {
+              "serve": "^14.2.1"
+            }
+          }
+          EOF
+
       - name: Create deployment package
         run: |
           cd src/EchoSpace.Web.Client/dist/echo-space.web.client
