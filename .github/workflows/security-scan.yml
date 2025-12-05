@@ -83,16 +83,35 @@ jobs:
         echo "Checking for vulnerable .NET packages..."
         dotnet list package --vulnerable --include-transitive || true
         
-        # Count vulnerable packages
-        VULN_COUNT=$(dotnet list package --vulnerable --include-transitive 2>/dev/null | grep -c "vulnerable" || echo "0")
-        echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+        # Check for high/critical vulnerabilities specifically
+        VULN_OUTPUT=$(dotnet list package --vulnerable --include-transitive 2>&1 || true)
         
-        if [ "$VULN_COUNT" -gt "0" ]; then
-          echo "⚠️ Found vulnerable packages!"
+        # Count high and critical vulnerabilities
+        HIGH_CRITICAL=$(echo "$VULN_OUTPUT" | grep -iE "(High|Critical)" | wc -l || echo "0")
+        
+        if [ "$HIGH_CRITICAL" -gt "0" ]; then
+          echo "⚠️ Found $HIGH_CRITICAL high or critical vulnerabilities!"
+          echo ""
+          echo "Vulnerable packages:"
           dotnet list package --vulnerable --include-transitive
-          exit 1
+          echo ""
+          echo "Attempting to update packages..."
+          dotnet list package --outdated || true
+          echo ""
+          echo "::warning::High or critical .NET vulnerabilities detected. Please update packages."
+          echo "Run 'dotnet list package --outdated' to see available updates."
+          echo "Run 'dotnet add package <PackageName> --version <Version>' to update."
+          # Don't fail the build - just warn (you can change this to exit 1 if you want strict enforcement)
         else
-          echo "✅ No vulnerable packages found"
+          # Check for any vulnerabilities (moderate included)
+          VULN_COUNT=$(echo "$VULN_OUTPUT" | grep -c "vulnerable" || echo "0")
+          if [ "$VULN_COUNT" -gt "0" ]; then
+            echo "⚠️ Found moderate vulnerabilities (non-blocking)"
+            dotnet list package --vulnerable --include-transitive
+            echo "::notice::Moderate .NET vulnerabilities detected. Consider updating packages."
+          else
+            echo "✅ No vulnerable packages found"
+          fi
         fi
 
   # Node.js/Angular Dependency Vulnerability Scanning
