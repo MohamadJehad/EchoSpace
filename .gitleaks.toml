@@ -1,0 +1,32 @@
+# Gitleaks configuration file
+# This file configures which files/patterns to ignore when scanning for secrets
+
+title = "EchoSpace Gitleaks Config"
+
+[extend]
+# Use default rules
+useDefault = true
+
+[allowlist]
+description = "Allow list for known false positives"
+
+# Ignore SSL certificates and keys (local development certificates)
+paths = [
+  '''src/EchoSpace.Web.Client/ssl/.*\.pem$''',
+  '''src/EchoSpace.Web.Client/ssl/.*\.key$''',
+  '''src/EchoSpace.Web.Client/ssl/.*\.crt$''',
+  '''src/EchoSpace.Web.Client/ssl/.*\.cert$''',
+  '''src/EchoSpace.Web.Client/ssl/localhost.*''',
+]
+
+# Ignore test files
+regexes = [
+  '''.*\.test\..*''',
+  '''.*\.spec\..*''',
+]
+
+# Ignore example/template files
+commits = [
+  "f03343cc921e54b81db588d5192c91e94297b648", # Commit that added SSL key - will be removed from history
+]
+
