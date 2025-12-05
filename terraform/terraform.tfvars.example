@@ -1,0 +1,39 @@
+# Terraform Variables Example File
+# Copy this file to terraform.tfvars and update with your actual values
+# terraform.tfvars is in .gitignore and should NOT be committed
+
+# Azure Subscription Information
+subscription_id = "b4742259-fa65-431e-b45f-d2846e96ff80"
+
+# Resource Configuration
+resource_group_name = "echospace-resources"
+location            = "eastus"
+environment         = "dev"
+app_name            = "echospace"
+
+# App Service Configuration
+app_service_plan_sku = "F1"  # Free tier - use B1, S1, P1V2 for production
+backend_app_name     = "echospace-backend-app"
+frontend_app_name    = "echospace-angular-app"
+
+# Security Configuration
+enable_https_only      = true
+minimum_tls_version    = "1.2"
+enable_managed_identity = true
+
+# Key Vault Configuration (set to true when subscription is available)
+enable_key_vault = false
+key_vault_name   = "echospace-vault-{unique-suffix}"  # Must be globally unique
+
+# Monitoring Configuration (set to true when subscription is available)
+enable_application_insights = false
+application_insights_name   = "echospace-insights"
+
+# Common Tags
+common_tags = {
+  Environment = "dev"
+  Project     = "EchoSpace"
+  ManagedBy   = "Terraform"
+  Owner       = "YourTeam"
+}
+

@@ -1,0 +1,55 @@
+# Checkov Configuration File
+# Customizes Checkov behavior for Terraform scanning
+
+framework:
+  - terraform
+
+# Skip checks (add check IDs here if needed)
+# Example: skip-check: CKV_AZURE_1
+
+# Include/exclude paths
+include:
+  - "*.tf"
+  - "*.tfvars"
+
+exclude:
+  - "*.tfstate"
+  - "*.tfstate.backup"
+  - ".terraform/**"
+
+# Output format
+output:
+  - cli
+  - sarif
+
+# Soft fail (don't fail build, just report)
+# Set to false to fail on HIGH/CRITICAL issues
+soft_fail: false
+
+# Minimum severity to report
+# Options: INFO, LOW, MEDIUM, HIGH, CRITICAL
+min_severity: MEDIUM
+
+# Skip checks for specific resources
+# Example:
+# skip_checks:
+#   - CKV_AZURE_1: "Reason for skipping"
+
+# External checks directory (optional)
+# external_checks_dir: checks/
+
+# Download external checks
+download_external_modules: true
+
+# Quiet mode (less verbose output)
+quiet: false
+
+# Verbose mode (more detailed output)
+verbose: false
+
+# Check IDs to include (empty = all checks)
+# check: []
+
+# Check IDs to skip (add specific checks to skip)
+# skip_check: []
+

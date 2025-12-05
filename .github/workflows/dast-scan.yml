@@ -1,0 +1,90 @@
+name: DAST Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL to scan'
+        required: true
+        type: string
+      scan_type:
+        description: 'Scan type'
+        required: false
+        default: 'baseline'
+        type: choice
+        options:
+          - baseline
+          - full
+          - api
+  schedule:
+    # Run weekly on Monday at 2 AM UTC
+    - cron: '0 2 * * 1'
+
+jobs:
+  dast-scan:
+    name: OWASP ZAP DAST Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup OWASP ZAP
+      uses: zaproxy/action-baseline@v0.10.0
+      with:
+        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a'
+        
+    - name: ZAP Baseline Scan
+      if: github.event.inputs.scan_type == 'baseline' || github.event.inputs.scan_type == ''
+      uses: zaproxy/action-baseline@v0.10.0
+      with:
+        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        fail_action: true
+        rules_file_name: '.zap/rules.tsv'
+        
+    - name: ZAP Full Scan
+      if: github.event.inputs.scan_type == 'full'
+      uses: zaproxy/action-full-scan@v0.10.0
+      with:
+        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        fail_action: true
+        rules_file_name: '.zap/rules.tsv'
+        
+    - name: ZAP API Scan
+      if: github.event.inputs.scan_type == 'api'
+      uses: zaproxy/action-api-scan@v0.7.0
+      with:
+        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        format: openapi
+        api: 'https://your-app-service.azurewebsites.net/swagger/v1/swagger.json'
+        fail_action: true
+        
+    - name: Upload ZAP results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: zap-results
+        path: |
+          zap-report.html
+          zap-results.json
+        retention-days: 30
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          if (fs.existsSync('zap-results.json')) {
+            const results = JSON.parse(fs.readFileSync('zap-results.json', 'utf8'));
+            const alerts = results.site?.[0]?.alerts || [];
+            const highAlerts = alerts.filter(a => a.risk === 'High' || a.risk === 'Critical');
+            
+            if (highAlerts.length > 0) {
+              core.setFailed(`Found ${highAlerts.length} high/critical security issues`);
+            }
+          }
+

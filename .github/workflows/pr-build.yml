@@ -2,9 +2,12 @@ name: PR Build Check
 
 on:
   pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
     
     steps:
@@ -41,3 +44,6 @@ jobs:
     - name: Build Angular project
       working-directory: src/EchoSpace.Web.Client
       run: npm run build -- --configuration production
+
+  # Security scanning is handled by security-scan.yml workflow
+  # This ensures security checks run in parallel and don't block builds
