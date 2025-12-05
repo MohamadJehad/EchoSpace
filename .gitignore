@@ -379,5 +379,9 @@ terraform/terraform.tfstate
 terraform/terraform.tfstate.*
 terraform/*.tfvars
 !terraform/*.tfvars.example
-src/EchoSpace.Web.Client/ssl/cert.pem
-src/EchoSpace.Web.Client/ssl/key.pem
+# SSL Certificates and Keys (local development only)
+src/EchoSpace.Web.Client/ssl/*.pem
+src/EchoSpace.Web.Client/ssl/*.key
+src/EchoSpace.Web.Client/ssl/*.crt
+src/EchoSpace.Web.Client/ssl/*.cert
+src/EchoSpace.Web.Client/ssl/localhost*

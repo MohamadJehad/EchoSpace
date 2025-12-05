@@ -55,9 +55,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        # Fail on secrets found
-        no-git: false
-        verbose: true
+        # Path to gitleaksignore file (optional)
+        config-path: .gitleaksignore
+        # Exit code when leaks are found (1 = fail, 0 = warn)
+        exit-code: 1
+        # Redact secrets from output
+        redact: true
 
   # .NET Dependency Vulnerability Scanning
   dotnet-dependencies:
