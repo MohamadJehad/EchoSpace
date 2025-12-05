@@ -95,11 +95,14 @@ resource "azurerm_linux_web_app" "angular" {
     application_stack {
       node_version = "20-lts"
     }
+
+    # Startup command for serving static Angular files
+    app_command_line = "npm start"
   }
 
   app_settings = {
     "WEBSITE_NODE_DEFAULT_VERSION"   = "~20"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "false" # Disable build - we deploy pre-built static files
     "ASPNETCORE_ENVIRONMENT"         = var.environment
   }
 
