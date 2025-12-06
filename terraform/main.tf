@@ -154,7 +154,7 @@ resource "azurerm_linux_web_app" "backend" {
 
     # Storage account connection string (for BlobStorageService)
     "ConnectionStrings__AzureStorage" = azurerm_storage_account.main.primary_connection_string
-    
+
     # Storage account connection string (legacy - kept for compatibility)
     "AzureStorage__ConnectionString" = azurerm_storage_account.main.primary_connection_string
 
@@ -223,10 +223,13 @@ resource "azurerm_linux_web_app" "backend" {
 resource "null_resource" "backend_dotnet9" {
   depends_on = [azurerm_linux_web_app.backend]
 
+  # Trigger whenever the backend app changes (including app_settings updates)
   triggers = {
-    app_name         = azurerm_linux_web_app.backend.name
-    resource_group   = azurerm_linux_web_app.backend.resource_group_name
-    app_service_id   = azurerm_linux_web_app.backend.id
+    app_name       = azurerm_linux_web_app.backend.name
+    resource_group = azurerm_linux_web_app.backend.resource_group_name
+    app_service_id = azurerm_linux_web_app.backend.id
+    # Include app_settings hash to trigger on any app_settings change
+    app_settings_hash = sha256(jsonencode(azurerm_linux_web_app.backend.app_settings))
   }
 
   provisioner "local-exec" {
