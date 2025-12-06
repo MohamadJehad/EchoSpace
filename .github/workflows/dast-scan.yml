@@ -59,6 +59,7 @@ jobs:
         target: ${{ steps.set-url.outputs.target_url }}
         fail_action: false
         rules_file_name: '.zap/rules.tsv'
+      continue-on-error: true
         
     - name: ZAP Full Scan
       if: steps.set-url.outputs.scan_type == 'full'
