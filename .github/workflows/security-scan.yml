@@ -402,4 +402,5 @@ jobs:
     - name: Terraform Plan (Dry Run)
       working-directory: terraform
       run: terraform plan -out=tfplan
+      continue-on-error: true  # Azure credentials needed / currently unavailable in auc organization
 
