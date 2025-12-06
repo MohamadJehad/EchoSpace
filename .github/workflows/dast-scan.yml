@@ -54,12 +54,12 @@ jobs:
       
     - name: ZAP Baseline Scan
       if: steps.set-url.outputs.scan_type == 'baseline' || github.event_name == 'pull_request'
-      continue-on-error: true
       uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ steps.set-url.outputs.target_url }}
         fail_action: false
         rules_file_name: '.zap/rules.tsv'
+      continue-on-error: true
         
     - name: ZAP Full Scan
       if: steps.set-url.outputs.scan_type == 'full'
@@ -93,7 +93,6 @@ jobs:
         
     - name: Comment PR with results
       if: github.event_name == 'pull_request'
-      continue-on-error: true
       uses: actions/github-script@v7
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
