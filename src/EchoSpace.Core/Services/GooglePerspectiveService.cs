@@ -68,6 +68,12 @@ namespace EchoSpace.Core.Services
     }
 
     // Parse and return the toxicity score
+    if (string.IsNullOrWhiteSpace(response.Content))
+    {
+        Console.WriteLine("Warning: Response content is null or empty");
+        return 0.0;
+    }
+    
     dynamic result = JsonConvert.DeserializeObject(response.Content);
     double score = (double?)result?.attributeScores?.TOXICITY?.summaryScore?.value ?? 0.0;
 

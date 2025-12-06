@@ -48,7 +48,15 @@ namespace EchoSpace.Infrastructure.Services
                 """;
         
             var result = await _client.Models.GenerateContentAsync(model:_modelName,contents:prompt);
-            return result.Candidates[0].Content.Parts[0].Text ?? string.Empty;
+            
+            if (result?.Candidates == null || result.Candidates.Count == 0)
+                return string.Empty;
+            
+            var candidate = result.Candidates[0];
+            if (candidate?.Content?.Parts == null || candidate.Content.Parts.Count == 0)
+                return string.Empty;
+            
+            return candidate.Content.Parts[0].Text ?? string.Empty;
         }
 
         public async Task<string> SummarizeTextAsync(string text)
@@ -73,7 +81,15 @@ namespace EchoSpace.Infrastructure.Services
                 """;
 
             var result = await _client.Models.GenerateContentAsync(model:_modelName,contents:prompt);
-            return result.Candidates[0].Content.Parts[0].Text ?? string.Empty;
+            
+            if (result?.Candidates == null || result.Candidates.Count == 0)
+                return string.Empty;
+            
+            var candidate = result.Candidates[0];
+            if (candidate?.Content?.Parts == null || candidate.Content.Parts.Count == 0)
+                return string.Empty;
+            
+            return candidate.Content.Parts[0].Text ?? string.Empty;
         }
         public async Task<Boolean> GenerateImage(string text)
             {

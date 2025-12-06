@@ -40,10 +40,10 @@ namespace EchoSpace.Core.Services
             Console.WriteLine("SafeBrowsing API Response:");
             Console.WriteLine(response.Content);
             
-            if (response.Content == null)
+            if (string.IsNullOrWhiteSpace(response.Content))
                 return true;
 
-            dynamic result = JsonConvert.DeserializeObject(response.Content);
+            dynamic? result = JsonConvert.DeserializeObject(response.Content);
             return result?.matches == null;
         }
     }
