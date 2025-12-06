@@ -61,7 +61,7 @@ namespace EchoSpace.UI.Controllers
                     }
                 }
                 
-                return Ok(posts);
+                return BadRequest(posts);
             }
             catch (Exception ex)
             {
