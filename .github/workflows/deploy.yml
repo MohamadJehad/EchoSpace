@@ -74,7 +74,7 @@ jobs:
         run: dotnet restore EchoSpace.CleanArchitecture.sln
 
       - name: Install EF Core tools
-        run: dotnet tool install --global dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 9.0.0
 
       - name: Run database migrations
         env:
