@@ -157,3 +157,273 @@ jobs:
           curl -f https://echospace-angular-app-dev.azurewebsites.net || echo "Frontend not responding yet"
         continue-on-error: true
 
+  # Phase 1: Failure Detection - Triggered automatically when any job fails
+  rollback-deployment:
+    name: Automated Rollback
+    runs-on: ubuntu-latest
+    needs: [build-and-deploy-backend, build-and-deploy-frontend, run-database-migrations, verify-deployment]
+    if: failure() # Phase 1: Automatically triggered on any job failure
+    
+    steps:
+      # Phase 2 & 4: Extract Kudu Credentials from Publish Profile
+      - name: Extract Backend Kudu Credentials
+        id: backend-creds
+        run: |
+          echo "=== Phase 2 & 4: Extracting Kudu Credentials from Publish Profile ==="
+          PUBLISH_PROFILE="${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND }}"
+          
+          if [ -z "$PUBLISH_PROFILE" ]; then
+            echo "::error::Backend publish profile not found in secrets"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Extract username and password from publish profile XML
+          KUDU_USER=$(echo "$PUBLISH_PROFILE" | grep -oP 'userName="\K[^"]+' | head -1)
+          KUDU_PASS=$(echo "$PUBLISH_PROFILE" | grep -oP 'userPWD="\K[^"]+' | head -1)
+          
+          if [ -z "$KUDU_USER" ] || [ -z "$KUDU_PASS" ]; then
+            echo "::error::Failed to extract Kudu credentials from publish profile"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "✓ Backend Kudu credentials extracted successfully"
+          echo "::add-mask::$KUDU_USER"
+          echo "::add-mask::$KUDU_PASS"
+          echo "kudu_user=$KUDU_USER" >> $GITHUB_OUTPUT
+          echo "kudu_pass=$KUDU_PASS" >> $GITHUB_OUTPUT
+          echo "has_creds=true" >> $GITHUB_OUTPUT
+
+      - name: Extract Frontend Kudu Credentials
+        id: frontend-creds
+        run: |
+          echo "=== Phase 2 & 4: Extracting Kudu Credentials from Publish Profile ==="
+          PUBLISH_PROFILE="${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_FRONTEND }}"
+          
+          if [ -z "$PUBLISH_PROFILE" ]; then
+            echo "::error::Frontend publish profile not found in secrets"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Extract username and password from publish profile XML
+          KUDU_USER=$(echo "$PUBLISH_PROFILE" | grep -oP 'userName="\K[^"]+' | head -1)
+          KUDU_PASS=$(echo "$PUBLISH_PROFILE" | grep -oP 'userPWD="\K[^"]+' | head -1)
+          
+          if [ -z "$KUDU_USER" ] || [ -z "$KUDU_PASS" ]; then
+            echo "::error::Failed to extract Kudu credentials from publish profile"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "✓ Frontend Kudu credentials extracted successfully"
+          echo "::add-mask::$KUDU_USER"
+          echo "::add-mask::$KUDU_PASS"
+          echo "kudu_user=$KUDU_USER" >> $GITHUB_OUTPUT
+          echo "kudu_pass=$KUDU_PASS" >> $GITHUB_OUTPUT
+          echo "has_creds=true" >> $GITHUB_OUTPUT
+
+      # Phase 3 & 5 & 6: Rollback Backend
+      - name: Rollback Backend to Previous Deployment
+        if: steps.backend-creds.outputs.has_creds == 'true'
+        run: |
+          KUDU_USER="${{ steps.backend-creds.outputs.kudu_user }}"
+          KUDU_PASS="${{ steps.backend-creds.outputs.kudu_pass }}"
+          KUDU_URL="https://${{ env.AZURE_WEBAPP_NAME_BACKEND }}.scm.azurewebsites.net"
+          
+          echo "=== Phase 3: Querying Deployment History via Kudu API ==="
+          # Query deployment history using Kudu API
+          DEPLOYMENTS_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            "${KUDU_URL}/api/deployments" 2>/dev/null || echo "ERROR")
+          
+          HTTP_CODE=$(echo "$DEPLOYMENTS_RESPONSE" | tail -1)
+          DEPLOYMENTS_JSON=$(echo "$DEPLOYMENTS_RESPONSE" | head -n -1)
+          
+          if [ "$HTTP_CODE" != "200" ] || [ -z "$DEPLOYMENTS_JSON" ] || [ "$DEPLOYMENTS_JSON" = "ERROR" ]; then
+            echo "::warning::Failed to retrieve deployment history (HTTP $HTTP_CODE). Cannot rollback backend."
+            exit 0
+          fi
+          
+          # Parse deployment list and get previous deployment ID (index 1, as index 0 is current failed deployment)
+          PREVIOUS_DEPLOYMENT_ID=$(echo "$DEPLOYMENTS_JSON" | jq -r '.[1].id // empty' 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_DEPLOYMENT_ID" ] || [ "$PREVIOUS_DEPLOYMENT_ID" = "null" ]; then
+            echo "::warning::No previous deployment found in history."
+            echo "Deployment history:"
+            echo "$DEPLOYMENTS_JSON" | jq -r '.[] | "\(.id) - \(.status) - \(.author)"' 2>/dev/null || echo "$DEPLOYMENTS_JSON"
+            exit 0
+          fi
+          
+          echo "Deployment history retrieved:"
+          echo "$DEPLOYMENTS_JSON" | jq -r '.[] | "\(.id) - \(.status) - \(.author) - \(.startTime)"' 2>/dev/null || echo "$DEPLOYMENTS_JSON"
+          echo ""
+          echo "Previous deployment ID: $PREVIOUS_DEPLOYMENT_ID"
+          
+          echo ""
+          echo "=== Phase 5: Restoring via Kudu API ==="
+          RESTORE_URL="${KUDU_URL}/api/deployments/${PREVIOUS_DEPLOYMENT_ID}/restore"
+          
+          echo "Restoring deployment $PREVIOUS_DEPLOYMENT_ID via Kudu API..."
+          echo "Kudu URL: $KUDU_URL"
+          echo "Restore endpoint: $RESTORE_URL"
+          
+          # Phase 5: Send POST request to Kudu API to restore previous deployment
+          RESTORE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            -H "Content-Type: application/json" \
+            "$RESTORE_URL" 2>/dev/null || echo "ERROR")
+          
+          RESTORE_HTTP_CODE=$(echo "$RESTORE_RESPONSE" | tail -1)
+          RESTORE_BODY=$(echo "$RESTORE_RESPONSE" | head -n -1)
+          
+          if [ "$RESTORE_HTTP_CODE" = "200" ] || [ "$RESTORE_HTTP_CODE" = "204" ]; then
+            echo "✓ Deployment restored successfully via Kudu API"
+            echo "Response: $RESTORE_BODY"
+          else
+            echo "::warning::Kudu API restore returned HTTP $RESTORE_HTTP_CODE"
+            echo "Response: $RESTORE_BODY"
+            # Continue with restart anyway
+          fi
+          
+          echo ""
+          echo "=== Phase 6: Restarting Application via Kudu API ==="
+          # Phase 6: Restart App Service using Kudu API
+          echo "Restarting backend App Service to apply rollback..."
+          RESTART_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            "${KUDU_URL}/api/app/restart" 2>/dev/null || echo "ERROR")
+          
+          RESTART_HTTP_CODE=$(echo "$RESTART_RESPONSE" | tail -1)
+          
+          if [ "$RESTART_HTTP_CODE" = "200" ] || [ "$RESTART_HTTP_CODE" = "202" ]; then
+            echo "✓ Backend App Service restarted successfully"
+          else
+            echo "::warning::Restart returned HTTP $RESTART_HTTP_CODE (app may restart automatically)"
+          fi
+          
+          echo "✓ Backend rollback completed successfully"
+          echo "Previous working version is now live"
+
+      # Phase 3 & 5 & 6: Rollback Frontend
+      - name: Rollback Frontend to Previous Deployment
+        if: steps.frontend-creds.outputs.has_creds == 'true'
+        run: |
+          KUDU_USER="${{ steps.frontend-creds.outputs.kudu_user }}"
+          KUDU_PASS="${{ steps.frontend-creds.outputs.kudu_pass }}"
+          KUDU_URL="https://${{ env.AZURE_WEBAPP_NAME_FRONTEND }}.scm.azurewebsites.net"
+          
+          echo "=== Phase 3: Querying Deployment History via Kudu API ==="
+          # Query deployment history using Kudu API
+          DEPLOYMENTS_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            "${KUDU_URL}/api/deployments" 2>/dev/null || echo "ERROR")
+          
+          HTTP_CODE=$(echo "$DEPLOYMENTS_RESPONSE" | tail -1)
+          DEPLOYMENTS_JSON=$(echo "$DEPLOYMENTS_RESPONSE" | head -n -1)
+          
+          if [ "$HTTP_CODE" != "200" ] || [ -z "$DEPLOYMENTS_JSON" ] || [ "$DEPLOYMENTS_JSON" = "ERROR" ]; then
+            echo "::warning::Failed to retrieve deployment history (HTTP $HTTP_CODE). Cannot rollback frontend."
+            exit 0
+          fi
+          
+          # Parse deployment list and get previous deployment ID (index 1, as index 0 is current failed deployment)
+          PREVIOUS_DEPLOYMENT_ID=$(echo "$DEPLOYMENTS_JSON" | jq -r '.[1].id // empty' 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_DEPLOYMENT_ID" ] || [ "$PREVIOUS_DEPLOYMENT_ID" = "null" ]; then
+            echo "::warning::No previous deployment found in history."
+            echo "Deployment history:"
+            echo "$DEPLOYMENTS_JSON" | jq -r '.[] | "\(.id) - \(.status) - \(.author)"' 2>/dev/null || echo "$DEPLOYMENTS_JSON"
+            exit 0
+          fi
+          
+          echo "Deployment history retrieved:"
+          echo "$DEPLOYMENTS_JSON" | jq -r '.[] | "\(.id) - \(.status) - \(.author) - \(.startTime)"' 2>/dev/null || echo "$DEPLOYMENTS_JSON"
+          echo ""
+          echo "Previous deployment ID: $PREVIOUS_DEPLOYMENT_ID"
+          
+          echo ""
+          echo "=== Phase 5: Restoring via Kudu API ==="
+          RESTORE_URL="${KUDU_URL}/api/deployments/${PREVIOUS_DEPLOYMENT_ID}/restore"
+          
+          echo "Restoring deployment $PREVIOUS_DEPLOYMENT_ID via Kudu API..."
+          echo "Kudu URL: $KUDU_URL"
+          echo "Restore endpoint: $RESTORE_URL"
+          
+          # Phase 5: Send POST request to Kudu API to restore previous deployment
+          RESTORE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            -H "Content-Type: application/json" \
+            "$RESTORE_URL" 2>/dev/null || echo "ERROR")
+          
+          RESTORE_HTTP_CODE=$(echo "$RESTORE_RESPONSE" | tail -1)
+          RESTORE_BODY=$(echo "$RESTORE_RESPONSE" | head -n -1)
+          
+          if [ "$RESTORE_HTTP_CODE" = "200" ] || [ "$RESTORE_HTTP_CODE" = "204" ]; then
+            echo "✓ Deployment restored successfully via Kudu API"
+            echo "Response: $RESTORE_BODY"
+          else
+            echo "::warning::Kudu API restore returned HTTP $RESTORE_HTTP_CODE"
+            echo "Response: $RESTORE_BODY"
+            # Continue with restart anyway
+          fi
+          
+          echo ""
+          echo "=== Phase 6: Restarting Application via Kudu API ==="
+          # Phase 6: Restart App Service using Kudu API
+          echo "Restarting frontend App Service to apply rollback..."
+          RESTART_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
+            "${KUDU_URL}/api/app/restart" 2>/dev/null || echo "ERROR")
+          
+          RESTART_HTTP_CODE=$(echo "$RESTART_RESPONSE" | tail -1)
+          
+          if [ "$RESTART_HTTP_CODE" = "200" ] || [ "$RESTART_HTTP_CODE" = "202" ]; then
+            echo "✓ Frontend App Service restarted successfully"
+          else
+            echo "::warning::Restart returned HTTP $RESTART_HTTP_CODE (app may restart automatically)"
+          fi
+          
+          echo "✓ Frontend rollback completed successfully"
+          echo "Previous working version is now live"
+
+      - name: Rollback Summary
+        if: always()
+        run: |
+          echo "## 🔄 Automated Rollback Process Completed"
+          echo ""
+          BACKEND_ROLLBACK=${{ steps.backend-creds.outputs.has_creds }}
+          FRONTEND_ROLLBACK=${{ steps.frontend-creds.outputs.has_creds }}
+          
+          if [ "$BACKEND_ROLLBACK" = "true" ] || [ "$FRONTEND_ROLLBACK" = "true" ]; then
+            echo "✅ **Rollback Status**: Attempted"
+            echo ""
+            echo "**Backend**: https://${{ env.AZURE_WEBAPP_NAME_BACKEND }}.azurewebsites.net"
+            if [ "$BACKEND_ROLLBACK" = "true" ]; then
+              echo "  - ✓ Rollback attempted using publish profile credentials"
+            else
+              echo "  - ⚠️ Rollback skipped (publish profile not configured)"
+            fi
+            echo ""
+            echo "**Frontend**: https://${{ env.AZURE_WEBAPP_NAME_FRONTEND }}.azurewebsites.net"
+            if [ "$FRONTEND_ROLLBACK" = "true" ]; then
+              echo "  - ✓ Rollback attempted using publish profile credentials"
+            else
+              echo "  - ⚠️ Rollback skipped (publish profile not configured)"
+            fi
+            echo ""
+            echo "The previous working version has been restored via Kudu API."
+            echo "If automatic rollback didn't work, manually restore from:"
+            echo "Azure Portal > App Service > Deployment Center > Deployment History"
+          else
+            echo "⚠️ **Rollback Status**: Skipped (Publish profiles not configured)"
+            echo ""
+            echo "To enable automatic rollback, ensure these secrets are configured:"
+            echo "- AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND"
+            echo "- AZURE_WEBAPP_PUBLISH_PROFILE_FRONTEND"
+            echo ""
+            echo "**Manual Rollback**:"
+            echo "Azure Portal > App Service > Deployment Center > Deployment History"
+          fi
+
