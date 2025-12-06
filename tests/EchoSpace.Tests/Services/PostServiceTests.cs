@@ -1,11 +1,20 @@
 using EchoSpace.Core.Entities;
+using EchoSpace.Core.DTOs;
 using EchoSpace.Core.DTOs.Posts;
+using EchoSpace.Core.Enums;
 using EchoSpace.Core.Interfaces;
 using EchoSpace.Core.Services;
 using EchoSpace.Infrastructure.Data;
 using EchoSpace.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Moq;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using ImageEntity = EchoSpace.Core.Entities.Image;
+using System.Net;
+using System.Net.Http;
 
 namespace EchoSpace.Tests.Services
 {
@@ -434,6 +443,396 @@ namespace EchoSpace.Tests.Services
             var deletedComment = await _context.Comments.FindAsync(comment.CommentId);
             Assert.Null(deletedComment);
         }
+
+        #region AI Image Generation Tests
+
+        [Fact]
+        public async Task CreateAsync_WithGenerateImage_WhenServicesAreNull_ShouldCreatePostWithoutImage()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new User { Id = userId, Name = "John Doe", Email = "john@example.com", CreatedAt = DateTime.UtcNow };
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            var request = new CreatePostRequest
+            {
+                UserId = userId,
+                Content = "Post with AI image request",
+                GenerateImage = true
+            };
+
+            // PostService is initialized with null AI services in constructor
+            // Act
+            var result = await _postService.CreateAsync(request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Null(result.ImageUrl); // Should not have image since services are null
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithGenerateImage_WhenAllServicesAvailable_ShouldGenerateAndStoreImage()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new User { Id = userId, Name = "John Doe", Email = "john@example.com", CreatedAt = DateTime.UtcNow };
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            // Create a valid PNG image using ImageSharp (1x1 pixel, transparent)
+            byte[] pngBytes;
+            using (var image = new Image<Rgba32>(1, 1))
+            {
+                using (var ms = new MemoryStream())
+                {
+                    image.Save(ms, new PngEncoder());
+                    pngBytes = ms.ToArray();
+                }
+            }
+
+            // Create test HTTP server to serve the image
+            // Use a random available port
+            var tcpListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            tcpListener.Start();
+            var port = ((System.Net.IPEndPoint)tcpListener.LocalEndpoint).Port;
+            tcpListener.Stop();
+            
+            var imageUrl = $"http://localhost:{port}/image.png";
+            
+            using var httpListener = new System.Net.HttpListener();
+            httpListener.Prefixes.Add($"http://localhost:{port}/");
+            httpListener.Start();
+
+            // Set up HTTP response handler (fire and forget - runs in background)
+            var serverReady = new System.Threading.Tasks.TaskCompletionSource<bool>();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    serverReady.SetResult(true);
+                    var context = await httpListener.GetContextAsync();
+                    context.Response.ContentType = "image/png";
+                    context.Response.ContentLength64 = pngBytes.Length;
+                    await context.Response.OutputStream.WriteAsync(pngBytes, 0, pngBytes.Length);
+                    context.Response.Close();
+                }
+                catch
+                {
+                    // Ignore errors in test server
+                }
+            });
+
+            // Wait for server to be ready
+            await serverReady.Task;
+            await Task.Delay(100); // Small delay to ensure listener is accepting connections
+
+            var request = new CreatePostRequest
+            {
+                UserId = userId,
+                Content = "Post with AI image request",
+                GenerateImage = true
+            };
+
+            // Mock AI Image Generation Service
+            var mockAiService = new Mock<IAiImageGenerationService>();
+            mockAiService
+                .Setup(x => x.GenerateImageAsync(It.IsAny<string>()))
+                .ReturnsAsync(new ImageResultDto(imageUrl));
+
+            // Mock Blob Storage Service
+            var mockBlobService = new Mock<IBlobStorageService>();
+            var blobUrl = "https://storage.example.com/ai-images/test-image.png";
+            var sasUrl = "https://storage.example.com/ai-images/test-image.png?sas=token";
+            
+            mockBlobService
+                .Setup(x => x.UploadBlobAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>()))
+                .ReturnsAsync(blobUrl);
+
+            mockBlobService
+                .Setup(x => x.GetBlobUrlAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+                .ReturnsAsync(sasUrl);
+
+            // Mock Image Repository
+            var mockImageRepository = new Mock<IImageRepository>();
+            ImageEntity? savedImage = null;
+            mockImageRepository
+                .Setup(x => x.AddAsync(It.IsAny<ImageEntity>()))
+                .ReturnsAsync((ImageEntity img) => 
+                {
+                    savedImage = img;
+                    return img;
+                });
+
+            // Create PostService with mocked services
+            var postServiceWithAi = new PostService(
+                _postRepository,
+                _likeRepository,
+                _tagRepository,
+                mockAiService.Object,
+                mockBlobService.Object,
+                mockImageRepository.Object,
+                _logger
+            );
+
+            // Act
+            var result = await postServiceWithAi.CreateAsync(request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.NotNull(result.ImageUrl);
+            Assert.Equal(sasUrl, result.ImageUrl);
+
+            // Verify AI service was called
+            mockAiService.Verify(x => x.GenerateImageAsync(request.Content), Times.Once);
+
+            // Verify blob storage was called
+            mockBlobService.Verify(x => x.UploadBlobAsync(
+                "ai-images",
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                "image/png"
+            ), Times.Once);
+
+            mockBlobService.Verify(x => x.GetBlobUrlAsync(
+                "ai-images",
+                It.IsAny<string>(),
+                60
+            ), Times.Once);
+
+            // Verify image repository was called
+            mockImageRepository.Verify(x => x.AddAsync(It.Is<ImageEntity>(img =>
+                img.Source == ImageSource.AIGenerated &&
+                img.UserId == userId &&
+                img.PostId == result.PostId &&
+                img.ContainerName == "ai-images"
+            )), Times.Once);
+
+            // Verify image entity was created correctly
+            Assert.NotNull(savedImage);
+            Assert.Equal(ImageSource.AIGenerated, savedImage.Source);
+            Assert.Equal(userId, savedImage.UserId);
+            Assert.Equal(result.PostId, savedImage.PostId);
+
+            httpListener.Stop();
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithGenerateImage_WhenAiServiceThrowsException_ShouldContinueWithoutImage()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new User { Id = userId, Name = "John Doe", Email = "john@example.com", CreatedAt = DateTime.UtcNow };
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            var request = new CreatePostRequest
+            {
+                UserId = userId,
+                Content = "Post with AI image request",
+                GenerateImage = true
+            };
+
+            // Mock AI Image Generation Service to throw exception
+            var mockAiService = new Mock<IAiImageGenerationService>();
+            mockAiService
+                .Setup(x => x.GenerateImageAsync(It.IsAny<string>()))
+                .ThrowsAsync(new Exception("AI service unavailable"));
+
+            // Mock Blob Storage Service
+            var mockBlobService = new Mock<IBlobStorageService>();
+
+            // Mock Image Repository
+            var mockImageRepository = new Mock<IImageRepository>();
+
+            // Create PostService with mocked services
+            var postServiceWithAi = new PostService(
+                _postRepository,
+                _likeRepository,
+                _tagRepository,
+                mockAiService.Object,
+                mockBlobService.Object,
+                mockImageRepository.Object,
+                _logger
+            );
+
+            // Act
+            var result = await postServiceWithAi.CreateAsync(request);
+
+            // Assert - Post should still be created even if AI generation fails
+            Assert.NotNull(result);
+            Assert.Null(result.ImageUrl); // Should not have image due to error
+
+            // Verify AI service was called
+            mockAiService.Verify(x => x.GenerateImageAsync(request.Content), Times.Once);
+
+            // Verify blob storage was NOT called (since AI service failed)
+            mockBlobService.Verify(x => x.UploadBlobAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<string>()
+            ), Times.Never);
+
+            // Verify image repository was NOT called
+            mockImageRepository.Verify(x => x.AddAsync(It.IsAny<ImageEntity>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithGenerateImage_WhenBlobStorageFails_ShouldContinueWithoutImage()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new User { Id = userId, Name = "John Doe", Email = "john@example.com", CreatedAt = DateTime.UtcNow };
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            // Create a valid PNG image using ImageSharp (1x1 pixel, transparent)
+            byte[] pngBytes;
+            using (var image = new Image<Rgba32>(1, 1))
+            {
+                using (var ms = new MemoryStream())
+                {
+                    image.Save(ms, new PngEncoder());
+                    pngBytes = ms.ToArray();
+                }
+            }
+
+            // Use a random available port
+            var tcpListener2 = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            tcpListener2.Start();
+            var port2 = ((System.Net.IPEndPoint)tcpListener2.LocalEndpoint).Port;
+            tcpListener2.Stop();
+            
+            var imageUrl2 = $"http://localhost:{port2}/image.png";
+            
+            using var httpListener2 = new System.Net.HttpListener();
+            httpListener2.Prefixes.Add($"http://localhost:{port2}/");
+            httpListener2.Start();
+
+            // Set up HTTP response handler (fire and forget - runs in background)
+            var serverReady2 = new System.Threading.Tasks.TaskCompletionSource<bool>();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    serverReady2.SetResult(true);
+                    var context = await httpListener2.GetContextAsync();
+                    context.Response.ContentType = "image/png";
+                    context.Response.ContentLength64 = pngBytes.Length;
+                    await context.Response.OutputStream.WriteAsync(pngBytes, 0, pngBytes.Length);
+                    context.Response.Close();
+                }
+                catch
+                {
+                    // Ignore errors in test server
+                }
+            });
+
+            // Wait for server to be ready
+            await serverReady2.Task;
+            await Task.Delay(100); // Small delay to ensure listener is accepting connections
+
+            var request = new CreatePostRequest
+            {
+                UserId = userId,
+                Content = "Post with AI image request",
+                GenerateImage = true
+            };
+
+            // Mock AI Image Generation Service
+            var mockAiService = new Mock<IAiImageGenerationService>();
+            mockAiService
+                .Setup(x => x.GenerateImageAsync(It.IsAny<string>()))
+                .ReturnsAsync(new ImageResultDto(imageUrl2));
+
+            // Mock Blob Storage Service to throw exception
+            var mockBlobService = new Mock<IBlobStorageService>();
+            mockBlobService
+                .Setup(x => x.UploadBlobAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>()))
+                .ThrowsAsync(new Exception("Blob storage unavailable"));
+
+            // Mock Image Repository
+            var mockImageRepository = new Mock<IImageRepository>();
+
+            // Create PostService with mocked services
+            var postServiceWithAi = new PostService(
+                _postRepository,
+                _likeRepository,
+                _tagRepository,
+                mockAiService.Object,
+                mockBlobService.Object,
+                mockImageRepository.Object,
+                _logger
+            );
+
+            // Act
+            var result = await postServiceWithAi.CreateAsync(request);
+
+            // Assert - Post should still be created even if blob storage fails
+            Assert.NotNull(result);
+            Assert.Null(result.ImageUrl); // Should not have image due to error
+
+            // Verify blob storage was called but failed
+            mockBlobService.Verify(x => x.UploadBlobAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<string>()
+            ), Times.Once);
+
+            // Verify image repository was NOT called (since blob storage failed)
+            mockImageRepository.Verify(x => x.AddAsync(It.IsAny<ImageEntity>()), Times.Never);
+
+            httpListener2.Stop();
+        }
+
+        [Fact]
+        public async Task CreateAsync_WithGenerateImageFalse_ShouldNotCallAiServices()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var user = new User { Id = userId, Name = "John Doe", Email = "john@example.com", CreatedAt = DateTime.UtcNow };
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            var request = new CreatePostRequest
+            {
+                UserId = userId,
+                Content = "Post without AI image",
+                GenerateImage = false
+            };
+
+            // Mock services
+            var mockAiService = new Mock<IAiImageGenerationService>();
+            var mockBlobService = new Mock<IBlobStorageService>();
+            var mockImageRepository = new Mock<IImageRepository>();
+
+            // Create PostService with mocked services
+            var postServiceWithAi = new PostService(
+                _postRepository,
+                _likeRepository,
+                _tagRepository,
+                mockAiService.Object,
+                mockBlobService.Object,
+                mockImageRepository.Object,
+                _logger
+            );
+
+            // Act
+            var result = await postServiceWithAi.CreateAsync(request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Null(result.ImageUrl);
+
+            // Verify AI service was NOT called
+            mockAiService.Verify(x => x.GenerateImageAsync(It.IsAny<string>()), Times.Never);
+            mockBlobService.Verify(x => x.UploadBlobAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>()), Times.Never);
+            mockImageRepository.Verify(x => x.AddAsync(It.IsAny<ImageEntity>()), Times.Never);
+        }
+
+        #endregion
 
         public void Dispose()
         {
