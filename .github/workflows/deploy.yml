@@ -50,6 +50,7 @@ jobs:
           zip -r ../backend-deploy.zip .
 
       - name: Deploy to Azure App Service (Backend)
+        id: deploy-backend
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_BACKEND }}
@@ -84,7 +85,6 @@ jobs:
             --project src/EchoSpace.Infrastructure/EchoSpace.Infrastructure.csproj \
             --startup-project src/EchoSpace.UI/EchoSpace.UI.csproj \
             --connection "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-        continue-on-error: true # Continue if migrations fail (may already be up to date)
 
   build-and-deploy-frontend:
     name: Build and Deploy Frontend (Angular)
@@ -133,6 +133,7 @@ jobs:
           zip -r ../../../../frontend-deploy.zip . -x "*.git*"
 
       - name: Deploy to Azure App Service (Frontend)
+        id: deploy-frontend
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_FRONTEND }}
@@ -148,12 +149,153 @@ jobs:
       - name: Check backend health
         run: |
           echo "Checking backend..."
-          curl -f https://echospace-backend-app-dev.azurewebsites.net/swagger || echo "Backend not responding yet"
-        continue-on-error: true
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://echospace-backend-app-dev.azurewebsites.net/swagger || echo "000")
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
+            echo "Backend health check failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Backend is healthy (HTTP $HTTP_CODE)"
 
       - name: Check frontend health
         run: |
           echo "Checking frontend..."
-          curl -f https://echospace-angular-app-dev.azurewebsites.net || echo "Frontend not responding yet"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://echospace-angular-app-dev.azurewebsites.net || echo "000")
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
+            echo "Frontend health check failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Frontend is healthy (HTTP $HTTP_CODE)"
+
+  rollback-deployment:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    needs: [build-and-deploy-backend, build-and-deploy-frontend, run-database-migrations, verify-deployment]
+    if: failure() # Only run if any previous job failed
+    
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Rollback Backend to Previous Deployment
+        run: |
+          echo "Rolling back backend to previous deployment using Kudu API..."
+          
+          # Get previous deployment ID (second in list, index 1)
+          PREVIOUS_DEPLOYMENT_ID=$(az webapp deployment list \
+            --name ${{ env.AZURE_WEBAPP_NAME_BACKEND }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[1].id" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_DEPLOYMENT_ID" ] && [ "$PREVIOUS_DEPLOYMENT_ID" != "" ]; then
+            echo "Found previous deployment: $PREVIOUS_DEPLOYMENT_ID"
+            # Extract deployment ID from full resource path
+            DEPLOYMENT_ID=$(echo "$PREVIOUS_DEPLOYMENT_ID" | sed 's/.*\/deployments\///')
+            
+            # Get publish profile and extract credentials for Kudu API
+            PUBLISH_PROFILE_XML=$(az webapp deployment list-publishing-profiles \
+              --name ${{ env.AZURE_WEBAPP_NAME_BACKEND }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --xml 2>/dev/null || echo "")
+            
+            # Extract username and password from publish profile
+            KUDU_USER=$(echo "$PUBLISH_PROFILE_XML" | sed -n 's/.*userName="\([^"]*\)".*/\1/p' | head -1)
+            KUDU_PASS=$(echo "$PUBLISH_PROFILE_XML" | sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' | head -1)
+            
+            if [ -n "$KUDU_USER" ] && [ -n "$KUDU_PASS" ] && [ -n "$DEPLOYMENT_ID" ]; then
+              echo "Restoring deployment $DEPLOYMENT_ID via Kudu API..."
+              KUDU_URL="https://${{ env.AZURE_WEBAPP_NAME_BACKEND }}.scm.azurewebsites.net"
+              
+              # Restore using Kudu API
+              curl -X POST \
+                -u "${KUDU_USER}:${KUDU_PASS}" \
+                "${KUDU_URL}/api/deployments/${DEPLOYMENT_ID}/restore" \
+                -H "Content-Type: application/json" \
+                || echo "Kudu API restore failed"
+              
+              # Restart app to apply rollback
+              az webapp restart \
+                --name ${{ env.AZURE_WEBAPP_NAME_BACKEND }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || echo "Failed to restart backend"
+              
+              echo "Backend rollback completed"
+            else
+              echo "Could not extract Kudu credentials. Stopping app..."
+              az webapp stop \
+                --name ${{ env.AZURE_WEBAPP_NAME_BACKEND }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || echo "Failed to stop backend"
+            fi
+          else
+            echo "No previous deployment found. Stopping app to prevent serving broken code..."
+            az webapp stop \
+              --name ${{ env.AZURE_WEBAPP_NAME_BACKEND }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || echo "Failed to stop backend"
+          fi
         continue-on-error: true
+
+      - name: Rollback Frontend to Previous Deployment
+        run: |
+          echo "Rolling back frontend to previous deployment using Kudu API..."
+          
+          # Get previous deployment ID (second in list, index 1)
+          PREVIOUS_DEPLOYMENT_ID=$(az webapp deployment list \
+            --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[1].id" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_DEPLOYMENT_ID" ] && [ "$PREVIOUS_DEPLOYMENT_ID" != "" ]; then
+            echo "Found previous deployment: $PREVIOUS_DEPLOYMENT_ID"
+            # Extract deployment ID from full resource path
+            DEPLOYMENT_ID=$(echo "$PREVIOUS_DEPLOYMENT_ID" | sed 's/.*\/deployments\///')
+            
+            # Get publish profile and extract credentials for Kudu API
+            PUBLISH_PROFILE_XML=$(az webapp deployment list-publishing-profiles \
+              --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --xml 2>/dev/null || echo "")
+            
+            # Extract username and password from publish profile
+            KUDU_USER=$(echo "$PUBLISH_PROFILE_XML" | sed -n 's/.*userName="\([^"]*\)".*/\1/p' | head -1)
+            KUDU_PASS=$(echo "$PUBLISH_PROFILE_XML" | sed -n 's/.*userPWD="\([^"]*\)".*/\1/p' | head -1)
+            
+            if [ -n "$KUDU_USER" ] && [ -n "$KUDU_PASS" ] && [ -n "$DEPLOYMENT_ID" ]; then
+              echo "Restoring deployment $DEPLOYMENT_ID via Kudu API..."
+              KUDU_URL="https://${{ env.AZURE_WEBAPP_NAME_FRONTEND }}.scm.azurewebsites.net"
+              
+              # Restore using Kudu API
+              curl -X POST \
+                -u "${KUDU_USER}:${KUDU_PASS}" \
+                "${KUDU_URL}/api/deployments/${DEPLOYMENT_ID}/restore" \
+                -H "Content-Type: application/json" \
+                || echo "Kudu API restore failed"
+              
+              # Restart app to apply rollback
+              az webapp restart \
+                --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || echo "Failed to restart frontend"
+              
+              echo "Frontend rollback completed"
+            else
+              echo "Could not extract Kudu credentials. Stopping app..."
+              az webapp stop \
+                --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || echo "Failed to stop frontend"
+            fi
+          else
+            echo "No previous deployment found. Stopping app to prevent serving broken code..."
+            az webapp stop \
+              --name ${{ env.AZURE_WEBAPP_NAME_FRONTEND }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || echo "Failed to stop frontend"
+          fi
+        continue-on-error: true
+
+      - name: Notify Rollback Status
+        run: |
+          echo "::error::Deployment failed. Rollback to previous deployment was attempted."
+          echo "Backend: https://echospace-backend-app-dev.azurewebsites.net"
+          echo "Frontend: https://echospace-angular-app-dev.azurewebsites.net"
+          echo ""
+          echo "If automatic rollback didn't work, manually restore from:"
+          echo "Azure Portal > App Service > Deployment Center > Deployment History"
 
