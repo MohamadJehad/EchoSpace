@@ -55,44 +55,6 @@ jobs:
           package: ./backend-deploy.zip
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_BACKEND }}
 
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-          az --version
-        continue-on-error: true
-
-      - name: Set .NET 9.0 Runtime (Workaround)
-        run: |
-          echo "Setting .NET 9.0 runtime for backend app..."
-          
-          # Try Azure CLI if credentials are available
-          if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            echo "Using Azure CLI to set .NET 9.0 runtime..."
-            echo '${{ secrets.AZURE_CREDENTIALS }}' > azure_creds.json
-            
-            az login --service-principal \
-              -u $(jq -r '.clientId' azure_creds.json) \
-              -p $(jq -r '.clientSecret' azure_creds.json) \
-              --tenant $(jq -r '.tenantId' azure_creds.json) || {
-              echo "::warning::Failed to login to Azure. Skipping .NET 9.0 runtime setup."
-              rm -f azure_creds.json
-              exit 0
-            }
-            
-            az webapp config set \
-              --name ${{ env.AZURE_WEBAPP_NAME_BACKEND }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --linux-fx-version "DOTNETCORE|9.0" || {
-              echo "::warning::Failed to set .NET 9.0 runtime. App may need manual configuration."
-            }
-            
-            rm -f azure_creds.json
-          else
-            echo "::warning::AZURE_CREDENTIALS not configured. Cannot set .NET 9.0 runtime automatically."
-            echo "::warning::Please set the runtime manually in Azure Portal or configure AZURE_CREDENTIALS secret."
-            echo "::warning::Azure Portal > App Service > Configuration > General settings > Stack settings > .NET version = 9.0"
-          fi
-        continue-on-error: true
 
   run-database-migrations:
     name: Run Database Migrations
