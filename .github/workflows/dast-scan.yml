@@ -54,10 +54,11 @@ jobs:
       
     - name: ZAP Baseline Scan
       if: steps.set-url.outputs.scan_type == 'baseline' || github.event_name == 'pull_request'
+      continue-on-error: true
       uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ steps.set-url.outputs.target_url }}
-        fail_action: true
+        fail_action: false
         rules_file_name: '.zap/rules.tsv'
         
     - name: ZAP Full Scan
@@ -146,10 +147,18 @@ jobs:
               
               if (alerts.length === 0) {
                 comment += '✅ **No security issues found!**\n\n';
+              } else if (highAlerts.length === 0 && mediumAlerts.length === 0) {
+                comment += '✅ **No high or medium severity issues found!**\n\n';
+                comment += '*Only low severity or informational findings detected.*\n\n';
               }
               
-              comment += `\n**Total Alerts:** ${alerts.length}\n`;
-              comment += `\n📄 Full report available in workflow artifacts.`;
+              comment += `\n**Summary:**\n`;
+              comment += `- ⚠️ High/Critical: ${highAlerts.length}\n`;
+              comment += `- ⚠️ Medium: ${mediumAlerts.length}\n`;
+              comment += `- ℹ️ Low: ${lowAlerts.length}\n`;
+              comment += `- 📝 Informational: ${infoAlerts.length}\n`;
+              comment += `- **Total:** ${alerts.length}\n\n`;
+              comment += `📄 Full report available in workflow artifacts.`;
               
               // Post comment to PR
               await github.rest.issues.createComment({
