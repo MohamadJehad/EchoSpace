@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -135,8 +139,10 @@ resource "azurerm_linux_web_app" "backend" {
     # Security: TLS version
     minimum_tls_version = var.minimum_tls_version
 
+    # Note: dotnet_version in application_stack doesn't support 9.0 yet
+    # We'll set .NET 9.0 via null_resource provisioner below
     application_stack {
-      dotnet_version = "8.0" # Azure App Service supports up to 8.0
+      dotnet_version = "8.0" # Placeholder - will be overridden by null_resource
     }
   }
 
@@ -146,7 +152,10 @@ resource "azurerm_linux_web_app" "backend" {
     # Connection string for SQL Database
     "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.main.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.main.name};Persist Security Info=False;User ID=${var.sql_admin_login};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 
-    # Storage account connection string
+    # Storage account connection string (for BlobStorageService)
+    "ConnectionStrings__AzureStorage" = azurerm_storage_account.main.primary_connection_string
+
+    # Storage account connection string (legacy - kept for compatibility)
     "AzureStorage__ConnectionString" = azurerm_storage_account.main.primary_connection_string
 
     # Storage Connection URIs (required by code)
@@ -208,6 +217,31 @@ resource "azurerm_linux_web_app" "backend" {
     Component   = "Backend"
     Environment = var.environment
   })
+}
+
+# Workaround: Set .NET 9.0 runtime via Azure CLI (Terraform provider doesn't support 9.0 yet)
+resource "null_resource" "backend_dotnet9" {
+  depends_on = [azurerm_linux_web_app.backend]
+
+  # Trigger whenever the backend app changes (including app_settings updates)
+  triggers = {
+    app_name       = azurerm_linux_web_app.backend.name
+    resource_group = azurerm_linux_web_app.backend.resource_group_name
+    app_service_id = azurerm_linux_web_app.backend.id
+    # Include app_settings hash to trigger on any app_settings change
+    app_settings_hash = sha256(jsonencode(azurerm_linux_web_app.backend.app_settings))
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      $config = @{ linuxFxVersion = "DOTNETCORE|9.0" } | ConvertTo-Json
+      $config | Out-File -FilePath "webapp-config-temp.json" -Encoding utf8
+      az webapp config set --name ${azurerm_linux_web_app.backend.name} --resource-group ${azurerm_linux_web_app.backend.resource_group_name} --generic-configurations @webapp-config-temp.json
+      Remove-Item webapp-config-temp.json -ErrorAction SilentlyContinue
+    EOT
+
+    interpreter = ["PowerShell", "-Command"]
+  }
 }
 
 # Azure SQL Server (cheap tier - Basic)
