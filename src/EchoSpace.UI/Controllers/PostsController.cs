@@ -30,7 +30,8 @@ namespace EchoSpace.UI.Controllers
 
         private Guid? GetCurrentUserId()
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            Console.WriteLine("Getting current user ID");
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
             {
                 return userId;
