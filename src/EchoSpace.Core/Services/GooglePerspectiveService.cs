@@ -74,7 +74,13 @@ namespace EchoSpace.Core.Services
         return 0.0;
     }
     
-    dynamic result = JsonConvert.DeserializeObject(response.Content);
+    dynamic? result = JsonConvert.DeserializeObject(response.Content);
+    if (result == null)
+    {
+        Console.WriteLine("Warning: Failed to deserialize response content");
+        return 0.0;
+    }
+    
     double score = (double?)result?.attributeScores?.TOXICITY?.summaryScore?.value ?? 0.0;
 
     Console.WriteLine("Toxicity Score: " + score);
