@@ -272,8 +272,16 @@ jobs:
         
     - name: Generate .NET SBOM
       run: |
-        echo "Generating .NET SBOM..."
-        dotnet CycloneDX EchoSpace.CleanArchitecture.sln -o sbom/
+        echo "Generating .NET SBOM in JSON format..."
+        mkdir -p sbom
+        dotnet CycloneDX EchoSpace.CleanArchitecture.sln -o sbom/ -f json
+        # Find and rename the generated JSON file (remove .json extension from name)
+        JSON_FILE=$(find sbom/ -name "*.json" -type f | head -1)
+        if [ -n "$JSON_FILE" ]; then
+          mv "$JSON_FILE" sbom/dotnet-sbom
+          echo "Renamed to sbom/dotnet-sbom (JSON format)"
+        fi
+        echo "SBOM files generated:"
         ls -la sbom/
         
     # Node.js SBOM
@@ -294,9 +302,71 @@ jobs:
     - name: Generate Node.js SBOM
       working-directory: src/EchoSpace.Web.Client
       run: |
-        echo "Generating Node.js SBOM..."
-        cyclonedx-npm --output-file ../../../sbom/npm-sbom.json
+        echo "Generating Node.js SBOM in JSON format..."
+        cyclonedx-npm --output-file ../../sbom/angular-sbom --output-format json
+
+    - name: Verify SBOM JSON Format
+      run: |
+        echo "Verifying SBOM files are valid JSON..."
+        if [ -f sbom/dotnet-sbom ]; then
+          echo "✓ .NET SBOM found: dotnet-sbom"
+          python3 -m json.tool sbom/dotnet-sbom > /dev/null && echo "  ✓ Valid JSON format" || echo "  ✗ Invalid JSON"
+        else
+          echo "✗ .NET SBOM file not found"
+        fi
         
+        if [ -f sbom/angular-sbom ]; then
+          echo "✓ Angular SBOM found: angular-sbom"
+          python3 -m json.tool sbom/angular-sbom > /dev/null && echo "  ✓ Valid JSON format" || echo "  ✗ Invalid JSON"
+        else
+          echo "✗ Angular SBOM file not found"
+        fi
+        
+        echo ""
+        echo "SBOM files ready for upload:"
+        ls -lh sbom/dotnet-sbom sbom/angular-sbom 2>/dev/null || echo "SBOM files not found"
+
+    - name: Create SBOM Summary
+      run: |
+        echo "## 📦 Software Bill of Materials (SBOM)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Generated SBOM Reports" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f sbom/dotnet-sbom ]; then
+          DOTNET_SIZE=$(du -h sbom/dotnet-sbom | cut -f1)
+          DOTNET_COMPONENTS=$(jq -r '.components | length' sbom/dotnet-sbom 2>/dev/null || echo "N/A")
+          echo "#### ✅ .NET SBOM (Backend)" >> $GITHUB_STEP_SUMMARY
+          echo "- **File:** \`dotnet-sbom\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Size:** $DOTNET_SIZE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Components:** $DOTNET_COMPONENTS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Format:** JSON (CycloneDX)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "#### ❌ .NET SBOM - Not Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f sbom/angular-sbom ]; then
+          ANGULAR_SIZE=$(du -h sbom/angular-sbom | cut -f1)
+          ANGULAR_COMPONENTS=$(jq -r '.components | length' sbom/angular-sbom 2>/dev/null || echo "N/A")
+          echo "#### ✅ Angular SBOM (Frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "- **File:** \`angular-sbom\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Size:** $ANGULAR_SIZE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Components:** $ANGULAR_COMPONENTS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Format:** JSON (CycloneDX)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "#### ❌ Angular SBOM - Not Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "### 📥 Download" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Download the \`sbom-files\` artifact from the Artifacts section below to get both SBOM reports." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Note:** Both files are in JSON format (CycloneDX standard) for compliance and security tracking." >> $GITHUB_STEP_SUMMARY
+
     - name: Upload SBOM artifacts
       uses: actions/upload-artifact@v4
       with:
