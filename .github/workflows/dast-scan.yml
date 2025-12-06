@@ -52,16 +52,9 @@ jobs:
           echo "scan_type=baseline" >> $GITHUB_OUTPUT
         fi
       
-    - name: Setup OWASP ZAP
-      uses: zaproxy/action-baseline@v0.15.0
-      with:
-        target: ${{ steps.set-url.outputs.target_url }}
-        rules_file_name: '.zap/rules.tsv'
-        cmd_options: '-a'
-        
     - name: ZAP Baseline Scan
       if: steps.set-url.outputs.scan_type == 'baseline' || github.event_name == 'pull_request'
-      uses: zaproxy/action-baseline@v0.10.0
+      uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ steps.set-url.outputs.target_url }}
         fail_action: true
