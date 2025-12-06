@@ -73,6 +73,9 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore EchoSpace.CleanArchitecture.sln
 
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
       - name: Run database migrations
         env:
           ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
