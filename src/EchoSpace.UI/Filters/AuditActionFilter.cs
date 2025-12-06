@@ -10,7 +10,7 @@ public class AuditActionFilter : IAsyncActionFilter
     {
         var action = context.ActionDescriptor.DisplayName;
         var attr = context.ActionDescriptor.EndpointMetadata.OfType<AuditAttribute>().FirstOrDefault();
-        var actionType = attr?.ActionType ?? action;
+        var actionType = attr?.ActionType ?? action ?? "Unknown";
 
         var correlationId = context.HttpContext.Items["CorrelationId"]?.ToString();
         // var userId = context.HttpContext.Items["UserId"] as Guid?;
