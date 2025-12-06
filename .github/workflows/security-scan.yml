@@ -186,7 +186,6 @@ jobs:
       run: dotnet build EchoSpace.CleanArchitecture.sln --configuration Release --no-restore
       
     - name: Run Security Code Scan
-      continue-on-error: true
       run: |
         echo "Running Security Code Scan..."
         # Security Code Scan runs as MSBuild target
@@ -229,7 +228,6 @@ jobs:
         
     - name: Run ESLint with security rules
       working-directory: src/EchoSpace.Web.Client
-      continue-on-error: true
       run: |
         echo "Running ESLint security scan..."
         npx eslint "src/**/*.ts" --ext .ts --format json --output-file eslint-security-report.json || true
@@ -395,16 +393,13 @@ jobs:
       
     - name: Terraform Init
       working-directory: terraform
-      continue-on-error: true
       run: terraform init
       
     - name: Terraform Validate
       working-directory: terraform
-      continue-on-error: true
       run: terraform validate
       
     - name: Terraform Plan (Dry Run)
       working-directory: terraform
-      continue-on-error: true
       run: terraform plan -out=tfplan
 

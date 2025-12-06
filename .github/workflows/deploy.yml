@@ -35,7 +35,6 @@ jobs:
 
       - name: Run tests
         run: dotnet test EchoSpace.CleanArchitecture.sln --configuration Release --no-build --verbosity normal
-        continue-on-error: true # Don't fail deployment if tests fail (optional)
 
       - name: Publish backend
         run: |
@@ -84,8 +83,7 @@ jobs:
             --project src/EchoSpace.Infrastructure/EchoSpace.Infrastructure.csproj \
             --startup-project src/EchoSpace.UI/EchoSpace.UI.csproj \
             --connection "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-        continue-on-error: true # Continue if migrations fail (may already be up to date)
-
+      
   build-and-deploy-frontend:
     name: Build and Deploy Frontend (Angular)
     runs-on: ubuntu-latest
@@ -149,13 +147,11 @@ jobs:
         run: |
           echo "Checking backend..."
           curl -f https://echospace-backend-app-dev.azurewebsites.net/swagger || echo "Backend not responding yet"
-        continue-on-error: true
 
       - name: Check frontend health
         run: |
           echo "Checking frontend..."
           curl -f https://echospace-angular-app-dev.azurewebsites.net || echo "Frontend not responding yet"
-        continue-on-error: true
 
   # Phase 1: Failure Detection - Triggered automatically when any job fails
   rollback-deployment:
