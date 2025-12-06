@@ -1,6 +1,8 @@
 name: DAST Security Scan
 
 on:
+  pull_request:
+    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
       target_url:
@@ -24,42 +26,57 @@ jobs:
   dast-scan:
     name: OWASP ZAP DAST Scan
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Set target URL
+      id: set-url
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # For PRs, use staging URL (update this to your staging environment)
+          echo "target_url=https://echospace-backend-app-dev.azurewebsites.net" >> $GITHUB_OUTPUT
+          echo "scan_type=baseline" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "target_url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          echo "scan_type=${{ github.event.inputs.scan_type || 'baseline' }}" >> $GITHUB_OUTPUT
+        else
+          # For scheduled scans, use production URL
+          echo "target_url=https://echospace-backend-app-dev.azurewebsites.net" >> $GITHUB_OUTPUT
+          echo "scan_type=baseline" >> $GITHUB_OUTPUT
+        fi
+      
     - name: Setup OWASP ZAP
       uses: zaproxy/action-baseline@v0.10.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        target: ${{ steps.set-url.outputs.target_url }}
         rules_file_name: '.zap/rules.tsv'
         cmd_options: '-a'
         
     - name: ZAP Baseline Scan
-      if: github.event.inputs.scan_type == 'baseline' || github.event.inputs.scan_type == ''
+      if: steps.set-url.outputs.scan_type == 'baseline' || github.event_name == 'pull_request'
       uses: zaproxy/action-baseline@v0.10.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        target: ${{ steps.set-url.outputs.target_url }}
         fail_action: true
         rules_file_name: '.zap/rules.tsv'
         
     - name: ZAP Full Scan
-      if: github.event.inputs.scan_type == 'full'
+      if: steps.set-url.outputs.scan_type == 'full'
       uses: zaproxy/action-full-scan@v0.10.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        target: ${{ steps.set-url.outputs.target_url }}
         fail_action: true
         rules_file_name: '.zap/rules.tsv'
         
     - name: ZAP API Scan
-      if: github.event.inputs.scan_type == 'api'
+      if: steps.set-url.outputs.scan_type == 'api'
       uses: zaproxy/action-api-scan@v0.7.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        target: ${{ steps.set-url.outputs.target_url }}
         format: openapi
-        api: 'https://your-app-service.azurewebsites.net/swagger/v1/swagger.json'
+        api: '${{ steps.set-url.outputs.target_url }}/swagger/v1/swagger.json'
         fail_action: true
         
     - name: Upload ZAP results
