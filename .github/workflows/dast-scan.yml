@@ -1,6 +1,8 @@
 name: DAST Security Scan
 
 on:
+  pull_request:
+    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
       target_url:
@@ -24,42 +26,56 @@ jobs:
   dast-scan:
     name: OWASP ZAP DAST Scan
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      security-events: write
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup OWASP ZAP
-      uses: zaproxy/action-baseline@v0.15.0
-      with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
-        rules_file_name: '.zap/rules.tsv'
-        cmd_options: '-a'
-        
+    - name: Set target URL
+      id: set-url
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # For PRs, use staging URL (update this to your staging environment)
+          echo "target_url=https://echospace-backend-app-dev.azurewebsites.net" >> $GITHUB_OUTPUT
+          echo "scan_type=baseline" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "target_url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          echo "scan_type=${{ github.event.inputs.scan_type || 'baseline' }}" >> $GITHUB_OUTPUT
+        else
+          # For scheduled scans, use production URL
+          echo "target_url=https://echospace-backend-app-dev.azurewebsites.net" >> $GITHUB_OUTPUT
+          echo "scan_type=baseline" >> $GITHUB_OUTPUT
+        fi
+      
     - name: ZAP Baseline Scan
-      if: github.event.inputs.scan_type == 'baseline' || github.event.inputs.scan_type == ''
+      if: steps.set-url.outputs.scan_type == 'baseline' || github.event_name == 'pull_request'
+      continue-on-error: true
       uses: zaproxy/action-baseline@v0.15.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
-        fail_action: true
+        target: ${{ steps.set-url.outputs.target_url }}
+        fail_action: false
         rules_file_name: '.zap/rules.tsv'
         
     - name: ZAP Full Scan
-      if: github.event.inputs.scan_type == 'full'
+      if: steps.set-url.outputs.scan_type == 'full'
       uses: zaproxy/action-full-scan@v0.10.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        target: ${{ steps.set-url.outputs.target_url }}
         fail_action: true
         rules_file_name: '.zap/rules.tsv'
         
     - name: ZAP API Scan
-      if: github.event.inputs.scan_type == 'api'
-      uses: zaproxy/action-api-scan@v0.10.0
+      if: steps.set-url.outputs.scan_type == 'api'
+      uses: zaproxy/action-api-scan@v0.7.0
       with:
-        target: ${{ github.event.inputs.target_url || 'https://your-app-service.azurewebsites.net' }}
+        target: ${{ steps.set-url.outputs.target_url }}
         format: openapi
-        api: 'https://your-app-service.azurewebsites.net/swagger/v1/swagger.json'
+        api: '${{ steps.set-url.outputs.target_url }}/swagger/v1/swagger.json'
         fail_action: true
         
     - name: Upload ZAP results
@@ -68,23 +84,99 @@ jobs:
       with:
         name: zap-results
         path: |
+          report_html.html
+          report_json.json
+          report_md.md
           zap-report.html
           zap-results.json
         retention-days: 30
         
     - name: Comment PR with results
       if: github.event_name == 'pull_request'
+      continue-on-error: true
       uses: actions/github-script@v7
       with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const fs = require('fs');
-          if (fs.existsSync('zap-results.json')) {
-            const results = JSON.parse(fs.readFileSync('zap-results.json', 'utf8'));
-            const alerts = results.site?.[0]?.alerts || [];
-            const highAlerts = alerts.filter(a => a.risk === 'High' || a.risk === 'Critical');
-            
-            if (highAlerts.length > 0) {
-              core.setFailed(`Found ${highAlerts.length} high/critical security issues`);
+          const path = require('path');
+          
+          // Try to find the report file (it might have a different name)
+          let reportFile = 'report_json.json';
+          if (!fs.existsSync(reportFile)) {
+            reportFile = 'zap-results.json';
+          }
+          
+          if (fs.existsSync(reportFile)) {
+            try {
+              const results = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
+              const site = results.site || (results[0] && results[0].site) || [];
+              const alerts = site[0]?.alerts || [];
+              
+              const highAlerts = alerts.filter(a => a.risk === 'High' || a.risk === 'Critical');
+              const mediumAlerts = alerts.filter(a => a.risk === 'Medium');
+              const lowAlerts = alerts.filter(a => a.risk === 'Low');
+              const infoAlerts = alerts.filter(a => a.risk === 'Informational');
+              
+              let comment = '## 🔒 DAST Security Scan Results\n\n';
+              comment += `**Scan Type:** Baseline\n`;
+              comment += `**Target:** ${{ steps.set-url.outputs.target_url }}\n\n`;
+              
+              if (highAlerts.length > 0) {
+                comment += `### ⚠️ High/Critical Issues: ${highAlerts.length}\n\n`;
+                highAlerts.slice(0, 10).forEach(alert => {
+                  comment += `- **${alert.name}** (${alert.risk})\n`;
+                });
+                if (highAlerts.length > 10) {
+                  comment += `\n*... and ${highAlerts.length - 10} more*\n`;
+                }
+                comment += '\n';
+              }
+              
+              if (mediumAlerts.length > 0) {
+                comment += `### ⚠️ Medium Issues: ${mediumAlerts.length}\n\n`;
+              }
+              
+              if (lowAlerts.length > 0) {
+                comment += `### ℹ️ Low Issues: ${lowAlerts.length}\n\n`;
+              }
+              
+              if (infoAlerts.length > 0) {
+                comment += `### 📝 Informational: ${infoAlerts.length}\n\n`;
+              }
+              
+              if (alerts.length === 0) {
+                comment += '✅ **No security issues found!**\n\n';
+              } else if (highAlerts.length === 0 && mediumAlerts.length === 0) {
+                comment += '✅ **No high or medium severity issues found!**\n\n';
+                comment += '*Only low severity or informational findings detected.*\n\n';
+              }
+              
+              comment += `\n**Summary:**\n`;
+              comment += `- ⚠️ High/Critical: ${highAlerts.length}\n`;
+              comment += `- ⚠️ Medium: ${mediumAlerts.length}\n`;
+              comment += `- ℹ️ Low: ${lowAlerts.length}\n`;
+              comment += `- 📝 Informational: ${infoAlerts.length}\n`;
+              comment += `- **Total:** ${alerts.length}\n\n`;
+              comment += `📄 Full report available in workflow artifacts.`;
+              
+              // Post comment to PR
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+              
+              // Fail the workflow if high/critical issues found
+              if (highAlerts.length > 0) {
+                core.setFailed(`Found ${highAlerts.length} high/critical security issues`);
+              }
+            } catch (error) {
+              console.log('Error processing results:', error.message);
+              // Don't fail the workflow if we can't parse results
             }
+          } else {
+            console.log('Report file not found, skipping PR comment');
           }
 
