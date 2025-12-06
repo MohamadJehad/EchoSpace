@@ -152,7 +152,10 @@ resource "azurerm_linux_web_app" "backend" {
     # Connection string for SQL Database
     "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.main.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.main.name};Persist Security Info=False;User ID=${var.sql_admin_login};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 
-    # Storage account connection string
+    # Storage account connection string (for BlobStorageService)
+    "ConnectionStrings__AzureStorage" = azurerm_storage_account.main.primary_connection_string
+    
+    # Storage account connection string (legacy - kept for compatibility)
     "AzureStorage__ConnectionString" = azurerm_storage_account.main.primary_connection_string
 
     # Storage Connection URIs (required by code)
