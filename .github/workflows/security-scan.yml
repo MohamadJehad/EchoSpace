@@ -274,12 +274,12 @@ jobs:
       run: |
         echo "Generating .NET SBOM in JSON format..."
         mkdir -p sbom
-        dotnet CycloneDX EchoSpace.CleanArchitecture.sln -o sbom/ -f json
-        # Find and rename the generated JSON file (remove .json extension from name)
-        JSON_FILE=$(find sbom/ -name "*.json" -type f | head -1)
-        if [ -n "$JSON_FILE" ]; then
-          mv "$JSON_FILE" sbom/dotnet-sbom
-          echo "Renamed to sbom/dotnet-sbom (JSON format)"
+        dotnet CycloneDX EchoSpace.CleanArchitecture.sln -o sbom/ 
+        # Find and rename the generated XML file
+        XML_FILE=$(find sbom/ -name "*.xml" -type f | head -1)
+        if [ -n "$XML_FILE" ]; then
+          mv "$XML_FILE" sbom/dotnet-sbom
+          echo "Renamed to sbom/dotnet-sbom (XML format)"
         fi
         echo "SBOM files generated:"
         ls -la sbom/
