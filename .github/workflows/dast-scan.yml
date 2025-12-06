@@ -48,7 +48,7 @@ jobs:
         fi
       
     - name: Setup OWASP ZAP
-      uses: zaproxy/action-baseline@v0.10.0
+      uses: zaproxy/action-baseline@v0.15.0
       with:
         target: ${{ steps.set-url.outputs.target_url }}
         rules_file_name: '.zap/rules.tsv'
