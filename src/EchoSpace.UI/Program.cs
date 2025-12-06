@@ -33,17 +33,36 @@ using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// EARLY DIAGNOSTIC: Log configuration BEFORE service registration to catch startup failures
+// Use console output directly since Serilog isn't configured yet
+Console.WriteLine("=== EARLY CONFIGURATION DIAGNOSTICS (Before Service Registration) ===");
+Console.WriteLine($"Jwt:Key = {(string.IsNullOrEmpty(builder.Configuration["Jwt:Key"]) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"Jwt:Issuer = {builder.Configuration["Jwt:Issuer"] ?? "NULL"}");
+Console.WriteLine($"Jwt:Audience = {builder.Configuration["Jwt:Audience"] ?? "NULL"}");
+Console.WriteLine($"GoogleApis:SafeBrowsingApiKey = {(string.IsNullOrEmpty(builder.Configuration["GoogleApis:SafeBrowsingApiKey"]) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"GoogleApis:PerspectiveApiKey = {(string.IsNullOrEmpty(builder.Configuration["GoogleApis:PerspectiveApiKey"]) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"StorageConnection:blobServiceUri = {builder.Configuration["StorageConnection:blobServiceUri"] ?? "NULL"}");
+Console.WriteLine($"StorageConnection:queueServiceUri = {builder.Configuration["StorageConnection:queueServiceUri"] ?? "NULL"}");
+Console.WriteLine($"StorageConnection:tableServiceUri = {builder.Configuration["StorageConnection:tableServiceUri"] ?? "NULL"}");
+Console.WriteLine($"ConnectionStrings:DefaultConnection = {(string.IsNullOrEmpty(builder.Configuration.GetConnectionString("DefaultConnection")) ? "NULL or EMPTY" : "SET")}");
+Console.WriteLine($"ASPNETCORE_ENVIRONMENT = {builder.Configuration["ASPNETCORE_ENVIRONMENT"] ?? "NULL"}");
+Console.WriteLine("=== END EARLY CONFIGURATION DIAGNOSTICS ===");
+
 // Configure Serilog - using simpler configuration to avoid build issues
+// In Azure App Service, logs are automatically captured by the platform
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    .WriteTo.Console()
+    .WriteTo.Console() // Console logs are captured by Azure App Service
+    // File logging - only for local development
+    // Azure App Service automatically captures console output
     .WriteTo.File(
-        Path.Combine("logs", "audit", "audit-.log"),
+        Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? ".", "logs", "audit", "audit-.log"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+        shared: true) // Allow multiple processes to write to the same file
 );
 
 // Add services to the container.
@@ -94,6 +113,12 @@ var enableDbCommandLogging = builder.Configuration.GetValue<bool>("Logging:Enabl
 builder.Services.AddDbContext<EchoSpaceDbContext>((serviceProvider, options) =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        Console.WriteLine("ERROR: ConnectionStrings:DefaultConnection is NULL or EMPTY!");
+        throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required but was not found.");
+    }
+    Console.WriteLine($"Using database connection string (server only): {connectionString.Split(';')[0]}");
     options.UseSqlServer(connectionString, sqlOptions =>
     {
         // Enable retry logic for transient failures (common with Azure SQL)
@@ -137,7 +162,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key configuration is required but was not found.")))
     };
     
     // Add event handler to check if user is locked on each request
@@ -504,9 +529,15 @@ builder.Services.AddRateLimiter(options =>
 var safeBrowsingApiKey = builder.Configuration["GoogleApis:SafeBrowsingApiKey"];
 var perspectiveApiKey = builder.Configuration["GoogleApis:PerspectiveApiKey"];
 if (string.IsNullOrWhiteSpace(safeBrowsingApiKey))
-    throw new InvalidOperationException("API key must be set.");
+{
+    Console.WriteLine("ERROR: GoogleApis:SafeBrowsingApiKey is missing!");
+    throw new InvalidOperationException("GoogleApis:SafeBrowsingApiKey must be set.");
+}
 if (string.IsNullOrWhiteSpace(perspectiveApiKey))
-    throw new InvalidOperationException("API key must be set.");
+{
+    Console.WriteLine("ERROR: GoogleApis:PerspectiveApiKey is missing!");
+    throw new InvalidOperationException("GoogleApis:PerspectiveApiKey must be set.");
+}
 // Register Google API services
 builder.Services.AddScoped<IGoogleSafeBrowsingService>(sp =>
     new GoogleSafeBrowsingService(safeBrowsingApiKey));
@@ -516,13 +547,34 @@ builder.Services.AddScoped<IGooglePerspectiveService>(sp =>
 builder.Services.AddScoped<IValidator<CreatePostRequest>, CreatePostRequestValidator>();
 builder.Services.AddAzureClients(clientBuilder =>
 {
-    clientBuilder.AddBlobServiceClient(builder.Configuration["StorageConnection:blobServiceUri"]!).WithName("StorageConnection");
-    clientBuilder.AddQueueServiceClient(builder.Configuration["StorageConnection:queueServiceUri"]!).WithName("StorageConnection");
-    clientBuilder.AddTableServiceClient(builder.Configuration["StorageConnection:tableServiceUri"]!).WithName("StorageConnection");
+    var blobUri = builder.Configuration["StorageConnection:blobServiceUri"] ?? throw new InvalidOperationException("StorageConnection:blobServiceUri is required but was not found.");
+    var queueUri = builder.Configuration["StorageConnection:queueServiceUri"] ?? throw new InvalidOperationException("StorageConnection:queueServiceUri is required but was not found.");
+    var tableUri = builder.Configuration["StorageConnection:tableServiceUri"] ?? throw new InvalidOperationException("StorageConnection:tableServiceUri is required but was not found.");
+    
+    Console.WriteLine($"Registering Azure Storage clients: Blob={blobUri}, Queue={queueUri}, Table={tableUri}");
+    
+    clientBuilder.AddBlobServiceClient(blobUri).WithName("StorageConnection");
+    clientBuilder.AddQueueServiceClient(queueUri).WithName("StorageConnection");
+    clientBuilder.AddTableServiceClient(tableUri).WithName("StorageConnection");
 });
 
 
 var app = builder.Build();
+
+// DIAGNOSTIC: Log configuration values to verify Azure App Service settings are being read
+var diagnosticLogger = app.Services.GetRequiredService<ILogger<Program>>();
+diagnosticLogger.LogInformation("=== CONFIGURATION DIAGNOSTICS ===");
+diagnosticLogger.LogInformation("Jwt:Key = {Value}", string.IsNullOrEmpty(builder.Configuration["Jwt:Key"]) ? "NULL or EMPTY" : "SET (length: " + builder.Configuration["Jwt:Key"]!.Length + ")");
+diagnosticLogger.LogInformation("Jwt:Issuer = {Value}", builder.Configuration["Jwt:Issuer"] ?? "NULL");
+diagnosticLogger.LogInformation("Jwt:Audience = {Value}", builder.Configuration["Jwt:Audience"] ?? "NULL");
+diagnosticLogger.LogInformation("GoogleApis:SafeBrowsingApiKey = {Value}", string.IsNullOrEmpty(builder.Configuration["GoogleApis:SafeBrowsingApiKey"]) ? "NULL or EMPTY" : "SET");
+diagnosticLogger.LogInformation("GoogleApis:PerspectiveApiKey = {Value}", string.IsNullOrEmpty(builder.Configuration["GoogleApis:PerspectiveApiKey"]) ? "NULL or EMPTY" : "SET");
+diagnosticLogger.LogInformation("StorageConnection:blobServiceUri = {Value}", builder.Configuration["StorageConnection:blobServiceUri"] ?? "NULL");
+diagnosticLogger.LogInformation("StorageConnection:queueServiceUri = {Value}", builder.Configuration["StorageConnection:queueServiceUri"] ?? "NULL");
+diagnosticLogger.LogInformation("StorageConnection:tableServiceUri = {Value}", builder.Configuration["StorageConnection:tableServiceUri"] ?? "NULL");
+diagnosticLogger.LogInformation("ConnectionStrings:DefaultConnection = {Value}", string.IsNullOrEmpty(builder.Configuration.GetConnectionString("DefaultConnection")) ? "NULL or EMPTY" : "SET");
+diagnosticLogger.LogInformation("ASPNETCORE_ENVIRONMENT = {Value}", builder.Configuration["ASPNETCORE_ENVIRONMENT"] ?? "NULL");
+diagnosticLogger.LogInformation("=== END CONFIGURATION DIAGNOSTICS ===");
 
 app.UseSecurityHeaders();
 app.UseMiddleware<RequestContextMiddleware>();

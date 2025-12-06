@@ -73,6 +73,9 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore EchoSpace.CleanArchitecture.sln
 
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef --version 9.0.0
+
       - name: Run database migrations
         env:
           ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
@@ -93,7 +96,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -107,10 +110,27 @@ jobs:
         working-directory: src/EchoSpace.Web.Client
         run: npm run build -- --configuration production
 
+      - name: Create static site package.json
+        working-directory: src/EchoSpace.Web.Client/dist/echo-space.web.client/browser
+        run: |
+          cat > package.json << 'EOF'
+          {
+            "name": "echo-space-web-client",
+            "version": "1.0.0",
+            "scripts": {
+              "start": "npx serve -s . -l 8080"
+            },
+            "dependencies": {
+              "serve": "^14.2.1"
+            }
+          }
+          EOF
+
       - name: Create deployment package
         run: |
           cd src/EchoSpace.Web.Client/dist/echo-space.web.client
-          zip -r ../../../../frontend-deploy.zip .
+          # Include browser folder and package.json at root
+          zip -r ../../../../frontend-deploy.zip . -x "*.git*"
 
       - name: Deploy to Azure App Service (Frontend)
         uses: azure/webapps-deploy@v3

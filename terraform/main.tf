@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -95,11 +99,15 @@ resource "azurerm_linux_web_app" "angular" {
     application_stack {
       node_version = "20-lts"
     }
+
+    # Startup command for serving static Angular files
+    # Angular 19+ builds to browser/ subdirectory
+    app_command_line = "cd browser && npm start"
   }
 
   app_settings = {
     "WEBSITE_NODE_DEFAULT_VERSION"   = "~20"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "false" # Disable build - we deploy pre-built static files
     "ASPNETCORE_ENVIRONMENT"         = var.environment
   }
 
@@ -131,17 +139,77 @@ resource "azurerm_linux_web_app" "backend" {
     # Security: TLS version
     minimum_tls_version = var.minimum_tls_version
 
+    # Note: dotnet_version in application_stack doesn't support 9.0 yet
+    # We'll set .NET 9.0 via null_resource provisioner below
     application_stack {
-      dotnet_version = "8.0" # Azure App Service supports up to 8.0
+      dotnet_version = "8.0" # Placeholder - will be overridden by null_resource
     }
   }
 
   app_settings = {
     "ASPNETCORE_ENVIRONMENT" = var.environment
+
     # Connection string for SQL Database
     "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.main.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.main.name};Persist Security Info=False;User ID=${var.sql_admin_login};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-    # Storage account connection string
+
+    # Storage account connection string (for BlobStorageService)
+    "ConnectionStrings__AzureStorage" = azurerm_storage_account.main.primary_connection_string
+
+    # Storage account connection string (legacy - kept for compatibility)
     "AzureStorage__ConnectionString" = azurerm_storage_account.main.primary_connection_string
+
+    # Storage Connection URIs (required by code)
+    "StorageConnection__blobServiceUri"  = "${azurerm_storage_account.main.primary_blob_endpoint}"
+    "StorageConnection__queueServiceUri" = "${azurerm_storage_account.main.primary_queue_endpoint}"
+    "StorageConnection__tableServiceUri" = "${azurerm_storage_account.main.primary_table_endpoint}"
+
+    # Azure Storage settings
+    "AzureStorage__AccountName"   = azurerm_storage_account.main.name
+    "AzureStorage__ContainerName" = "images"
+    "AzureStorage__BlobEndpoint"  = "${azurerm_storage_account.main.primary_blob_endpoint}"
+
+    # JWT Settings
+    "Jwt__Key"               = var.jwt_key != "" ? var.jwt_key : "EchoSpace-Super-Secret-Key-Minimum-32-Characters-Long-123"
+    "Jwt__Issuer"            = "https://${var.backend_app_name}.azurewebsites.net"
+    "Jwt__Audience"          = "https://${var.frontend_app_name}.azurewebsites.net"
+    "Jwt__ExpirationMinutes" = "15"
+
+    # Google API Keys (required - throws exception if empty)
+    "GoogleApis__SafeBrowsingApiKey" = var.google_safe_browsing_api_key != "" ? var.google_safe_browsing_api_key : "PLACEHOLDER_KEY"
+    "GoogleApis__PerspectiveApiKey"  = var.google_perspective_api_key != "" ? var.google_perspective_api_key : "PLACEHOLDER_KEY"
+
+    # Google OAuth (optional but recommended)
+    "Google__ClientId"           = var.google_oauth_client_id
+    "Google__ClientSecret"       = var.google_oauth_client_secret
+    "OAuth__CallbackUrl"         = "https://${var.backend_app_name}.azurewebsites.net/api/auth/google-callback"
+    "OAuth__FrontendCallbackUrl" = "https://${var.frontend_app_name}.azurewebsites.net/auth-callback"
+
+    # Email Settings
+    "EmailSettings__SmtpServer"  = "smtp.gmail.com"
+    "EmailSettings__Port"        = "587"
+    "EmailSettings__SenderName"  = "EchoSpace"
+    "EmailSettings__SenderEmail" = var.email_sender_email
+    "EmailSettings__Password"    = var.email_sender_password
+
+    # Frontend URL
+    "Frontend__BaseUrl" = "https://${var.frontend_app_name}.azurewebsites.net"
+
+    # Rate Limiting (optional - has defaults in code)
+    "RateLimiting__LoginAndRegisterPolicy__PermitLimit" = "5"
+    "RateLimiting__LoginAndRegisterPolicy__Window"      = "00:01:00"
+    "RateLimiting__LoginAndRegisterPolicy__QueueLimit"  = "0"
+    "RateLimiting__ForgotPasswordPolicy__PermitLimit"   = "3"
+    "RateLimiting__ForgotPasswordPolicy__Window"        = "01:00:00"
+    "RateLimiting__ForgotPasswordPolicy__QueueLimit"    = "0"
+    "RateLimiting__RefreshTokenPolicy__PermitLimit"     = "10"
+    "RateLimiting__RefreshTokenPolicy__Window"          = "00:01:00"
+    "RateLimiting__RefreshTokenPolicy__QueueLimit"      = "0"
+    "RateLimiting__GeneralApiPolicy__PermitLimit"       = "100"
+    "RateLimiting__GeneralApiPolicy__Window"            = "00:01:00"
+    "RateLimiting__GeneralApiPolicy__QueueLimit"        = "0"
+    "RateLimiting__SearchPolicy__PermitLimit"           = "30"
+    "RateLimiting__SearchPolicy__Window"                = "00:01:00"
+    "RateLimiting__SearchPolicy__QueueLimit"            = "0"
   }
 
   tags = merge(var.common_tags, {
@@ -149,6 +217,31 @@ resource "azurerm_linux_web_app" "backend" {
     Component   = "Backend"
     Environment = var.environment
   })
+}
+
+# Workaround: Set .NET 9.0 runtime via Azure CLI (Terraform provider doesn't support 9.0 yet)
+resource "null_resource" "backend_dotnet9" {
+  depends_on = [azurerm_linux_web_app.backend]
+
+  # Trigger whenever the backend app changes (including app_settings updates)
+  triggers = {
+    app_name       = azurerm_linux_web_app.backend.name
+    resource_group = azurerm_linux_web_app.backend.resource_group_name
+    app_service_id = azurerm_linux_web_app.backend.id
+    # Include app_settings hash to trigger on any app_settings change
+    app_settings_hash = sha256(jsonencode(azurerm_linux_web_app.backend.app_settings))
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      $config = @{ linuxFxVersion = "DOTNETCORE|9.0" } | ConvertTo-Json
+      $config | Out-File -FilePath "webapp-config-temp.json" -Encoding utf8
+      az webapp config set --name ${azurerm_linux_web_app.backend.name} --resource-group ${azurerm_linux_web_app.backend.resource_group_name} --generic-configurations @webapp-config-temp.json
+      Remove-Item webapp-config-temp.json -ErrorAction SilentlyContinue
+    EOT
+
+    interpreter = ["PowerShell", "-Command"]
+  }
 }
 
 # Azure SQL Server (cheap tier - Basic)

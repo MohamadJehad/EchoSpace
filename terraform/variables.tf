@@ -131,6 +131,56 @@ variable "storage_account_name" {
   default     = "echospacestorage"
 }
 
+# Application Configuration (sensitive values - set in terraform.tfvars)
+variable "jwt_key" {
+  description = "JWT signing key (minimum 32 characters)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_safe_browsing_api_key" {
+  description = "Google Safe Browsing API key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_perspective_api_key" {
+  description = "Google Perspective API key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_oauth_client_id" {
+  description = "Google OAuth Client ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth Client Secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "email_sender_email" {
+  description = "Email sender address"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "email_sender_password" {
+  description = "Email sender password (app-specific password)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # Tags
 variable "common_tags" {
   description = "Common tags to apply to all resources"
