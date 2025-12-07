@@ -105,7 +105,7 @@ export class PostsByTagComponent implements OnInit {
           this.currentUser.email = user.email;
         }
         
-        const profilePhotoId = user.profilePhotoId || user.ProfilePhotoId;
+        const profilePhotoId = user.profilePhotoId;
         if (profilePhotoId) {
           // Fetch the profile photo URL through the images endpoint (same as home component)
           fetch(`${environment.apiUrl}/images/${profilePhotoId}/url`, {
@@ -165,7 +165,7 @@ export class PostsByTagComponent implements OnInit {
     });
   }
 
-  private transformPostForDisplay(apiPost: Partial<Post> & { userId: string; createdAt: string }): Post {
+  private transformPostForDisplay(apiPost: Partial<Post> & { userId: string; createdAt: string; postId: string }): Post {
     // Use backend author information if available, otherwise fallback to current user
     const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
     const userId = apiPost.userId;
@@ -180,6 +180,9 @@ export class PostsByTagComponent implements OnInit {
 
     return {
       ...apiPost,
+      postId: apiPost.postId || '',
+      userId: apiPost.userId,
+      content: apiPost.content || '',
       timeAgo: this.getTimeAgo(apiPost.createdAt),
       author: {
         name: authorName,
@@ -188,7 +191,7 @@ export class PostsByTagComponent implements OnInit {
         profilePhotoUrl: profilePhotoUrl || (userId === this.currentUser.id ? this.currentUser.profilePhotoUrl : null)
       },
       authorName: authorName
-    };
+    } as Post;
   }
 
   private loadProfilePhotosForPosts(): void {

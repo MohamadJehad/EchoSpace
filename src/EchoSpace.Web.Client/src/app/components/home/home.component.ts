@@ -14,6 +14,7 @@ import { PostDropdownComponent } from '../post-dropdown/post-dropdown.component'
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
 import { ToastService } from '../../services/toast.service';
 import { Post, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
+import { Tag } from '../../interfaces/tag.interface';
 import { TrendingTag } from '../../services/tags.service';
 import { User } from '../../services/user.service';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
@@ -43,7 +44,7 @@ export class HomeComponent implements OnInit {
   };
   
   // Tags
-  tags: TrendingTag[] = [];
+  tags: Tag[] = [];
   isLoadingTags = false;
   showTagSelector = false;
 
@@ -354,7 +355,7 @@ export class HomeComponent implements OnInit {
     this.loadPosts();
   }
 
-  private transformPostForDisplay(apiPost: Partial<Post> & { userId: string; createdAt: string }): Post {
+  private transformPostForDisplay(apiPost: Partial<Post> & { userId: string; createdAt: string; postId: string }): Post {
     // Use backend author information if available, otherwise fallback to current user
     const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
     const userId = apiPost.userId;
@@ -369,6 +370,9 @@ export class HomeComponent implements OnInit {
     
     return {
       ...apiPost,
+      postId: apiPost.postId || '',
+      userId: apiPost.userId,
+      content: apiPost.content || '',
       timeAgo: this.calculateTimeAgo(apiPost.createdAt),
       author: {
         name: authorName,
@@ -377,24 +381,27 @@ export class HomeComponent implements OnInit {
         profilePhotoUrl: profilePhotoUrl || (userId === this.currentUser.id ? this.currentUser.profilePhotoUrl : null)
       },
       authorProfilePhotoId: apiPost.authorProfilePhotoId
-    };
+    } as Post;
   }
 
-  private transformNewPostForDisplay(apiPost: Partial<Post> & { userId?: string; createdAt: string }): Post {
+  private transformNewPostForDisplay(apiPost: Partial<Post> & { userId?: string; createdAt: string; postId: string }): Post {
     // For newly created posts, use current user info if author info is not available
     const authorName = apiPost.authorName || apiPost.author?.name || this.currentUser.name || 'Unknown User';
     const userId = apiPost.userId || this.currentUser.id || '';
     
     return {
       ...apiPost,
+      postId: apiPost.postId || '',
+      userId: userId || '',
+      content: apiPost.content || '',
       timeAgo: this.calculateTimeAgo(apiPost.createdAt),
       author: {
         name: authorName,
         initials: this.getInitials(authorName),
-        userId: userId,
+        userId: userId || '',
         profilePhotoUrl: userId === this.currentUser.id ? this.currentUser.profilePhotoUrl : null
       }
-    };
+    } as Post;
   }
 
   private loadProfilePhotosForPosts(posts: Post[]): void {

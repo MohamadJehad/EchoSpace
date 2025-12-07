@@ -21,7 +21,7 @@ export class EmailVerificationComponent implements OnDestroy {
   errorMessage = '';
   successMessage = '';
   resendCooldown = 0;
-  resendInterval: NodeJS.Timeout | null = null;
+  resendInterval: number | undefined = undefined;
 
   constructor(
     private fb: FormBuilder,
@@ -41,7 +41,7 @@ export class EmailVerificationComponent implements OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this.resendInterval) {
+    if (this.resendInterval !== undefined) {
       clearInterval(this.resendInterval);
     }
   }
