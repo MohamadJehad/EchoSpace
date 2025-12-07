@@ -218,10 +218,15 @@ export class OperationHomeComponent implements OnInit {
       this.pendingAction = null;
     };
 
-    const handleError = (err: any) => {
+    const handleError = (err: unknown) => {
       this.isProcessing = false;
       console.error(`Failed to ${action} user`, err);
-      this.error = `Failed to ${action} user: ${err.error?.message || err.message || 'Unknown error'}`;
+      const errorMessage = err && typeof err === 'object' && 'error' in err && err.error && typeof err.error === 'object' && 'message' in err.error
+        ? String(err.error.message)
+        : err && typeof err === 'object' && 'message' in err
+        ? String(err.message)
+        : 'Unknown error';
+      this.error = `Failed to ${action} user: ${errorMessage}`;
       this.showUserModal = false;
       this.pendingUserId = null;
       this.pendingAction = null;

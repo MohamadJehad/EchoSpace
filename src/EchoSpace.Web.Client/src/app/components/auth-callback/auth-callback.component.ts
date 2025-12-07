@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
+import { AuthService, AuthResponse } from '../../services/auth.service';
 import { normalizeRole } from '../../utils/role.util';
 
 @Component({
@@ -30,7 +30,7 @@ export class AuthCallbackComponent implements OnInit {
           const user = JSON.parse(decodedUserStr);
           
           // Create auth response object
-          const authResponse: any = {
+          const authResponse: AuthResponse = {
             accessToken: accessToken,
             refreshToken: refreshToken,
             expiresIn: 3600, // Default value

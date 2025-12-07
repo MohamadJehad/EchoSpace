@@ -8,7 +8,7 @@ interface UserData {
   name: string;
   email: string;
   initials: string;
-  role?: any; // Can be string or number
+  role?: string | number; // Can be string or number
   profilePhotoUrl?: string | null;
 }
 

@@ -4,6 +4,13 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { normalizeRole } from '../../utils/role.util';
 
+interface CurrentUser {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string | number;
+}
+
 @Component({
   selector: 'app-navbar',
   standalone: true,
@@ -12,7 +19,7 @@ import { normalizeRole } from '../../utils/role.util';
   styleUrls: ['./navbar.component.css']
 })
 export class NavbarComponent implements OnInit {
-  currentUser: any = null;
+  currentUser: CurrentUser | null = null;
   isAdmin: boolean = false;
   isOperation: boolean = false;
 

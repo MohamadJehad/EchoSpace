@@ -15,6 +15,7 @@ import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-m
 import { ToastService } from '../../services/toast.service';
 import { Post, CreatePostRequest, UpdatePostRequest } from '../../interfaces';
 import { TrendingTag } from '../../services/tags.service';
+import { User } from '../../services/user.service';
 import { PostCommentsComponent } from '../post-comments/post-comments.component';
 import { UserService } from '../../services/user.service';
 import { ProfileCardComponent } from '../profile-card/profile-card.component';
@@ -42,7 +43,7 @@ export class HomeComponent implements OnInit {
   };
   
   // Tags
-  tags: any[] = [];
+  tags: TrendingTag[] = [];
   isLoadingTags = false;
   showTagSelector = false;
 
@@ -192,7 +193,7 @@ export class HomeComponent implements OnInit {
     console.log('loadUserProfile: Loading user profile for ID:', this.currentUser.id);
     
     this.userService.getCurrentUser().subscribe({
-      next: (user: any) => {
+      next: (user: User) => {
         console.log('loadUserProfile: Received user data:', user);
         
         // Update user info if needed
@@ -205,7 +206,7 @@ export class HomeComponent implements OnInit {
         }
         
         // Handle both camelCase and PascalCase property names
-        const profilePhotoId = user.profilePhotoId || user.ProfilePhotoId;
+        const profilePhotoId = user.profilePhotoId;
         
         console.log('loadUserProfile: Profile photo ID:', profilePhotoId);
         
@@ -353,10 +354,9 @@ export class HomeComponent implements OnInit {
     this.loadPosts();
   }
 
-  private transformPostForDisplay(apiPost: any): Post {
+  private transformPostForDisplay(apiPost: Partial<Post> & { userId: string; createdAt: string }): Post {
     // Use backend author information if available, otherwise fallback to current user
     const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
-    const authorUserName = apiPost.authorUserName || apiPost.author?.username || '';
     const userId = apiPost.userId;
     
     // Check if we already have profile photo in cache
@@ -380,11 +380,10 @@ export class HomeComponent implements OnInit {
     };
   }
 
-  private transformNewPostForDisplay(apiPost: any): Post {
+  private transformNewPostForDisplay(apiPost: Partial<Post> & { userId?: string; createdAt: string }): Post {
     // For newly created posts, use current user info if author info is not available
     const authorName = apiPost.authorName || apiPost.author?.name || this.currentUser.name || 'Unknown User';
-    const authorUserName = apiPost.authorUserName || apiPost.author?.username || this.currentUser.email || '';
-    const userId = apiPost.userId || this.currentUser.id;
+    const userId = apiPost.userId || this.currentUser.id || '';
     
     return {
       ...apiPost,
@@ -412,7 +411,7 @@ export class HomeComponent implements OnInit {
 
   private loadAuthorProfilePhoto(userId: string): void {
     this.userService.getUserById(userId).subscribe({
-      next: (user: any) => {
+      next: (user: User) => {
         if (user.profilePhotoId) {
           this.loadProfilePhotoUrlForAuthor(userId, user.profilePhotoId);
         }
@@ -619,15 +618,14 @@ export class HomeComponent implements OnInit {
     this.isCreatingPost = true;
 
     // Determine image URL - use preview if file selected, otherwise use manual URL
-    let imageUrl = this.newPost.imageUrl.trim() || undefined;
-    if (this.imagePreview && this.selectedFile) {
-      imageUrl = this.imagePreview; // Use data URL for now
-    }
+    const imageUrl = (this.imagePreview && this.selectedFile) 
+      ? this.imagePreview  // Use data URL for now
+      : (this.newPost.imageUrl.trim() || undefined);
 
     const createPostRequest: CreatePostRequest = {
       userId: this.currentUser.id,
       content: this.newPost.content.trim(),
-      imageUrl: "",
+      imageUrl: imageUrl || "",
       tagIds: this.newPost.tagIds.length > 0 ? this.newPost.tagIds : undefined,
       generateImage: this.newPost.generateImage
     };

@@ -38,7 +38,7 @@ export class UserProfileComponent implements OnInit {
   isLoadingPosts = false;
   isFollowing = false;
   isLoadingFollowStatus = false;
-  currentUser: any = null;
+  currentUser: { id?: string; name?: string; email?: string; role?: string | number } | null = null;
   
   // Post interaction states
   openDropdowns: { [postId: string]: boolean } = {};

@@ -6,7 +6,7 @@ import { TagsService } from '../../services/tags.service';
 import { LikesService } from '../../services/likes.service';
 import { FollowsService } from '../../services/follows.service';
 import { AuthService } from '../../services/auth.service';
-import { UserService } from '../../services/user.service';
+import { UserService, User } from '../../services/user.service';
 import { ToastService } from '../../services/toast.service';
 import { Post } from '../../interfaces';
 import { Tag } from '../../interfaces/tag.interface';
@@ -96,7 +96,7 @@ export class PostsByTagComponent implements OnInit {
     if (!this.currentUser.id) return;
     
     this.userService.getCurrentUser().subscribe({
-      next: (user: any) => {
+      next: (user: User) => {
         if (user.name) {
           this.currentUser.name = user.name;
           this.currentUser.initials = this.getInitials(user.name);
@@ -165,7 +165,7 @@ export class PostsByTagComponent implements OnInit {
     });
   }
 
-  private transformPostForDisplay(apiPost: any): Post {
+  private transformPostForDisplay(apiPost: Partial<Post> & { userId: string; createdAt: string }): Post {
     // Use backend author information if available, otherwise fallback to current user
     const authorName = apiPost.authorName || apiPost.author?.name || 'Unknown User';
     const userId = apiPost.userId;
@@ -234,7 +234,7 @@ export class PostsByTagComponent implements OnInit {
 
   private loadAuthorProfilePhoto(userId: string): void {
     this.userService.getUserById(userId).subscribe({
-      next: (user: any) => {
+      next: (user: User) => {
         if (user.profilePhotoId) {
           this.loadProfilePhotoUrlForAuthor(userId, user.profilePhotoId);
         }

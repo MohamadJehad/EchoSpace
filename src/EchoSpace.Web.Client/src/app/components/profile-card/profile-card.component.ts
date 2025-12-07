@@ -78,8 +78,10 @@ export class ProfileCardComponent {
       this.profilePhotoFile = file;
       
       const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.profilePhotoPreview = e.target.result;
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        if (e.target?.result && typeof e.target.result === 'string') {
+          this.profilePhotoPreview = e.target.result;
+        }
       };
       reader.readAsDataURL(file);
     }

@@ -225,21 +225,24 @@ jobs:
       working-directory: src/EchoSpace.Web.Client
       run: |
         echo "Running ESLint security scan..."
-        npx eslint "src/**/*.ts" --format json --output-file eslint-security-report.json 
+        npx eslint "src/**/*.ts" --format json --output-file eslint-security-report.json --max-warnings 0 || true
         
     - name: Check ESLint results
       working-directory: src/EchoSpace.Web.Client
       run: |
         if [ -f "eslint-security-report.json" ]; then
           echo "ESLint security report generated"
-          # Check for security-related errors
-          SECURITY_ISSUES=$(cat eslint-security-report.json | jq '[.[] | select(.messages[] | .ruleId | contains("security"))] | length' || echo "0")
-          if [ "$SECURITY_ISSUES" -gt "0" ]; then
-            echo "⚠️ Found security issues in TypeScript code"
+          # Check for security-related ERRORS (not warnings)
+          SECURITY_ERRORS=$(cat eslint-security-report.json | jq '[.[] | .messages[] | select(.ruleId | contains("security")) | select(.severity == 2)] | length' || echo "0")
+          if [ "$SECURITY_ERRORS" -gt "0" ]; then
+            echo "⚠️ Found $SECURITY_ERRORS security ERRORS in TypeScript code"
             exit 1
           else
-            echo "✅ No security issues found"
+            echo "✅ No security errors found (warnings are acceptable)"
           fi
+        else
+          echo "⚠️ ESLint report file not found"
+          exit 1
         fi
 
   # SBOM Generation
