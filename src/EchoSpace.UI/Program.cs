@@ -84,7 +84,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax; // Allows OAuth redirects
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Force secure cookies
-});
+}
 
 // Add HTTP context accessor for ABAC authorization handlers
 builder.Services.AddHttpClient();
