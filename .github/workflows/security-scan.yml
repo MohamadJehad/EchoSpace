@@ -2,8 +2,6 @@ name: Security Scanning
 
 on:
   pull_request:  # Run on all pull requests, regardless of target branch
-  push:
-    branches: [ main, develop ]
   workflow_dispatch:
 
 jobs:
