@@ -221,16 +221,11 @@ jobs:
       working-directory: src/EchoSpace.Web.Client
       run: npm ci
       
-    - name: Install ESLint security plugin
-      working-directory: src/EchoSpace.Web.Client
-      run: |
-        npm install --save-dev eslint-plugin-security 
-        
     - name: Run ESLint with security rules
       working-directory: src/EchoSpace.Web.Client
       run: |
         echo "Running ESLint security scan..."
-        npx eslint "src/**/*.ts" --ext .ts --format json --output-file eslint-security-report.json 
+        npx eslint "src/**/*.ts" --format json --output-file eslint-security-report.json 
         
     - name: Check ESLint results
       working-directory: src/EchoSpace.Web.Client
