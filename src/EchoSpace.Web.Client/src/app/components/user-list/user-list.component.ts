@@ -146,16 +146,25 @@ export class UserListComponent implements OnInit {
       this.pendingAction = null;
     };
 
-    const handleError = (err: any) => {
+    const handleError = (err: unknown) => {
       this.isProcessing = false;
       console.error(`Failed to ${action} user`, err);
       // Extract validation errors if present
-      let errorMessage = err.error?.message || err.message || 'Unknown error';
-      if (err.error?.errors) {
-        const validationErrors = Object.entries(err.error.errors)
-          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
-          .join('; ');
-        errorMessage = `Validation errors: ${validationErrors}`;
+      let errorMessage = 'Unknown error';
+      if (err && typeof err === 'object') {
+        if ('error' in err && err.error && typeof err.error === 'object') {
+          if ('message' in err.error) {
+            errorMessage = String(err.error.message);
+          }
+          if ('errors' in err.error && err.error.errors && typeof err.error.errors === 'object') {
+            const validationErrors = Object.entries(err.error.errors)
+              .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`)
+              .join('; ');
+            errorMessage = `Validation errors: ${validationErrors}`;
+          }
+        } else if ('message' in err) {
+          errorMessage = String(err.message);
+        }
       }
       this.error = `Failed to ${action} user: ${errorMessage}`;
       this.showModal = false;

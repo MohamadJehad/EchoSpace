@@ -41,13 +41,13 @@ export class ForgotPasswordComponent {
       const { email } = this.forgotPasswordForm.value;
 
       this.authService.forgotPassword(email).subscribe({
-        next: (response) => {
+        next: (_response) => {
           this.isLoading = false;
           this.successMessage =
             'Password reset instructions have been sent to your email address.';
           this.forgotPasswordForm.reset();
         },
-        error: (error) => {
+        error: (_error) => {
           this.isLoading = false;
           this.errorMessage = 'An error occurred. Please try again later.';
         },

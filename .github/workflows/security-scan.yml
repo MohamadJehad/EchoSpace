@@ -74,10 +74,10 @@ jobs:
       id: check-vulnerabilities
       run: |
         echo "Checking for vulnerable .NET packages..."
-        dotnet list package --vulnerable --include-transitive || true
+        dotnet list package --vulnerable --include-transitive 
         
         # Check for high/critical vulnerabilities specifically
-        VULN_OUTPUT=$(dotnet list package --vulnerable --include-transitive 2>&1 || true)
+        VULN_OUTPUT=$(dotnet list package --vulnerable --include-transitive 2>&1 )
         
         # Count high and critical vulnerabilities
         HIGH_CRITICAL=$(echo "$VULN_OUTPUT" | grep -iE "(High|Critical)" | wc -l || echo "0")
@@ -89,7 +89,7 @@ jobs:
           dotnet list package --vulnerable --include-transitive
           echo ""
           echo "Attempting to update packages..."
-          dotnet list package --outdated || true
+          dotnet list package --outdated 
           echo ""
           echo "::warning::High or critical .NET vulnerabilities detected. Please update packages."
           echo "Run 'dotnet list package --outdated' to see available updates."
@@ -132,10 +132,10 @@ jobs:
       working-directory: src/EchoSpace.Web.Client
       run: |
         echo "Running npm audit..."
-        npm audit --audit-level=moderate || true
+        npm audit --audit-level=moderate 
         
         # Check for high or critical vulnerabilities
-        npm audit --audit-level=high --json > audit-results.json 2>&1 || true
+        npm audit --audit-level=high --json > audit-results.json 2>&1 
         
         # Parse results (handle both success and failure cases)
         if [ -f audit-results.json ]; then
@@ -144,7 +144,7 @@ jobs:
           if [ "$HIGH_CRITICAL" != "null" ] && [ "$HIGH_CRITICAL" -gt "0" ]; then
             echo "⚠️ Found $HIGH_CRITICAL high or critical vulnerabilities!"
             echo "Attempting to fix automatically..."
-            npm audit fix --force || true
+            npm audit fix --force 
             echo ""
             echo "Please review and update package.json if needed"
             echo "Run 'npm audit fix' locally to update package-lock.json"
@@ -155,7 +155,7 @@ jobs:
           fi
         else
           echo "⚠️ Could not parse audit results, showing full audit:"
-          npm audit --audit-level=high || true
+          npm audit --audit-level=high 
           echo "::warning::npm audit check completed with warnings"
         fi
 
@@ -176,8 +176,8 @@ jobs:
         
     - name: Install Security Code Scan
       run: |
-        dotnet tool install --global security-scan || true
-        dotnet tool update --global security-scan || true
+        dotnet tool install --global security-scan 
+        dotnet tool update --global security-scan 
         
     - name: Restore .NET dependencies
       run: dotnet restore EchoSpace.CleanArchitecture.sln
@@ -189,7 +189,7 @@ jobs:
       run: |
         echo "Running Security Code Scan..."
         # Security Code Scan runs as MSBuild target
-        dotnet build EchoSpace.CleanArchitecture.sln --configuration Release /p:SecurityCodeScan=true || true
+        dotnet build EchoSpace.CleanArchitecture.sln --configuration Release /p:SecurityCodeScan=true 
         
     - name: Check for security issues
       run: |
@@ -221,30 +221,28 @@ jobs:
       working-directory: src/EchoSpace.Web.Client
       run: npm ci
       
-    - name: Install ESLint security plugin
-      working-directory: src/EchoSpace.Web.Client
-      run: |
-        npm install --save-dev eslint-plugin-security || true
-        
     - name: Run ESLint with security rules
       working-directory: src/EchoSpace.Web.Client
       run: |
         echo "Running ESLint security scan..."
-        npx eslint "src/**/*.ts" --ext .ts --format json --output-file eslint-security-report.json || true
+        npx eslint "src/**/*.ts" --format json --output-file eslint-security-report.json --max-warnings 0 || true
         
     - name: Check ESLint results
       working-directory: src/EchoSpace.Web.Client
       run: |
         if [ -f "eslint-security-report.json" ]; then
           echo "ESLint security report generated"
-          # Check for security-related errors
-          SECURITY_ISSUES=$(cat eslint-security-report.json | jq '[.[] | select(.messages[] | .ruleId | contains("security"))] | length' || echo "0")
-          if [ "$SECURITY_ISSUES" -gt "0" ]; then
-            echo "⚠️ Found security issues in TypeScript code"
+          # Check for security-related ERRORS (not warnings)
+          SECURITY_ERRORS=$(cat eslint-security-report.json | jq '[.[] | .messages[] | select(.ruleId | contains("security")) | select(.severity == 2)] | length' || echo "0")
+          if [ "$SECURITY_ERRORS" -gt "0" ]; then
+            echo "⚠️ Found $SECURITY_ERRORS security ERRORS in TypeScript code"
             exit 1
           else
-            echo "✅ No security issues found"
+            echo "✅ No security errors found (warnings are acceptable)"
           fi
+        else
+          echo "⚠️ ESLint report file not found"
+          exit 1
         fi
 
   # SBOM Generation
@@ -265,8 +263,8 @@ jobs:
         
     - name: Install CycloneDX .NET tool
       run: |
-        dotnet tool install --global CycloneDX || true
-        dotnet tool update --global CycloneDX || true
+        dotnet tool install --global CycloneDX 
+        dotnet tool update --global CycloneDX 
         
     - name: Generate .NET SBOM
       run: |
@@ -295,7 +293,7 @@ jobs:
       run: npm ci
         
     - name: Install CycloneDX npm tool
-      run: npm install -g @cyclonedx/cyclonedx-npm || true
+      run: npm install -g @cyclonedx/cyclonedx-npm 
         
     - name: Generate Node.js SBOM
       working-directory: src/EchoSpace.Web.Client

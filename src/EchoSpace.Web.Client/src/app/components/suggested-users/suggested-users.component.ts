@@ -111,7 +111,7 @@ export class SuggestedUsersComponent implements OnInit {
     return user.id;
   }
 
-  trackByIndex(index: number, item: any): number {
+  trackByIndex(index: number, _item: unknown): number {
     return index;
   }
 

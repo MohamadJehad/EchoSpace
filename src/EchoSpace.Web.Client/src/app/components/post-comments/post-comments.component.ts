@@ -5,7 +5,7 @@ import { CommentsService } from '../../services/comments.service';
 import { ToastService } from '../../services/toast.service';
 import { Comment, CreateCommentRequest } from '../../interfaces/comment.interface';
 import { ConfirmationModalComponent } from '../confirmation-modal/confirmation-modal.component';
-import { UserService } from '../../services/user.service';
+import { UserService, User } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 
@@ -264,9 +264,9 @@ export class PostCommentsComponent implements OnInit, OnChanges {
 
   private loadAuthorProfilePhoto(userId: string): void {
     this.userService.getUserById(userId).subscribe({
-      next: (user: any) => {
+      next: (user: User) => {
         // Handle both camelCase and PascalCase property names
-        const profilePhotoId = user.profilePhotoId || user.ProfilePhotoId;
+        const profilePhotoId = user.profilePhotoId;
         if (profilePhotoId) {
           this.loadProfilePhotoUrlForAuthor(userId, profilePhotoId);
         }

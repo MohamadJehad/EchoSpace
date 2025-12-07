@@ -1,7 +1,7 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { AuthService } from '../../services/auth.service';
+import { AuthService, AuthResponse } from '../../services/auth.service';
 
 @Component({
   selector: 'app-email-verification',
@@ -10,7 +10,7 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './email-verification.component.html',
   styleUrls: ['./email-verification.component.css']
 })
-export class EmailVerificationComponent {
+export class EmailVerificationComponent implements OnDestroy {
   @Input() email: string = '';
   @Input() isRegistration: boolean = false;
   @Output() verified = new EventEmitter<void>();
@@ -21,7 +21,7 @@ export class EmailVerificationComponent {
   errorMessage = '';
   successMessage = '';
   resendCooldown = 0;
-  resendInterval: any;
+  resendInterval: number | undefined = undefined;
 
   constructor(
     private fb: FormBuilder,
@@ -41,7 +41,7 @@ export class EmailVerificationComponent {
   }
 
   ngOnDestroy() {
-    if (this.resendInterval) {
+    if (this.resendInterval !== undefined) {
       clearInterval(this.resendInterval);
     }
   }
@@ -60,13 +60,13 @@ export class EmailVerificationComponent {
         this.authService.verifyEmail(this.email, code);
 
       verificationMethod.subscribe({
-        next: (response: any) => {
+        next: (response: AuthResponse | unknown) => {
           this.isLoading = false;
           this.successMessage = 'Email verified successfully!';
           
           // If this is registration flow and response contains tokens, set session
-          if (this.isRegistration && response.accessToken && response.refreshToken) {
-            this.authService.setSessionFromCallback(response);
+          if (this.isRegistration && response && typeof response === 'object' && 'accessToken' in response && 'refreshToken' in response) {
+            this.authService.setSessionFromCallback(response as AuthResponse);
           }
           
           setTimeout(() => {

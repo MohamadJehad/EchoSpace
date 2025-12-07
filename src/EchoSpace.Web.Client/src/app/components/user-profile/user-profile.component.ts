@@ -38,7 +38,7 @@ export class UserProfileComponent implements OnInit {
   isLoadingPosts = false;
   isFollowing = false;
   isLoadingFollowStatus = false;
-  currentUser: any = null;
+  currentUser: { id?: string; name?: string; email?: string; initials?: string; role?: string | number; profilePhotoUrl?: string | null } | null = null;
   
   // Post interaction states
   openDropdowns: { [postId: string]: boolean } = {};
@@ -99,7 +99,18 @@ export class UserProfileComponent implements OnInit {
   ngOnInit(): void {
     // Get current user
     this.authService.currentUser$.subscribe(user => {
-      this.currentUser = user;
+      if (user && user.id && user.name && user.email) {
+        this.currentUser = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          initials: this.getInitials(user.name),
+          role: user.role,
+          profilePhotoUrl: null
+        };
+      } else {
+        this.currentUser = null;
+      }
     });
 
     // Get userId from route params
@@ -287,6 +298,7 @@ export class UserProfileComponent implements OnInit {
       imageUrl: this.editPostForm.imageUrl.trim() || undefined
     };
 
+    if (!this.currentUser?.id || !this.editingPost) return;
     this.postsService.updatePost(this.editingPost.postId, updateRequest, this.currentUser.id).subscribe({
       next: (updatedPost) => {
         const index = this.posts.findIndex(p => p.postId === updatedPost.postId);
@@ -312,8 +324,7 @@ export class UserProfileComponent implements OnInit {
   }
 
   onConfirmDelete(): void {
-    if (!this.postToDelete) return;
-
+    if (!this.postToDelete || !this.currentUser?.id) return;
     this.isDeletingPost = true;
     this.postsService.deletePost(this.postToDelete.postId, this.currentUser.id).subscribe({
       next: () => {

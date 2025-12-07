@@ -25,7 +25,7 @@
           
           <!-- User Menu Dropdown Component -->
           <app-navbar-dropdown 
-            [currentUser]="currentUser" 
+            [currentUser]="currentUser ? { id: currentUser.id, name: currentUser.name || '', email: currentUser.email || '', initials: currentUser.initials || '', role: currentUser.role, profilePhotoUrl: currentUser.profilePhotoUrl } : { name: '', email: '', initials: '' }" 
             (logout)="onLogout()">
           </app-navbar-dropdown>
         </div>
@@ -135,10 +135,10 @@
                       <p class="text-sm text-gray-600">{{ formatDate(post.createdAt) }}</p>
                     </div>
                   </div>
-                  @if (isOwnProfile) {
+                  @if (isOwnProfile && currentUser?.id) {
                     <app-post-dropdown
                       [post]="post"
-                      [currentUserId]="currentUser.id"
+                      [currentUserId]="currentUser?.id || ''"
                       [isOpen]="isDropdownOpen(post.postId)"
                       (editPost)="onEditPost($event)"
                       (deletePost)="onDeletePost($event)"
@@ -361,11 +361,11 @@
                 <app-post-comments
                   [postId]="post.postId"
                   [commentsCount]="post.commentsCount"
-                  [currentUserId]="currentUser?.id"
-                  [currentUserInitials]="currentUser?.initials"
-                  [currentUserName]="currentUser?.name"
-                  [currentUserEmail]="currentUser?.email"
-                  [currentUserProfilePhotoUrl]="currentUser?.profilePhotoUrl"
+                  [currentUserId]="currentUser?.id || ''"
+                  [currentUserInitials]="currentUser?.initials || ''"
+                  [currentUserName]="currentUser?.name || ''"
+                  [currentUserEmail]="currentUser?.email || ''"
+                  [currentUserProfilePhotoUrl]="currentUser?.profilePhotoUrl || null"
                   [isOpen]="showComments[post.postId]"
                   (commentsCountChanged)="onCommentsCountChanged(post.postId, $event)"
                   (toggleRequested)="toggleComments(post.postId)">
