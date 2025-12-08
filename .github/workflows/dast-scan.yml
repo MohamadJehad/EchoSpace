@@ -63,7 +63,7 @@ jobs:
         
     - name: ZAP Full Scan
       if: steps.set-url.outputs.scan_type == 'full'
-      uses: zaproxy/action-full-scan@v0.10.0
+      uses: zaproxy/action-full-scan@v0.13.0
       with:
         target: ${{ steps.set-url.outputs.target_url }}
         fail_action: true
