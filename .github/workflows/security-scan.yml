@@ -366,7 +366,7 @@ jobs:
         echo "**Note:** Both files are in JSON format (CycloneDX standard) for compliance and security tracking." >> $GITHUB_STEP_SUMMARY
 
     - name: Upload SBOM artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: sbom-files
         path: sbom/
