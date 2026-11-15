@@ -48,6 +48,11 @@ namespace EchoSpace.UI.Controllers
             try
             {
                 _logger.LogInformation("Getting all posts");
+                _logger.LogInformation("Getting all posts");
+                _logger.LogInformation("Getting all posts");
+                _logger.LogInformation("Getting all posts");
+                _logger.LogInformation("Getting all posts");
+                _logger.LogInformation("Getting all posts");
                 var currentUserId = GetCurrentUserId();
                 var posts = await _postService.GetAllAsync(currentUserId);
                 

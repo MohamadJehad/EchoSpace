@@ -2,39 +2,9 @@ name: Security Scanning
 
 on:
   pull_request:  # Run on all pull requests, regardless of target branch
-  push:
-    branches: [ main, develop ]
   workflow_dispatch:
 
 jobs:
-  # Terraform Security Scanning (Checkov)
-  # DISABLED: Temporarily disabled due to configuration issues
-  # terraform-security:
-  #   name: Terraform Security Scan (Checkov)
-  #   runs-on: ubuntu-latest
-  #   if: false  # Disabled
-  #   
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
-  #     
-  #   - name: Run Checkov
-  #     id: checkov
-  #     uses: bridgecrewio/checkov-action@master
-  #     with:
-  #       directory: terraform/
-  #       framework: terraform
-  #       soft_fail: true
-  #       output_format: sarif
-  #       output_file_path: checkov-results.sarif
-  #       
-  #   - name: Upload Checkov results to GitHub Security
-  #     uses: github/codeql-action/upload-sarif@v4
-  #     if: always()
-  #     with:
-  #       sarif_file: checkov-results.sarif
-  #       category: checkov
-
   # Secrets Scanning (Gitleaks)
   secrets-scan:
     name: Secrets Scan (Gitleaks)
